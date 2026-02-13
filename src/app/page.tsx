@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { C, FORMATIONS, getDC, getAllCities } from "@/lib/data";
-import { FormationCard, CityCard, PopcornLogo } from "@/components/ui";
+import { FormationCard, CityCard } from "@/components/ui";
 
 function useTyping(words: string[]) {
   const [d, setD] = useState("");

@@ -108,7 +108,7 @@ export default function Navbar() {
         </div>
       )}
 
-      {showAuth && <AuthModal mode={authMode} onClose={() => setShowAuth(false)} onSwitchMode={() => setAuthMode(m => m === "login" ? "register" : "login")} />}
+      {showAuth && <AuthModal mode={authMode} onClose={() => setShowAuth(false)} onSwitch={() => setAuthMode(m => m === "login" ? "register" : "login")} onSuccess={() => setShowAuth(false)} />}
     </>
   );
 }

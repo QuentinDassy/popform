@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { C, getDC, getPhoto, Formation, CITY_PHOTOS } from "@/lib/data";
 
@@ -59,7 +59,7 @@ export function FormationCard({ f, compact }: { f: Formation; compact?: boolean 
           </div>
         </div>
         <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{f.titre}</h3>
+          <h3 style={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
           {f.motsCles && (
             <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>
               {f.motsCles.slice(0, 3).map(m => <span key={m} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m}</span>)}
