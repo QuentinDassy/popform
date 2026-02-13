@@ -42,14 +42,15 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
   );
 }
 
-export function FormationCard({ f, compact }: { f: Formation; compact?: boolean }) {
+export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boolean; mob?: boolean }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
   const photo = getPhoto(f.domaine);
+  const m = mob ?? false;
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
-      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov ? "translateY(-6px)" : "none", boxShadow: hov ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", height: compact ? 130 : 160, overflow: "hidden" }}>
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "relative", height: compact ? (m ? 100 : 130) : (m ? 120 : 160), overflow: "hidden" }}>
           <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
           {f.isNew && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff", textTransform: "uppercase" }}>À l&apos;affiche 🍿</span>}
@@ -58,42 +59,37 @@ export function FormationCard({ f, compact }: { f: Formation; compact?: boolean 
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
           </div>
         </div>
-        <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
-          {f.motsCles && (
-            <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>
-              {f.motsCles.slice(0, 3).map(m => <span key={m} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m}</span>)}
-            </div>
-          )}
+        <div style={{ padding: m ? "10px 12px" : "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
+          <h3 style={{ fontSize: m ? 13 : compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
+          {f.motsCles && <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>{f.motsCles.slice(0, 3).map(m2 => <span key={m2} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m2}</span>)}</div>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
-            <span>⏱ {f.duree}</span><span>📍 {f.sessions[0]?.lieu}</span>{f.effectif && <span>👥 {f.effectif}</span>}
+            <span>⏱ {f.duree}</span><span>📍 {f.sessions[0]?.lieu}</span>{f.effectif > 0 && <span>👥 {f.effectif}</span>}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
-            <div><span style={{ fontSize: 19, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
+            <div><span style={{ fontSize: m ? 16 : 19, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
           </div>
-          {f.priseEnCharge.length > 0 && (
-            <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap" }}>{f.priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div>
-          )}
+          {f.priseEnCharge.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap" }}>{f.priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div>}
         </div>
       </div>
     </Link>
   );
 }
 
-export function CityCard({ city, count, onClick }: { city: string; count: number; onClick?: () => void }) {
+export function CityCard({ city, count, mob }: { city: string; count: number; mob?: boolean }) {
   const [hov, setHov] = useState(false);
   const photo = CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
-  const inner = (
-    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: 16, overflow: "hidden", cursor: "pointer", minWidth: 200, height: 130, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)" }}>
-      <img src={photo} alt={city} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.8) 0%, rgba(45,27,6,0.1) 60%)" }} />
-      <div style={{ position: "absolute", bottom: 10, left: 10 }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{city}</div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>{count} formation{count > 1 ? "s" : ""}</div>
+  const m = mob ?? false;
+  return (
+    <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none" }}>
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: m ? 12 : 16, overflow: "hidden", cursor: "pointer", minWidth: m ? 150 : 200, height: m ? 90 : 130, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)" }}>
+        <img src={photo} alt={city} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.8) 0%, rgba(45,27,6,0.1) 60%)" }} />
+        <div style={{ position: "absolute", bottom: 10, left: 10 }}>
+          <div style={{ fontSize: m ? 13 : 17, fontWeight: 800, color: "#fff" }}>{city}</div>
+          <div style={{ fontSize: m ? 9 : 11, color: "rgba(255,255,255,0.7)" }}>{count} formation{count > 1 ? "s" : ""}</div>
+        </div>
       </div>
-    </div>
+    </Link>
   );
-  if (onClick) return <div onClick={onClick}>{inner}</div>;
-  return (<Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none" }}>{inner}</Link>);
 }
