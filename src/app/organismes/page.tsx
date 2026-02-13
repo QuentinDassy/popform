@@ -1,0 +1,34 @@
+"use client";
+import Link from "next/link";
+import { C, ORGANISMES, FORMATIONS } from "@/lib/data";
+
+export default function OrganismesPage() {
+  const sorted = [...ORGANISMES].sort((a, b) => a.nom.localeCompare(b.nom));
+  return (
+    <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 40px" }}>
+      <div style={{ padding: "18px 0 14px" }}>
+        <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Organismes</h1>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12, paddingBottom: 40 }}>
+        {sorted.map(o => {
+          const count = FORMATIONS.filter(f => f.organismeId === o.id).length;
+          return (
+            <Link key={o.id} href={`/catalogue?organisme=${o.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <div style={{ padding: 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800, flexShrink: 0 }}>{o.logo}</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{o.nom}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>{count} formation{count > 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+                {o.desc && <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5 }}>{o.desc}</p>}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #fffdf7;
+  --bg-alt: #fff8ec;
+  --surface: #ffffff;
+  --border: #f0e4cc;
+  --text: #2d1b06;
+  --text-sec: #6b4f2d;
+  --text-ter: #a48c6a;
+  --accent: #d42b2b;
+  --yellow: #f5b731;
+}
+
+body {
+  font-family: var(--font-body), "DM Sans", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-fade-up { animation: fadeUp 0.5s ease both; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-gradient { background-size: 200% 200%; animation: gradientShift 4s ease infinite; }
+
+.text-gradient {
+  background: linear-gradient(135deg, #d42b2b, #e84545, #f5b731);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Responsive helpers */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
