@@ -13,17 +13,66 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Supabase injects the access token via hash fragment
     const supabase = createClient();
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
+
+    // Method 1: Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setReady(true);
+        setChecking(false);
+      }
     });
-    // Also check if already in session
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
+
+    // Method 2: Check if there's a hash fragment with tokens (Supabase PKCE flow)
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        // Parse hash params
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        if (accessToken && refreshToken) {
+          supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+            if (!error) {
+              setReady(true);
+            } else {
+              setError("Lien invalide ou expiré.");
+            }
+            setChecking(false);
+          });
+          return () => { subscription.unsubscribe() };
+        }
+      }
+
+      // Method 3: Check URL query params (code flow)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      if (code) {
+        supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+          if (!error) {
+            setReady(true);
+          } else {
+            setError("Lien invalide ou expiré.");
+          }
+          setChecking(false);
+        });
+        return () => { subscription.unsubscribe() };
+      }
+
+      // Method 4: Check if already has a session
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          setReady(true);
+        }
+        // Give the auth listener a moment to fire
+        setTimeout(() => setChecking(false), 2000);
+      });
+    }
+
+    return () => { subscription.unsubscribe() };
   }, []);
 
   const checks = useMemo(() => [
@@ -67,10 +116,18 @@ export default function ResetPasswordPage() {
             <p style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Mot de passe mis à jour !</p>
             <p style={{ fontSize: 13, color: C.textTer }}>Redirection en cours...</p>
           </div>
+        ) : checking ? (
+          <div style={{ textAlign: "center", padding: "30px 0" }}>
+            <p style={{ fontSize: 14, color: C.textTer }}>⏳ Vérification du lien...</p>
+          </div>
         ) : !ready ? (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <p style={{ fontSize: 13, color: C.textTer }}>⏳ Vérification du lien...</p>
-            <p style={{ fontSize: 12, color: C.textTer, marginTop: 10 }}>Si rien ne se passe, le lien a peut-être expiré. <a href="/" style={{ color: C.accent }}>Retour à l&apos;accueil</a></p>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 8 }}>Lien invalide ou expiré</p>
+            <p style={{ fontSize: 13, color: C.textTer, lineHeight: 1.6 }}>
+              Ce lien de réinitialisation n&apos;est plus valide. Demandez-en un nouveau depuis la page de connexion.
+            </p>
+            <button onClick={() => router.push("/")} style={{ marginTop: 16, padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Retour à l&apos;accueil</button>
           </div>
         ) : (
           <>
