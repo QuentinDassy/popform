@@ -181,9 +181,9 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
             </div>
 
             {mode === "login" && (
-              <p style={{ textAlign: "right", marginTop: 6, marginBottom: -6 }}>
-                <span onClick={() => { setForgotMode(true); setError(null) }} style={{ fontSize: 12, color: C.accent, cursor: "pointer", fontWeight: 500 }}>Mot de passe oublié ?</span>
-              </p>
+              <div style={{ textAlign: "right", marginTop: 8, marginBottom: 4 }}>
+                <span onClick={() => { setForgotMode(true); setError(null) }} style={{ fontSize: 12.5, color: C.accent, cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>Mot de passe oublié ?</span>
+              </div>
             )}
 
             {error && <p style={{ color: C.pink, fontSize: 13, marginTop: 10, textAlign: "center" }}>{error}</p>}
