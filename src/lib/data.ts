@@ -1,6 +1,7 @@
 // src/lib/data.ts — Design tokens, photos, helpers
 // Types and data fetching are in supabase-data.ts
 
+import type { Formation as FormationType } from "./supabase-data";
 export type { Formation, Formateur, Organisme, Avis, Session, Inscription, Favori } from "./supabase-data";
 export { fetchFormations, fetchFormation, fetchOrganismes, fetchFormateurs, fetchAvis, addAvis, updateAvis, fetchInscriptions, fetchFavoris, toggleFavori } from "./supabase-data";
 
@@ -63,7 +64,7 @@ export function fmtTitle(f: { sexe: string } | undefined) {
   return f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice";
 }
 
-export function getAllCitiesFromFormations(formations: Formation[]): [string, number][] {
+export function getAllCitiesFromFormations(formations: FormationType[]): [string, number][] {
   const cities: Record<string, number> = {};
   formations.forEach(f => (f.sessions || []).forEach(s => {
     if (s.lieu && s.lieu !== "En ligne") cities[s.lieu] = (cities[s.lieu] || 0) + 1;
