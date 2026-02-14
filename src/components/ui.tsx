@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { C, getDC, getPhoto, Formation, CITY_PHOTOS } from "@/lib/data";
+import { C, getDC, getPhoto, type Formation, CITY_PHOTOS } from "@/lib/data";
 
 export function StarRow({ rating }: { rating: number }) {
   return (
@@ -47,13 +47,15 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
   const dc = getDC(f.domaine);
   const photo = getPhoto(f.domaine);
   const m = mob ?? false;
+  const sessions = f.sessions || [];
+  const priseEnCharge = f.prise_en_charge || [];
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
         <div style={{ position: "relative", height: compact ? (m ? 100 : 130) : (m ? 120 : 160), overflow: "hidden" }}>
           <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
-          {f.isNew && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff", textTransform: "uppercase" }}>À l&apos;affiche 🍿</span>}
+          {f.is_new && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff", textTransform: "uppercase" }}>À l&apos;affiche 🍿</span>}
           <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: dc.color }}>{f.domaine}</span>
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
@@ -61,15 +63,15 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
         </div>
         <div style={{ padding: m ? "10px 12px" : "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
           <h3 style={{ fontSize: m ? 13 : compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
-          {f.motsCles && <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>{f.motsCles.slice(0, 3).map(m2 => <span key={m2} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m2}</span>)}</div>}
+          {f.mots_cles && f.mots_cles.length > 0 && <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>{f.mots_cles.slice(0, 3).map(m2 => <span key={m2} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m2}</span>)}</div>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
-            <span>⏱ {f.duree}</span><span>📍 {f.sessions[0]?.lieu}</span>{f.effectif > 0 && <span>👥 {f.effectif}</span>}
+            <span>⏱ {f.duree}</span><span>📍 {sessions[0]?.lieu || "—"}</span>{f.effectif > 0 && <span>👥 {f.effectif}</span>}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
             <div><span style={{ fontSize: m ? 16 : 19, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
           </div>
-          {f.priseEnCharge.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap" }}>{f.priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div>}
+          {priseEnCharge.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap" }}>{priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div>}
         </div>
       </div>
     </Link>
