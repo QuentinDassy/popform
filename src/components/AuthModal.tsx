@@ -41,7 +41,7 @@ function PasswordStrength({ password }: { password: string }) {
 }
 
 export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props) {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -50,6 +50,8 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const pwValid = useMemo(() => {
     if (mode === "login") return true;
@@ -73,6 +75,15 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
     setLoading(false);
   };
 
+  const handleReset = async () => {
+    setError(null);
+    if (!email.trim()) { setError("Entrez votre email pour recevoir le lien."); return }
+    setLoading(true);
+    const { error } = await resetPassword(email);
+    if (error) setError(error); else setResetSent(true);
+    setLoading(false);
+  };
+
   const inputStyle: React.CSSProperties = {
     padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`,
     background: C.bgAlt, color: C.text, fontSize: 14, outline: "none",
@@ -85,14 +96,37 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 18 }}>✕</button>
 
         <div style={{ textAlign: "center", marginBottom: 8 }}><span style={{ fontSize: 32 }}>🍿</span></div>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4, textAlign: "center", fontFamily: "'Space Grotesk', sans-serif" }}>
-          {mode === "login" ? "Bon retour !" : "Rejoignez le show"}
-        </h2>
-        <p style={{ fontSize: 13, color: C.textTer, marginBottom: 20, textAlign: "center" }}>
-          {mode === "login" ? "Connectez-vous pour retrouver vos favoris" : "Créez votre compte popform"}
-        </p>
 
-        {success ? (
+        {/* === MOT DE PASSE OUBLIÉ === */}
+        {forgotMode ? (
+          <>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4, textAlign: "center", fontFamily: "'Space Grotesk', sans-serif" }}>Mot de passe oublié</h2>
+            <p style={{ fontSize: 13, color: C.textTer, marginBottom: 20, textAlign: "center" }}>Entrez votre email, on vous envoie un lien de réinitialisation.</p>
+
+            {resetSent ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Email envoyé !</p>
+                <p style={{ fontSize: 13, color: C.textTer, lineHeight: 1.6 }}>
+                  Si un compte existe pour <strong>{email}</strong>, vous recevrez un lien pour réinitialiser votre mot de passe.
+                </p>
+                <button onClick={() => { setForgotMode(false); setResetSent(false); setError(null) }} style={{ marginTop: 16, padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, cursor: "pointer", fontWeight: 600 }}>← Retour à la connexion</button>
+              </div>
+            ) : (
+              <>
+                <input placeholder="votre@email.fr" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleReset()} style={inputStyle} />
+                {error && <p style={{ color: C.pink, fontSize: 13, marginTop: 10, textAlign: "center" }}>{error}</p>}
+                <button onClick={handleReset} disabled={loading} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer", marginTop: 14, opacity: loading ? 0.5 : 1, boxShadow: "0 8px 24px rgba(212,43,43,0.2)", fontFamily: "inherit" }}>
+                  {loading ? "⏳ Envoi..." : "Envoyer le lien"}
+                </button>
+                <p style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: C.textTer }}>
+                  <span onClick={() => { setForgotMode(false); setError(null) }} style={{ color: C.accent, cursor: "pointer", fontWeight: 600 }}>← Retour</span>
+                </p>
+              </>
+            )}
+          </>
+        ) : success ? (
+          /* === SUCCÈS INSCRIPTION === */
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
             <p style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Vérifiez vos emails !</p>
@@ -101,7 +135,15 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
             </p>
           </div>
         ) : (
+          /* === FORMULAIRE LOGIN / REGISTER === */
           <>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4, textAlign: "center", fontFamily: "'Space Grotesk', sans-serif" }}>
+              {mode === "login" ? "Bon retour !" : "Rejoignez le show"}
+            </h2>
+            <p style={{ fontSize: 13, color: C.textTer, marginBottom: 20, textAlign: "center" }}>
+              {mode === "login" ? "Connectez-vous pour retrouver vos favoris" : "Créez votre compte popform"}
+            </p>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {mode === "register" && (
                 <>
@@ -131,13 +173,18 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                   onClick={() => setShowPw(!showPw)}
                   style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: C.textTer, padding: 4 }}
                   tabIndex={-1}
-                  aria-label={showPw ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                   {showPw ? "🙈" : "👁️"}
                 </button>
               </div>
               {mode === "register" && <PasswordStrength password={password} />}
             </div>
+
+            {mode === "login" && (
+              <p style={{ textAlign: "right", marginTop: 6, marginBottom: -6 }}>
+                <span onClick={() => { setForgotMode(true); setError(null) }} style={{ fontSize: 12, color: C.accent, cursor: "pointer", fontWeight: 500 }}>Mot de passe oublié ?</span>
+              </p>
+            )}
 
             {error && <p style={{ color: C.pink, fontSize: 13, marginTop: 10, textAlign: "center" }}>{error}</p>}
 
