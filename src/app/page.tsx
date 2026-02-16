@@ -82,16 +82,18 @@ export default function HomePage() {
   };
 
   // Detect auth code in URL (email confirm or password reset) and redirect
+  const [redirecting, setRedirecting] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code) {
-      router.replace("/auth/callback?code=" + code + "&type=" + (params.get("type") || ""));
+      setRedirecting(true);
+      window.location.href = "/auth/callback?code=" + code + "&type=" + (params.get("type") || "");
     }
-  }, [router]);
+  }, []);
 
-  useEffect(() => { fetchFormations().then(d => { setFormations(d); setLoading(false) }) }, []);
+  useEffect(() => { if (!redirecting) fetchFormations().then(d => { setFormations(d); setLoading(false) }) }, [redirecting]);
 
   const cities = getAllCitiesFromFormations(formations);
   const topCities = cities.slice(0, 8);
@@ -101,7 +103,7 @@ export default function HomePage() {
   const neuro = formations.filter(f => f.domaine === "Neurologie");
   const hasFilters = selDomaine || selModalite || selPrise || selVille;
 
-  if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   return (
     <>

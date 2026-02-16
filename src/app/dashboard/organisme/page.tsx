@@ -42,13 +42,26 @@ export default function DashboardOrganismePage() {
   useEffect(() => {
     if (!user || !profile) return;
     (async () => {
-      // Find organisme linked to this user (match by email or profile)
-      const { data: org } = await supabase.from("organismes").select("*").limit(50);
-      // For now, if role=organisme, use first organisme or create one
-      let myOrg = org?.[0] || null;
-      if (profile.role === "organisme" && !myOrg) {
-        const { data: newOrg } = await supabase.from("organismes").insert({ nom: profile.full_name || "Mon organisme", logo: (profile.full_name || "MO").slice(0, 2).toUpperCase(), description: "" }).select().single();
-        myOrg = newOrg;
+      // Find organisme linked to this user
+      let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id);
+      let myOrg = myOrgs?.[0] || null;
+      
+      // If no organisme linked, try to find one without user_id and claim it, or create new
+      if (!myOrg && profile.role === "organisme") {
+        // Try to find an unlinked organisme
+        const { data: unlinked } = await supabase.from("organismes").select("*").is("user_id", null).limit(1);
+        if (unlinked?.[0]) {
+          await supabase.from("organismes").update({ user_id: user.id }).eq("id", unlinked[0].id);
+          myOrg = { ...unlinked[0], user_id: user.id };
+        } else {
+          const { data: newOrg } = await supabase.from("organismes").insert({ 
+            nom: profile.full_name || "Mon organisme", 
+            logo: (profile.full_name || "MO").slice(0, 2).toUpperCase(), 
+            description: "",
+            user_id: user.id 
+          }).select().single();
+          myOrg = newOrg;
+        }
       }
       setOrganisme(myOrg);
       if (myOrg) {
@@ -93,18 +106,23 @@ export default function DashboardOrganismePage() {
       domaine: form.domaine,
       modalite: form.modalite,
       prise_en_charge: form.prise_en_charge,
-      duree: form.duree,
-      prix: form.prix,
+      duree: form.duree || "7h",
+      prix: form.prix || 0,
       prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null,
       prix_dpc: form.prix_dpc || null,
       is_new: form.is_new,
       populations: form.populations,
-      mots_cles: form.mots_cles.split(",").map(s => s.trim()).filter(Boolean),
-      professions: form.professions,
-      effectif: form.effectif,
+      mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
+      professions: form.professions.length ? form.professions : ["Orthophonie"],
+      effectif: form.effectif || 20,
       video_url: form.video_url,
       organisme_id: organisme.id,
+      formateur_id: null as number | null,
+      note: 0,
+      nb_avis: 0,
+      sans_limite: false,
+      date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10),
     };
 

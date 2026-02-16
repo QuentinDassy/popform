@@ -144,28 +144,28 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
               {mode === "login" ? "Connectez-vous pour retrouver vos favoris" : "Créez votre compte popform"}
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <form onSubmit={e => { e.preventDefault(); handleSubmit() }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {mode === "register" && (
                 <>
-                  <input placeholder="Votre nom" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+                  <input placeholder="Votre nom" value={name} onChange={e => setName(e.target.value)} autoComplete="name" style={inputStyle} />
                   <div>
                     <label style={{ fontSize: 12, color: C.textTer, marginBottom: 6, display: "block" }}>Je suis :</label>
                     <div style={{ display: "flex", gap: 6 }}>
                       {[{ v: "user", l: "🎧 Ortho" }, { v: "organisme", l: "🏢 Organisme" }, { v: "formateur", l: "🎤 Formateur" }].map(r => (
-                        <button key={r.v} onClick={() => setRole(r.v)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1.5px solid ${role === r.v ? C.accent + "55" : C.border}`, background: role === r.v ? C.accentBg : C.bgAlt, color: role === r.v ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: role === r.v ? 700 : 400 }}>{r.l}</button>
+                        <button key={r.v} type="button" onClick={() => setRole(r.v)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1.5px solid ${role === r.v ? C.accent + "55" : C.border}`, background: role === r.v ? C.accentBg : C.bgAlt, color: role === r.v ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: role === r.v ? 700 : 400 }}>{r.l}</button>
                       ))}
                     </div>
                   </div>
                 </>
               )}
-              <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+              <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={inputStyle} />
               <div style={{ position: "relative" }}>
                 <input
                   placeholder="Mot de passe"
                   type={showPw ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                   style={{ ...inputStyle, paddingRight: 44 }}
                 />
                 <button
@@ -178,7 +178,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                 </button>
               </div>
               {mode === "register" && <PasswordStrength password={password} />}
-            </div>
+            </form>
 
             {mode === "login" && (
               <div style={{ textAlign: "right", marginTop: 8, marginBottom: 4 }}>

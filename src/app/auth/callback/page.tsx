@@ -44,19 +44,17 @@ function CallbackContent() {
           setError("Lien invalide ou expiré. Demandez un nouveau lien.");
           return;
         }
-        // Check if this is a recovery (password reset)
         if (type === "recovery") {
-          router.replace("/reset-password");
+          window.location.href = "/reset-password";
         } else {
-          // Email confirmation or other — go home
-          router.replace("/");
+          window.location.href = "/";
         }
       });
       return;
     }
 
     // No code, no hash — fallback
-    setTimeout(() => router.replace("/"), 2000);
+    setTimeout(() => { window.location.href = "/"; }, 2000);
   }, [router, searchParams]);
 
   if (error) return (
@@ -74,7 +72,7 @@ function CallbackContent() {
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🍿</div>
         <p style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Vérification en cours...</p>
-        <p style={{ fontSize: 13, color: C.textTer, marginTop: 6 }}>Vous allez être redirigé.</p>
+        <p style={{ fontSize: 13, color: C.textTer, marginTop: 6 }}>Vous allez être redirigé·e.</p>
       </div>
     </div>
   );
