@@ -19,7 +19,7 @@ export default function ResetPasswordPage() {
     const supabase = createClient();
 
     // Method 1: Listen for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true);
         setChecking(false);
