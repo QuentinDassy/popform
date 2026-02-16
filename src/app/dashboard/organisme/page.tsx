@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { C, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
-import { supabase, notifyAdmin } from "@/lib/supabase-data";
+import { supabase } from "@/lib/supabase-data";
 import { useRouter } from "next/navigation";
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
@@ -14,6 +14,7 @@ const MODALITES = ["Présentiel", "Distanciel", "Mixte"];
 const PRISES = ["DPC", "FIF-PL", "OPCO"];
 
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string };
+type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
 
 function emptyFormation() {
   return {
@@ -31,12 +32,17 @@ export default function DashboardOrganismePage() {
   const [organisme, setOrganisme] = useState<Organisme | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"list" | "edit">("list");
+  const [tab, setTab] = useState<"list" | "edit" | "formateurs">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "" }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Formateurs management
+  const [formateurs, setFormateurs] = useState<FormateurRow[]>([]);
+  const [fmtForm, setFmtForm] = useState({ nom: "", bio: "", sexe: "Non genré" });
+  const [editFmtId, setEditFmtId] = useState<number | null>(null);
+  const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
 
   // Load organisme + formations
   useEffect(() => {
@@ -67,6 +73,9 @@ export default function DashboardOrganismePage() {
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
+        // Load formateurs linked to this organisme
+        const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
+        setFormateurs(fmts || []);
       }
       setLoading(false);
     })();
@@ -118,7 +127,7 @@ export default function DashboardOrganismePage() {
       effectif: form.effectif || 20,
       video_url: form.video_url,
       organisme_id: organisme.id,
-      formateur_id: null as number | null,
+      formateur_id: selFormateurId || null as number | null,
       note: 0,
       nb_avis: 0,
       sans_limite: false,
@@ -156,6 +165,41 @@ export default function DashboardOrganismePage() {
     setMsg(null);
   };
 
+  // === FORMATEURS MANAGEMENT ===
+  const handleSaveFormateur = async () => {
+    if (!organisme) return;
+    if (!fmtForm.nom.trim()) { setMsg("Le nom du formateur est obligatoire."); return }
+    setSaving(true); setMsg(null);
+    if (editFmtId) {
+      const { error } = await supabase.from("formateurs").update({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe }).eq("id", editFmtId);
+      if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
+    } else {
+      const { error } = await supabase.from("formateurs").insert({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, organisme_id: organisme.id }).select().single();
+      if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
+    }
+    // Reload formateurs
+    const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", organisme.id);
+    setFormateurs(fmts || []);
+    setFmtForm({ nom: "", bio: "", sexe: "Non genré" });
+    setEditFmtId(null);
+    setSaving(false);
+    setMsg("✅ Formateur·rice enregistré·e !");
+    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const handleDeleteFormateur = async (id: number) => {
+    if (!organisme) return;
+    if (!confirm("Supprimer ce formateur·rice ?")) return;
+    await supabase.from("formateurs").delete().eq("id", id);
+    setFormateurs(prev => prev.filter(f => f.id !== id));
+  };
+
+  const openEditFormateur = (f: FormateurRow) => {
+    setEditFmtId(f.id);
+    setFmtForm({ nom: f.nom, bio: f.bio || "", sexe: f.sexe || "Non genré" });
+    setMsg(null);
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cette formation ?")) return;
     await supabase.from("sessions").delete().eq("formation_id", id);
@@ -180,7 +224,10 @@ export default function DashboardOrganismePage() {
           <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} publiée{formations.length > 1 ? "s" : ""}</p>
         </div>
         {tab === "list" && (
-          <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setTab("formateurs")} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
+            <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
+          </div>
         )}
       </div>
 
@@ -241,6 +288,66 @@ export default function DashboardOrganismePage() {
         </>
       )}
 
+      {/* ===== FORMATEURS TAB ===== */}
+      {tab === "formateurs" && (
+        <div style={{ paddingBottom: 40 }}>
+          <button onClick={() => { setTab("list"); setMsg(null); setEditFmtId(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré" }) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>🎤 Formateur·rice·s de {organisme?.nom}</h2>
+
+          {/* Liste des formateurs existants */}
+          {formateurs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              {formateurs.map(f => (
+                <div key={f.id} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 150 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{f.nom}</div>
+                    <div style={{ fontSize: 12, color: C.textTer }}>{f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice"}{f.bio ? " · " + f.bio.slice(0, 60) + (f.bio.length > 60 ? "..." : "") : ""}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => openEditFormateur(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                    <button onClick={() => handleDeleteFormateur(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulaire ajout/édition */}
+          <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editFmtId ? "Modifier le·la formateur·rice" : "Ajouter un·e formateur·rice"}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Nom complet *</label>
+                <input value={fmtForm.nom} onChange={e => setFmtForm({ ...fmtForm, nom: e.target.value })} placeholder="Ex: Dr. Marie Lefort" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Genre (affichage formateur/formatrice)</label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {["Homme", "Femme", "Non genré"].map(s => (
+                    <button key={s} type="button" onClick={() => setFmtForm({ ...fmtForm, sexe: s })} style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + (fmtForm.sexe === s ? C.accent + "55" : C.border), background: fmtForm.sexe === s ? C.accentBg : C.surface, color: fmtForm.sexe === s ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: fmtForm.sexe === s ? 700 : 400 }}>
+                      {s === "Homme" ? "Formateur" : s === "Femme" ? "Formatrice" : "Formateur·rice"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={labelStyle}>Biographie</label>
+                <textarea value={fmtForm.bio} onChange={e => setFmtForm({ ...fmtForm, bio: e.target.value })} placeholder="Parcours, spécialisations..." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
+              </div>
+            </div>
+            {msg && <p style={{ color: msg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10, textAlign: "center" }}>{msg}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <button onClick={handleSaveFormateur} disabled={saving} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.5 : 1 }}>
+                {saving ? "⏳ ..." : editFmtId ? "Enregistrer" : "Ajouter 🎤"}
+              </button>
+              {editFmtId && (
+                <button onClick={() => { setEditFmtId(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré" }); setMsg(null) }} style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== EDIT FORM ===== */}
       {tab === "edit" && (
         <div style={{ paddingBottom: 40 }}>
@@ -264,6 +371,16 @@ export default function DashboardOrganismePage() {
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Description *</label>
               <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Décrivez la formation..." style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} />
+            </div>
+
+            {/* Formateur */}
+            <div>
+              <label style={labelStyle}>Formateur·rice</label>
+              <select value={selFormateurId ?? ""} onChange={e => setSelFormateurId(e.target.value ? Number(e.target.value) : null)} style={inputStyle}>
+                <option value="">— Aucun —</option>
+                {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
+              </select>
+              {formateurs.length === 0 && <p style={{ fontSize: 11, color: C.textTer, marginTop: 4 }}>Ajoutez d&apos;abord un formateur dans l&apos;onglet &quot;Formateur·rice·s&quot;</p>}
             </div>
 
             {/* Domaine */}
