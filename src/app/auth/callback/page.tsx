@@ -39,8 +39,8 @@ function CallbackContent() {
 
     // Handle PKCE code flow
     if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
-        if (err) {
+      supabase.auth.exchangeCodeForSession(code).then((result: { data: unknown; error: Error | null }) => {
+        if (result.error) {
           setError("Lien invalide ou expiré. Demandez un nouveau lien.");
           return;
         }
