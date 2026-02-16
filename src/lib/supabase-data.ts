@@ -43,9 +43,10 @@ export async function fetchFormations(): Promise<Formation[]> {
     .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
     .order("date_ajout", { ascending: false });
   if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
-  _formationsCache = data || [];
+  const result = data || [];
+  _formationsCache = result;
   _cacheTime = now;
-  return _formationsCache;
+  return result;
 }
 
 export function invalidateCache() { _formationsCache = null; _cacheTime = 0; }
