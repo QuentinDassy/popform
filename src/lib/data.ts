@@ -54,12 +54,12 @@ export const DC: Record<string, { bg: string; color: string }> = {
 export const getDC = (d: string) => DC[d] || { bg: "rgba(212,43,43,0.1)", color: "#D42B2B" };
 export const getPhoto = (d: string) => PHOTOS[d] || PHOTOS["default"];
 
-export function fmtLabel(f: { sexe: string } | undefined) {
+export function fmtLabel(f: { sexe: string } | null | undefined) {
   if (!f) return "";
   return f.sexe === "Femme" ? "D'autres formations de cette formatrice" : f.sexe === "Homme" ? "D'autres formations de ce formateur" : "D'autres formations de cet·te formateur·rice";
 }
 
-export function fmtTitle(f: { sexe: string } | undefined) {
+export function fmtTitle(f: { sexe: string } | null | undefined) {
   if (!f) return "Formateur·rice";
   return f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice";
 }
