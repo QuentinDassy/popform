@@ -9,6 +9,8 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  showAuth: boolean;
+  setShowAuth: (v: boolean) => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string, role: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -21,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -76,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, profile, loading, showAuth, setShowAuth, signIn, signUp, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
@@ -87,6 +90,7 @@ export const useAuth = () => {
   if (!ctx) {
     return {
       user: null, profile: null, loading: false,
+      showAuth: false, setShowAuth: () => {},
       signIn: async () => ({ error: "Not initialized" }),
       signUp: async () => ({ error: "Not initialized" }),
       signOut: async () => {},

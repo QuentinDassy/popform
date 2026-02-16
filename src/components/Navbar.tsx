@@ -29,8 +29,7 @@ function useIsMobile() {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, profile, signOut } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
+  const { user, profile, signOut, showAuth, setShowAuth } = useAuth();
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [menuOpen, setMenuOpen] = useState(false);
   const mob = useIsMobile();
@@ -65,6 +64,15 @@ export default function Navbar() {
             <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text }}>☰</button>
           ) : user ? (
             <>
+              {profile?.role === "organisme" && (
+                <Link href="/dashboard/organisme" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.yellow + "44", background: C.yellowBg, color: C.yellowDark, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🏢 Dashboard</Link>
+              )}
+              {profile?.role === "formateur" && (
+                <Link href="/dashboard/formateur" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.yellow + "44", background: C.yellowBg, color: C.yellowDark, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🎤 Dashboard</Link>
+              )}
+              {user?.email === "quentin.dassy@gmail.com" && (
+                <Link href="/dashboard/admin" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🛡️ Admin</Link>
+              )}
               <Link href="/compte" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: pathname === "/compte" ? C.accentBg : C.surface, color: pathname === "/compte" ? C.accent : C.text, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                 👤 {profile?.full_name || "Mon compte"}
               </Link>
@@ -90,9 +98,26 @@ export default function Navbar() {
                 </Link>
               ))}
               {user && (
-                <Link href="/compte" style={{ padding: "10px 14px", borderRadius: 9, background: pathname === "/compte" ? C.accentBg : "transparent", color: pathname === "/compte" ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                  👤 Mon compte
-                </Link>
+                <>
+                  {profile?.role === "organisme" && (
+                    <Link href="/dashboard/organisme" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/dashboard") ? C.yellowBg : "transparent", color: pathname.includes("/dashboard") ? C.yellowDark : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                      🏢 Dashboard
+                    </Link>
+                  )}
+                  {profile?.role === "formateur" && (
+                    <Link href="/dashboard/formateur" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/dashboard") ? C.yellowBg : "transparent", color: pathname.includes("/dashboard") ? C.yellowDark : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                      🎤 Dashboard
+                    </Link>
+                  )}
+                  {user?.email === "quentin.dassy@gmail.com" && (
+                    <Link href="/dashboard/admin" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/admin") ? C.accentBg : "transparent", color: pathname.includes("/admin") ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                      🛡️ Admin
+                    </Link>
+                  )}
+                  <Link href="/compte" style={{ padding: "10px 14px", borderRadius: 9, background: pathname === "/compte" ? C.accentBg : "transparent", color: pathname === "/compte" ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                    👤 Mon compte
+                  </Link>
+                </>
               )}
               <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "6px 0" }} />
               {user ? (

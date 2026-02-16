@@ -7,8 +7,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // ============ TYPES ============
 
 export type Session = { id: number; dates: string; lieu: string; adresse: string };
-export type Organisme = { id: number; nom: string; logo: string; description: string };
-export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null };
+export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string };
+export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string };
 export type Formation = {
   id: number; titre: string; sous_titre: string; description: string;
   domaine: string; modalite: string; prise_en_charge: string[];
@@ -17,6 +17,7 @@ export type Formation = {
   note: number; nb_avis: number; is_new: boolean; date_ajout: string;
   populations: string[]; mots_cles: string[]; professions: string[];
   effectif: number; video_url: string; date_fin: string | null; sans_limite: boolean;
+  status: string; // 'en_attente' | 'publiee' | 'refusee' | 'archivee'
   sessions?: Session[];
   formateur?: Formateur;
   organisme?: Organisme;
@@ -24,13 +25,16 @@ export type Formation = {
 export type Avis = { id: number; formation_id: number; user_id: string; user_name: string; note: number; texte: string; created_at: string };
 export type Inscription = { id: number; user_id: string; formation_id: number; status: string };
 export type Favori = { id: number; user_id: string; formation_id: number };
+export type AdminNotification = { id: number; type: string; formation_id: number; user_id: string; message: string; is_read: boolean; created_at: string };
 
 // ============ FETCH FUNCTIONS ============
 
+// Public: only published formations
 export async function fetchFormations(): Promise<Formation[]> {
   const { data, error } = await supabase
     .from("formations")
     .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+    .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
   if (error) { console.error("fetchFormations error:", error); return []; }
   return data || [];
@@ -44,6 +48,16 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
     .single();
   if (error) { console.error("fetchFormation error:", error); return null; }
   return data;
+}
+
+// All formations (for dashboards - includes pending)
+export async function fetchAllFormations(): Promise<Formation[]> {
+  const { data, error } = await supabase
+    .from("formations")
+    .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+    .order("date_ajout", { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
 }
 
 export async function fetchOrganismes(): Promise<Organisme[]> {
@@ -94,9 +108,21 @@ export async function toggleFavori(userId: string, formationId: number): Promise
   const { data: existing } = await supabase.from("favoris").select("id").eq("user_id", userId).eq("formation_id", formationId).single();
   if (existing) {
     await supabase.from("favoris").delete().eq("id", existing.id);
-    return false; // removed
+    return false;
   } else {
     await supabase.from("favoris").insert({ user_id: userId, formation_id: formationId });
-    return true; // added
+    return true;
   }
+}
+
+// ============ ADMIN ============
+
+export async function fetchAdminNotifications(): Promise<AdminNotification[]> {
+  const { data, error } = await supabase.from("admin_notifications").select("*").order("created_at", { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+export async function notifyAdmin(formationId: number, userId: string, message: string, type = "nouvelle_formation") {
+  await supabase.from("admin_notifications").insert({ type, formation_id: formationId, user_id: userId, message });
 }

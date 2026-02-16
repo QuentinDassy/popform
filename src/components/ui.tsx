@@ -83,13 +83,13 @@ export function CityCard({ city, count, mob }: { city: string; count: number; mo
   const photo = CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
   const m = mob ?? false;
   return (
-    <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none" }}>
-      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: m ? 12 : 16, overflow: "hidden", cursor: "pointer", minWidth: m ? 150 : 200, height: m ? 90 : 130, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)" }}>
+    <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: m ? 12 : 16, overflow: "hidden", cursor: "pointer", width: "100%", height: m ? 100 : 140, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)" }}>
         <img src={photo} alt={city} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.8) 0%, rgba(45,27,6,0.1) 60%)" }} />
         <div style={{ position: "absolute", bottom: 10, left: 10 }}>
-          <div style={{ fontSize: m ? 13 : 17, fontWeight: 800, color: "#fff" }}>{city}</div>
-          <div style={{ fontSize: m ? 9 : 11, color: "rgba(255,255,255,0.7)" }}>{count} formation{count > 1 ? "s" : ""}</div>
+          <div style={{ fontSize: m ? 14 : 18, fontWeight: 800, color: "#fff" }}>{city}</div>
+          <div style={{ fontSize: m ? 10 : 12, color: "rgba(255,255,255,0.7)" }}>{count} formation{count > 1 ? "s" : ""} ›</div>
         </div>
       </div>
     </Link>

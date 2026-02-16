@@ -1,51 +1,156 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { C, fetchFormations, fetchAvis, fetchInscriptions, type Formation, type Avis } from "@/lib/data";
+import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, type Formation, type Avis } from "@/lib/data";
 import { FormationCard, StarRow } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase-data";
 
 export default function ComptePage() {
   const [tab, setTab] = useState("inscriptions");
   const [search, setSearch] = useState("");
   const mob = useIsMobile();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formations, setFormations] = useState<Formation[]>([]);
   const [avis, setAvis] = useState<Avis[]>([]);
   const [inscriptionIds, setInscriptionIds] = useState<number[]>([]);
+  const [favoriIds, setFavoriIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Profile edit
+  const [editProfile, setEditProfile] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pSaving, setPSaving] = useState(false);
+  const [pMsg, setPMsg] = useState("");
+
+  // Password change
+  const [showPwChange, setShowPwChange] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState("");
+
+  const pwChecks = useMemo(() => [
+    { label: "8 caractères", ok: newPw.length >= 8 },
+    { label: "Majuscule", ok: /[A-Z]/.test(newPw) },
+    { label: "Minuscule", ok: /[a-z]/.test(newPw) },
+    { label: "Chiffre", ok: /[0-9]/.test(newPw) },
+    { label: "Spécial", ok: /[^A-Za-z0-9]/.test(newPw) },
+  ], [newPw]);
+  const pwValid = pwChecks.every(c => c.ok);
 
   useEffect(() => {
     if (!user) { setLoading(false); return }
-    Promise.all([fetchFormations(), fetchAvis(), fetchInscriptions(user.id)]).then(([f, a, ins]) => {
-      setFormations(f); setAvis(a); setInscriptionIds(ins.filter(i => i.status === "inscrit").map(i => i.formation_id));
+    setPName(profile?.full_name || "");
+    Promise.all([fetchFormations(), fetchAvis(), fetchInscriptions(user.id), fetchFavoris(user.id)]).then(([f, a, ins, favs]) => {
+      setFormations(f); setAvis(a);
+      setInscriptionIds(ins.filter(i => i.status === "inscrit").map(i => i.formation_id));
+      setFavoriIds(favs.map(fv => fv.formation_id));
       setLoading(false);
     });
-  }, [user]);
+  }, [user, profile]);
+
+  const handleToggleFav = async (formationId: number) => {
+    if (!user) return;
+    const added = await toggleFavori(user.id, formationId);
+    setFavoriIds(prev => added ? [...prev, formationId] : prev.filter(id => id !== formationId));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user || !pName.trim()) return;
+    setPSaving(true); setPMsg("");
+    await supabase.from("profiles").update({ full_name: pName.trim() }).eq("id", user.id);
+    setPMsg("✓ Nom mis à jour"); setPSaving(false);
+    setTimeout(() => { setPMsg(""); setEditProfile(false) }, 1500);
+  };
+
+  const handleChangePw = async () => {
+    if (!pwValid) return;
+    setPwSaving(true); setPwMsg("");
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    if (error) { setPwMsg("Erreur: " + error.message) } else { setPwMsg("✓ Mot de passe mis à jour"); setNewPw(""); setTimeout(() => { setPwMsg(""); setShowPwChange(false) }, 2000) }
+    setPwSaving(false);
+  };
 
   if (!user) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>Connectez-vous pour accéder à votre compte.</div>;
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   const inscF = formations.filter(f => inscriptionIds.includes(f.id));
+  const favF = formations.filter(f => favoriIds.includes(f.id));
   const myAvis = avis.filter(a => a.user_id === user.id);
-  const list = tab === "inscriptions" ? inscF : [];
-  const filtered = search ? list.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : list;
+
+  const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
       <div style={{ padding: "18px 0 14px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>Mon compte 🍿</h1>
+        <p style={{ fontSize: 13, color: C.textTer }}>{profile?.full_name} · {user.email}</p>
       </div>
+
+      {/* Profile / Password section */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <button onClick={() => { setEditProfile(!editProfile); setShowPwChange(false) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: editProfile ? C.accentBg : C.surface, color: editProfile ? C.accent : C.textSec, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>✏️ Modifier le profil</button>
+        <button onClick={() => { setShowPwChange(!showPwChange); setEditProfile(false) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: showPwChange ? C.accentBg : C.surface, color: showPwChange ? C.accent : C.textSec, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>🔐 Changer le mot de passe</button>
+      </div>
+
+      {editProfile && (
+        <div style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Nom complet</label>
+          <input value={pName} onChange={e => setPName(e.target.value)} style={{ ...inputStyle, maxWidth: 300 }} />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+            <button onClick={handleSaveProfile} disabled={pSaving} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: pSaving ? 0.5 : 1 }}>Enregistrer</button>
+            {pMsg && <span style={{ fontSize: 12, color: C.green }}>{pMsg}</span>}
+          </div>
+        </div>
+      )}
+
+      {showPwChange && (
+        <div style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Nouveau mot de passe</label>
+          <div style={{ position: "relative", maxWidth: 300 }}>
+            <input type={showPw ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleChangePw()} style={{ ...inputStyle, paddingRight: 40 }} />
+            <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: C.textTer }} tabIndex={-1}>{showPw ? "🙈" : "👁️"}</button>
+          </div>
+          {newPw && <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>{pwChecks.map(c => <span key={c.label} style={{ fontSize: 10, color: c.ok ? C.green : C.textTer }}>{c.ok ? "✓" : "○"} {c.label}</span>)}</div>}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+            <button onClick={handleChangePw} disabled={pwSaving || !pwValid} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: pwSaving || !pwValid ? 0.5 : 1 }}>Mettre à jour</button>
+            {pwMsg && <span style={{ fontSize: 12, color: pwMsg.startsWith("✓") ? C.green : C.pink }}>{pwMsg}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 18, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => { setTab("inscriptions"); setSearch("") }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "inscriptions" ? C.accentBg : "transparent", color: tab === "inscriptions" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "inscriptions" ? 700 : 500, cursor: "pointer" }}>📋 Inscriptions ({inscF.length})</button>
         <button onClick={() => setTab("avis")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "avis" ? "rgba(232,123,53,0.1)" : "transparent", color: tab === "avis" ? "#E87B35" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "avis" ? 700 : 500, cursor: "pointer" }}>⭐ Avis ({myAvis.length})</button>
-        <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris</button>
+        <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
       </div>
 
-      {tab === "favoris" && <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Les favoris arrivent bientôt 🍿</div>}
+      {/* Favoris tab */}
+      {tab === "favoris" && (
+        <div>
+          {favF.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>❤️</div>
+              <p>Aucun favori. Explorez le <Link href="/catalogue" style={{ color: C.accent, fontWeight: 600 }}>catalogue</Link> !</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
+              {favF.map(f => (
+                <div key={f.id} style={{ position: "relative" }}>
+                  <FormationCard f={f} mob={mob} />
+                  <button onClick={() => handleToggleFav(f.id)} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>❤️</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* Avis tab */}
       {tab === "avis" && (
         <div>
           {myAvis.length === 0 ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Vous n&apos;avez pas encore laissé d&apos;avis.</div> :
@@ -66,6 +171,7 @@ export default function ComptePage() {
         </div>
       )}
 
+      {/* Inscriptions tab */}
       {tab === "inscriptions" && (
         <div>
           <div style={{ marginBottom: 14 }}>
@@ -88,10 +194,11 @@ export default function ComptePage() {
               ))}
             </div>
           )}
-          {filtered.length === 0 ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div> :
+          {(() => { const filtered = search ? inscF.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : inscF; return filtered.length === 0 ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div> :
             <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
               {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
-            </div>}
+            </div>
+          })()}
         </div>
       )}
     </div>
