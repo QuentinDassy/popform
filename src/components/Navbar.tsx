@@ -11,6 +11,7 @@ const C = {
   text: "#2D1B06", textTer: "#A48C6A", accent: "#D42B2B",
   accentBg: "rgba(212,43,43,0.07)", surface: "#FFFFFF",
   gradient: "linear-gradient(135deg, #D42B2B, #E84545, #F5B731)",
+  yellow: "#F5B731", yellowBg: "rgba(245,183,49,0.1)", yellowDark: "#D49A1A",
 };
 
 const NAV_ITEMS = [
