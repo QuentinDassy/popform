@@ -90,7 +90,7 @@ export default function DashboardOrganismePage() {
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
-        effectif: f.effectif, video_url: f.video_url || "",
+        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "",
       });
       setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "" })));
     } else {
@@ -126,7 +126,7 @@ export default function DashboardOrganismePage() {
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: form.effectif || 20,
       video_url: form.video_url,
-      url_inscription: (form as Record<string, unknown>).url_inscription as string || "",
+      url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
       formateur_id: selFormateurId || null as number | null,
       note: 0,
@@ -471,7 +471,7 @@ export default function DashboardOrganismePage() {
             {/* URL inscription */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label>
-              <input value={(form as Record<string, unknown>).url_inscription as string || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value } as typeof form & { url_inscription: string })} placeholder="https://monsite.fr/inscription" style={inputStyle} />
+              <input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} />
             </div>
           </div>
 

@@ -285,6 +285,18 @@ export default function FormationPage() {
             {/* Description */}
             <p style={{ fontSize: mob ? 14 : 15, color: C.textSec, lineHeight: 1.85, marginBottom: 24, whiteSpace: "pre-line" }}>{f.description}</p>
 
+            {/* Share */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+              <button onClick={() => {
+                const url = typeof window !== "undefined" ? window.location.href : "";
+                const text = `Regarde cette formation : ${f.titre} — ${url}`;
+                if (navigator.share) { navigator.share({ title: f.titre, text: `Formation ${f.titre}`, url }) }
+                else { navigator.clipboard.writeText(text).then(() => alert("Lien copié !")) }
+              }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                📤 Partager cette formation à un·e collègue
+              </button>
+            </div>
+
             <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "0 0 24px" }} />
 
             {/* Keywords */}

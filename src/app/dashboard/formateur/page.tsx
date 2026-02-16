@@ -89,7 +89,7 @@ export default function DashboardFormateurPage() {
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
-        effectif: f.effectif, video_url: f.video_url || "",
+        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "",
         organisme_id: f.organisme_id,
       });
       setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "" })));
@@ -117,7 +117,7 @@ export default function DashboardFormateurPage() {
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: form.effectif || 20, video_url: form.video_url,
-      url_inscription: (form as Record<string, unknown>).url_inscription as string || "",
+      url_inscription: form.url_inscription || "",
       formateur_id: formateur.id,
       organisme_id: form.organisme_id || null,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
@@ -326,7 +326,7 @@ export default function DashboardFormateurPage() {
             </div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL vidéo (YouTube)</label><input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} style={inputStyle} /></div>
-            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label><input value={(form as Record<string, unknown>).url_inscription as string || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value } as typeof form & { url_inscription: string })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label><input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
           </div>
 
           {/* Sessions */}
