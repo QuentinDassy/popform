@@ -1,8 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient();
 
 // ============ TYPES ============
 
@@ -31,20 +29,36 @@ export type AdminNotification = { id: number; type: string; formation_id: number
 
 // ============ FETCH FUNCTIONS ============
 
-// Public: all formations (RLS handles visibility)
+// ============ CACHE ============
+let _formationsCache: Formation[] | null = null;
+let _cacheTime = 0;
+const CACHE_TTL = 60000; // 1 minute
+
+// Public: all formations with cache
 export async function fetchFormations(): Promise<Formation[]> {
+  const now = Date.now();
+  if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
     .order("date_ajout", { ascending: false });
-  if (error) { console.error("fetchFormations error:", error); return []; }
-  return data || [];
+  if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
+  _formationsCache = data || [];
+  _cacheTime = now;
+  return _formationsCache;
 }
 
+export function invalidateCache() { _formationsCache = null; _cacheTime = 0; }
+
 export async function fetchFormation(id: number): Promise<Formation | null> {
+  // Try cache first
+  if (_formationsCache) {
+    const cached = _formationsCache.find(f => f.id === id);
+    if (cached) return cached;
+  }
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
     .eq("id", id)
     .single();
   if (error) { console.error("fetchFormation error:", error); return null; }
@@ -55,7 +69,7 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
 export async function fetchAllFormations(): Promise<Formation[]> {
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
     .order("date_ajout", { ascending: false });
   if (error) { console.error(error); return []; }
   return data || [];

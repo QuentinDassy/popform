@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { C, getAllCitiesFromFormations, fetchFormations, type Formation } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
+import { supabase } from "@/lib/supabase-data";
 
 function useTyping(words: string[]) {
   const [d, setD] = useState("");
@@ -63,6 +64,7 @@ export default function HomePage() {
   const [nlSent, setNlSent] = useState(false);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminVilles, setAdminVilles] = useState<{ nom: string; image: string }[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [selDomaine, setSelDomaine] = useState("");
@@ -92,10 +94,28 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => { if (!redirecting) fetchFormations().then(d => { setFormations(d); setLoading(false) }) }, [redirecting]);
+  useEffect(() => {
+    if (!redirecting) {
+      Promise.all([
+        fetchFormations(),
+        supabase.from("domaines").select("*").eq("type", "ville").order("nom")
+      ]).then(([d, { data: villes }]) => {
+        setFormations(d);
+        setAdminVilles((villes || []).map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
+        setLoading(false);
+      });
+    }
+  }, [redirecting]);
 
-  const cities = getAllCitiesFromFormations(formations);
-  const topCities = cities.slice(0, 8);
+  const formationCities = getAllCitiesFromFormations(formations);
+  // If admin configured villes, use those; otherwise fall back to formation cities
+  const displayCities: { name: string; count: number; image?: string }[] = adminVilles.length > 0
+    ? adminVilles.map(v => {
+        const found = formationCities.find(([c]) => c === v.nom);
+        return { name: v.nom, count: found ? found[1] : 0, image: v.image || undefined };
+      })
+    : formationCities.slice(0, 8).map(([c, n]) => ({ name: c, count: n }));
+  const topCities = displayCities.slice(0, 8);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const newF = formations
     .filter(f => f.date_ajout >= thirtyDaysAgo || f.affiche_order)
@@ -148,7 +168,7 @@ export default function HomePage() {
             </select>
             <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
               <option value="">Ville</option>
-              {cities.map(([c]) => <option key={c} value={c}>{c}</option>)}
+              {formationCities.map(([c]) => <option key={c} value={c}>{c}</option>)}
             </select>
             {hasFilters && (
               <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelVille("") }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
@@ -165,7 +185,7 @@ export default function HomePage() {
         </div>
         {topCities.length > 0 ? (
           <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: mob ? 8 : 14 }}>
-            {topCities.map(([city, count]) => <CityCard key={city} city={city} count={count} mob={mob} />)}
+            {topCities.map(c => <CityCard key={c.name} city={c.name} count={c.count} mob={mob} image={c.image} />)}
           </div>
         ) : (
           <p style={{ textAlign: "center", color: C.textTer, fontSize: 13, padding: "20px 0" }}>Les villes seront affichées dès que des sessions seront ajoutées.</p>

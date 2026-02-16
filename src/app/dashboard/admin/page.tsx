@@ -154,23 +154,33 @@ export default function DashboardAdminPage() {
       {/* ===== VILLES TAB ===== */}
       {adminTab === "villes" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez les villes qui apparaissent sur la page Villes et la homepage.</p>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez les villes qui apparaissent sur la homepage et la page Villes. Les villes ajoutées ici remplacent la détection automatique.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
             {villesList.map(v => (
               <div key={v.nom} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                {v.image && <img src={v.image} alt={v.nom} style={{ width: 60, height: 40, borderRadius: 8, objectFit: "cover" }} />}
+                {v.image ? <img src={v.image} alt={v.nom} style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : <div style={{ width: 80, height: 50, borderRadius: 8, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.textTer }}>Pas d&apos;image</div>}
                 <div style={{ flex: 1, minWidth: 100 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v.nom}</div>
                 </div>
-                <input value={v.image} onChange={e => handleUpdateVilleImage(v.nom, e.target.value)} placeholder="URL image..." style={{ flex: 2, padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 11, minWidth: 150 }} />
+                <label style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>
+                  📷 {v.image ? "Changer" : "Ajouter image"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    const ext = file.name.split(".").pop(); const path = `villes/${v.nom.toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
+                    const { error: upErr } = await supabase.storage.from("images").upload(path, file, { upsert: true });
+                    if (upErr) { alert("Erreur upload: " + upErr.message); return }
+                    const { data: urlData } = supabase.storage.from("images").getPublicUrl(path);
+                    handleUpdateVilleImage(v.nom, urlData.publicUrl);
+                  }} />
+                </label>
                 <button onClick={() => handleDeleteVille(v.nom)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑️</button>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input value={newVille} onChange={e => setNewVille(e.target.value)} placeholder="Nom de la ville" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, width: 160 }} />
-            <input value={newVilleImg} onChange={e => setNewVilleImg(e.target.value)} placeholder="URL image (optionnel)" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, flex: 1, minWidth: 200 }} />
+            <input value={newVille} onChange={e => setNewVille(e.target.value)} placeholder="Nom de la ville" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, width: 200 }} />
             <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
+            <span style={{ fontSize: 11, color: C.textTer }}>Vous pourrez ajouter l&apos;image après</span>
           </div>
         </div>
       )}

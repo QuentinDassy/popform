@@ -3,7 +3,7 @@
 
 import type { Formation as FormationType } from "./supabase-data";
 export type { Formation, Formateur, Organisme, Avis, Session, Inscription, Favori, AdminNotification } from "./supabase-data";
-export { fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs, fetchAvis, addAvis, updateAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchAdminNotifications, notifyAdmin } from "./supabase-data";
+export { fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs, fetchAvis, addAvis, updateAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchAdminNotifications, notifyAdmin, invalidateCache } from "./supabase-data";
 
 export const C = {
   bg: "#FFFDF7", bgAlt: "#FFF8EC", surface: "#FFFFFF",
