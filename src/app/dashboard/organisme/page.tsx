@@ -132,13 +132,11 @@ export default function DashboardOrganismePage() {
       // Modification: remet en attente
       const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
-      if (user) await notifyAdmin(editId, user.id, "Formation modifiée (en attente): " + form.titre.trim(), "modification_formation");
     } else {
       // Création: en attente de validation
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
-      if (user) await notifyAdmin(data.id, user.id, "Nouvelle formation en attente: " + form.titre.trim(), "nouvelle_formation");
     }
 
     // Sessions: delete old, insert new

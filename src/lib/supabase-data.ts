@@ -29,23 +29,12 @@ export type AdminNotification = { id: number; type: string; formation_id: number
 
 // ============ FETCH FUNCTIONS ============
 
-// Public: published formations (or all if status column not set)
+// Public: all formations (RLS handles visibility)
 export async function fetchFormations(): Promise<Formation[]> {
-  // Try with status filter first
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("formations")
     .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
-    .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
-  // If no results, try without status filter (status column may not exist or all are 'en_attente')
-  if ((!data || data.length === 0) && !error) {
-    const res = await supabase
-      .from("formations")
-      .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
-      .order("date_ajout", { ascending: false });
-    data = res.data;
-    error = res.error;
-  }
   if (error) { console.error("fetchFormations error:", error); return []; }
   return data || [];
 }

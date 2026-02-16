@@ -129,12 +129,10 @@ export default function DashboardFormateurPage() {
     if (editId) {
       const { error } = await supabase.from("formations").update(payload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
-      if (user) await notifyAdmin(editId, user.id, "Formation modifiée par " + formateur.nom + ": " + form.titre.trim(), "modification_formation");
     } else {
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
-      if (user) await notifyAdmin(data.id, user.id, "Nouvelle formation par " + formateur.nom + ": " + form.titre.trim(), "nouvelle_formation");
     }
 
     if (formationId) {
