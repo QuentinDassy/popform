@@ -27,7 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
+      const user = data.user;
       setUser(user);
       if (user) {
         supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => setProfile(data));
