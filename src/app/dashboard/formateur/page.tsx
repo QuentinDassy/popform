@@ -95,7 +95,7 @@ export default function DashboardFormateurPage() {
   };
 
   const handleSave = async () => {
-    if (!formateur) return;
+    if (!formateur) { setMsg("Erreur: profil formateur non trouvé. Rechargez la page."); return }
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
     setSaving(true); setMsg(null);
@@ -103,13 +103,15 @@ export default function DashboardFormateurPage() {
     const payload = {
       titre: form.titre.trim(), sous_titre: form.sous_titre.trim(), description: form.description.trim(),
       domaine: form.domaine, modalite: form.modalite, prise_en_charge: form.prise_en_charge,
-      duree: form.duree, prix: form.prix, prix_salarie: form.prix_salarie || null,
+      duree: form.duree || "7h", prix: form.prix || 0, prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null, prix_dpc: form.prix_dpc || null,
       is_new: form.is_new, populations: form.populations,
-      mots_cles: form.mots_cles.split(",").map(s => s.trim()).filter(Boolean),
-      professions: form.professions, effectif: form.effectif, video_url: form.video_url,
+      mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
+      professions: form.professions.length ? form.professions : ["Orthophonie"],
+      effectif: form.effectif || 20, video_url: form.video_url,
       formateur_id: formateur.id,
       organisme_id: form.organisme_id || null,
+      note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10),
       status: "en_attente",
     };
