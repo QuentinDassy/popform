@@ -56,11 +56,12 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
   const startEdit = () => { setNote(myAvis!.note); setTexte(myAvis!.texte); setEditMode(true); setShowForm(true) };
   const handleSubmit = () => { if (!texte.trim()) return; if (editMode && myAvis) { onEdit(myAvis.id, note, texte.trim()) } else { onAdd(note, texte.trim(), { contenu: subContenu, organisation: subOrganisation, supports: subSupports, pertinence: subPertinence }) } setShowForm(false); setEditMode(false) };
   const avg = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length * 10) / 10 : 0;
-  const pctSat = fAvis.length ? Math.round(fAvis.filter(a => a.note >= 4).length / fAvis.length * 100) : 0;
-  const avgContenu = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_contenu ?? a.note), 0) / fAvis.length : 0;
-  const avgOrga = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_organisation ?? a.note), 0) / fAvis.length : 0;
-  const avgSupports = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_supports ?? a.note), 0) / fAvis.length : 0;
-  const avgPertinence = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_pertinence ?? a.note), 0) / fAvis.length : 0;
+  const avgContenu = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_contenu ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
+  const avgOrga = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_organisation ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
+  const avgSupports = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_supports ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
+  const avgPertinence = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_pertinence ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
+  const avgAll = fAvis.length ? (avgContenu + avgOrga + avgSupports + avgPertinence) / 4 : 0;
+  const pctSat = fAvis.length ? Math.round(avgAll / 5 * 100) : 0;
 
   const SubRatingInput = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
