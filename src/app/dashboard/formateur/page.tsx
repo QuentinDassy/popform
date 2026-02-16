@@ -19,8 +19,8 @@ function emptyFormation() {
     titre: "", sous_titre: "", description: "", domaine: DOMAINES[0], modalite: MODALITES[0],
     prise_en_charge: [] as string[], duree: "", prix: 0, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null,
-    is_new: true, populations: [] as string[], mots_cles: "",
-    professions: ["Orthophonie"], effectif: 0, video_url: "",
+    is_new: false, populations: [] as string[], mots_cles: "",
+    professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "",
     organisme_id: null as number | null,
   };
 }
@@ -117,6 +117,7 @@ export default function DashboardFormateurPage() {
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: form.effectif || 20, video_url: form.video_url,
+      url_inscription: (form as Record<string, unknown>).url_inscription as string || "",
       formateur_id: formateur.id,
       organisme_id: form.organisme_id || null,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
@@ -325,7 +326,7 @@ export default function DashboardFormateurPage() {
             </div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL vidéo (YouTube)</label><input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} style={inputStyle} /></div>
-            <div><label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" checked={form.is_new} onChange={e => setForm({ ...form, is_new: e.target.checked })} />À l&apos;affiche 🍿</label></div>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label><input value={(form as Record<string, unknown>).url_inscription as string || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value } as typeof form & { url_inscription: string })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
           </div>
 
           {/* Sessions */}

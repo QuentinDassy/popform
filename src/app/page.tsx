@@ -36,13 +36,13 @@ const sel = (mob: boolean): React.CSSProperties => ({
   flex: 1, minWidth: mob ? 0 : 120,
 });
 
-function SectionGrid({ title, formations, mob, max }: { title: string; formations: Formation[]; mob: boolean; max?: number }) {
+function SectionGrid({ title, formations, mob, max, link }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string }) {
   const show = formations.slice(0, max || (mob ? 4 : 8));
   return (
     <section style={{ padding: mob ? "24px 16px 8px" : "32px 40px 16px", maxWidth: 1240, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
         <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text }}>{title}</h2>
-        <Link href="/catalogue" style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tout →</Link>
+        <Link href={link || "/catalogue"} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tout →</Link>
       </div>
       {show.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: mob ? 12 : 16 }}>
@@ -73,7 +73,6 @@ export default function HomePage() {
   const handleSearch = () => {
     const p = new URLSearchParams();
     if (heroSearch) p.set("q", heroSearch);
-    else if (typed) p.set("q", typed);
     if (selDomaine) p.set("domaine", selDomaine);
     if (selModalite) p.set("modalite", selModalite);
     if (selPrise) p.set("prise", selPrise);
@@ -97,7 +96,10 @@ export default function HomePage() {
 
   const cities = getAllCitiesFromFormations(formations);
   const topCities = cities.slice(0, 8);
-  const newF = formations.filter(f => f.is_new).sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const newF = formations
+    .filter(f => f.date_ajout >= thirtyDaysAgo || f.affiche_order)
+    .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const langOral = formations.filter(f => f.domaine === "Langage oral");
   const neuro = formations.filter(f => f.domaine === "Neurologie");
@@ -171,7 +173,7 @@ export default function HomePage() {
       </section>
 
       {/* ===== SECTIONS ===== */}
-      <SectionGrid title="🎬 À l'affiche" formations={newF.length > 0 ? newF : formations} mob={mob} />
+      <SectionGrid title="🎬 Les nouveautés à l'affiche" formations={newF.length > 0 ? newF : formations} mob={mob} max={6} link="/catalogue?sort=recent" />
       <SectionGrid title="⭐ Les mieux notées" formations={popularF} mob={mob} />
       {langOral.length > 0 && <SectionGrid title="🗣️ Langage oral" formations={langOral} mob={mob} max={4} />}
       {neuro.length > 0 && <SectionGrid title="🧠 Neurologie" formations={neuro} mob={mob} max={4} />}

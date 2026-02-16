@@ -42,17 +42,33 @@ function AvisBar({ label, value, max = 5 }: { label: string; value: number; max?
 }
 
 /* ===== AVIS SECTION ===== */
-function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string) => void; onEdit: (aId: number, note: number, texte: string) => void; mob: boolean; userId?: string }) {
+function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => void; onEdit: (aId: number, note: number, texte: string) => void; mob: boolean; userId?: string }) {
   const fAvis = avis.filter(a => a.formation_id === formationId);
   const myAvis = userId ? fAvis.find(a => a.user_id === userId) : undefined;
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [note, setNote] = useState(myAvis?.note || 5);
   const [texte, setTexte] = useState(myAvis?.texte || "");
+  const [subContenu, setSubContenu] = useState(5);
+  const [subOrganisation, setSubOrganisation] = useState(5);
+  const [subSupports, setSubSupports] = useState(5);
+  const [subPertinence, setSubPertinence] = useState(5);
   const startEdit = () => { setNote(myAvis!.note); setTexte(myAvis!.texte); setEditMode(true); setShowForm(true) };
-  const handleSubmit = () => { if (!texte.trim()) return; if (editMode && myAvis) { onEdit(myAvis.id, note, texte.trim()) } else { onAdd(note, texte.trim()) } setShowForm(false); setEditMode(false) };
+  const handleSubmit = () => { if (!texte.trim()) return; if (editMode && myAvis) { onEdit(myAvis.id, note, texte.trim()) } else { onAdd(note, texte.trim(), { contenu: subContenu, organisation: subOrganisation, supports: subSupports, pertinence: subPertinence }) } setShowForm(false); setEditMode(false) };
   const avg = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length * 10) / 10 : 0;
   const pctSat = fAvis.length ? Math.round(fAvis.filter(a => a.note >= 4).length / fAvis.length * 100) : 0;
+  const avgContenu = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_contenu ?? a.note), 0) / fAvis.length : 0;
+  const avgOrga = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_organisation ?? a.note), 0) / fAvis.length : 0;
+  const avgSupports = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_supports ?? a.note), 0) / fAvis.length : 0;
+  const avgPertinence = fAvis.length ? fAvis.reduce((s, a) => s + (a.note_pertinence ?? a.note), 0) / fAvis.length : 0;
+
+  const SubRatingInput = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+      <span style={{ fontSize: 12, color: C.textSec, width: 140, flexShrink: 0 }}>{label}</span>
+      <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} type="button" onClick={() => onChange(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, opacity: value >= i ? 1 : 0.25 }}>⭐</button>))}</div>
+      <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{value}/5</span>
+    </div>
+  );
 
   return (
     <div id="avis">
@@ -63,10 +79,10 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
           <div style={{ fontSize: 11, color: C.textTer, marginTop: 2 }}>satisfaction</div>
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <AvisBar label="Contenu pédagogique" value={avg} />
-          <AvisBar label="Organisation" value={Math.min(5, avg + 0.2)} />
-          <AvisBar label="Supports fournis" value={Math.max(1, avg - 0.1)} />
-          <AvisBar label="Pertinence pratique" value={avg} />
+          <AvisBar label="Contenu pédagogique" value={avgContenu} />
+          <AvisBar label="Organisation" value={avgOrga} />
+          <AvisBar label="Supports fournis" value={avgSupports} />
+          <AvisBar label="Pertinence pratique" value={avgPertinence} />
         </div>
         <div style={{ textAlign: "center", minWidth: 80 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{fAvis.length}</div>
@@ -83,7 +99,17 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
       {showForm && (
         <div style={{ padding: 16, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 8 }}>{editMode ? "Modifier votre avis" : "Votre avis"}</div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} onClick={() => setNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, opacity: note >= i ? 1 : 0.3 }}>⭐</button>))}</div>
+          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: C.text }}>Note globale</div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} onClick={() => setNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, opacity: note >= i ? 1 : 0.3 }}>⭐</button>))}</div>
+          {!editMode && (
+            <div style={{ marginBottom: 14, padding: 12, background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 8 }}>Notes détaillées</div>
+              <SubRatingInput label="Contenu pédagogique" value={subContenu} onChange={setSubContenu} />
+              <SubRatingInput label="Organisation" value={subOrganisation} onChange={setSubOrganisation} />
+              <SubRatingInput label="Supports fournis" value={subSupports} onChange={setSubSupports} />
+              <SubRatingInput label="Pertinence pratique" value={subPertinence} onChange={setSubPertinence} />
+            </div>
+          )}
           <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Partagez votre expérience..." style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", minHeight: 80, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={handleSubmit} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{editMode ? "Modifier" : "Publier"}</button>
@@ -152,15 +178,24 @@ export default function FormationPage() {
   }, [user, id]);
 
   const handleFav = async () => { if (!user) { setShowAuth?.(true); return } const added = await toggleFavori(user.id, id); setIsFav(added) };
-  const handleReserver = async () => {
+  const handleInscription = async () => {
     if (!user) { setShowAuth?.(true); return }
-    if (isInscrit) return;
+    if (isInscrit) {
+      // Désinscription
+      if (!confirm("Vous désinscrire de cette formation ?")) return;
+      setInscribing(true);
+      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id);
+      setIsInscrit(false); setInscMsg("Désinscrit·e");
+      setInscribing(false);
+      setTimeout(() => setInscMsg(""), 3000);
+      return;
+    }
     setInscribing(true); setInscMsg("");
     const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, status: "inscrit" });
-    if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit" : "Erreur") } else { setIsInscrit(true); setInscMsg("✓ Inscription confirmée !") }
+    if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit·e" : "Erreur") } else { setIsInscrit(true); setInscMsg("✓ Inscription confirmée !") }
     setInscribing(false);
   };
-  const handleAddAvis = async (note: number, texte: string) => { if (!user || !profile) return; const n = await addAvisDB(f!.id, user.id, profile.full_name || "Anonyme", note, texte); if (n) setAvis(prev => [n, ...prev]) };
+  const handleAddAvis = async (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => { if (!user || !profile) return; const n = await addAvisDB(f!.id, user.id, profile.full_name || "Anonyme", note, texte, subs); if (n) setAvis(prev => [n, ...prev]) };
   const handleEditAvis = async (aId: number, note: number, texte: string) => { const ok = await updateAvisDB(aId, note, texte); if (ok) setAvis(prev => prev.map(a => a.id === aId ? { ...a, note, texte } : a)) };
 
   if (loading) return <PageSkeleton mob={mob} />;
@@ -308,8 +343,19 @@ export default function FormationPage() {
                   {(f.prix_salarie || f.prix_liberal || f.prix_dpc !== null) && <div style={{ fontSize: 11, color: C.textSec, marginBottom: 6 }}>{f.prix_salarie ? `Salarié: ${f.prix_salarie}€` : ""}{f.prix_liberal ? ` · Libéral: ${f.prix_liberal}€` : ""}{f.prix_dpc !== null && f.prix_dpc !== undefined ? ` · DPC: ${f.prix_dpc}€` : ""}</div>}
                   <p style={{ fontSize: 11, color: C.textTer, marginBottom: 14 }}>par participant</p>
 
-                  <button onClick={handleReserver} disabled={inscribing || isInscrit} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 14, borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 15, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: isInscrit ? "default" : "pointer", boxShadow: isInscrit ? "none" : "0 8px 28px rgba(212,43,43,0.2)", opacity: inscribing ? 0.5 : 1, transition: "all 0.2s" }}>
-                    {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit" : "Réserver 🎬"}
+                  {f.url_inscription ? (
+                    <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 14, borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 8px 28px rgba(212,43,43,0.2)", textDecoration: "none", transition: "all 0.2s" }}>
+                      Réserver sur le site 🎬
+                    </a>
+                  ) : (
+                    <div style={{ padding: 10, borderRadius: 10, background: C.bgAlt, textAlign: "center" }}>
+                      <span style={{ fontSize: 12, color: C.textTer }}>Lien d&apos;inscription non disponible</span>
+                    </div>
+                  )}
+
+                  {/* Inscription interne (suivi) */}
+                  <button onClick={handleInscription} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
+                    {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit·e — Se désinscrire" : "📋 Ajouter à mes formations"}
                   </button>
                   {inscMsg && <p style={{ fontSize: 11, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 6, textAlign: "center" }}>{inscMsg}</p>}
 
@@ -380,9 +426,13 @@ export default function FormationPage() {
                 <span style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{f.prix}€</span>
                 <span style={{ fontSize: 11, color: C.textTer, marginLeft: 4 }}>/pers.</span>
               </div>
-              <button onClick={handleReserver} disabled={inscribing || isInscrit} style={{ padding: "10px 24px", borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 14, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: "pointer" }}>
-                {isInscrit ? "✓ Inscrit" : "Réserver 🎬"}
-              </button>
+              {f.url_inscription ? (
+                <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Réserver 🎬</a>
+              ) : (
+                <button onClick={handleInscription} disabled={inscribing} style={{ padding: "10px 24px", borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 14, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: "pointer" }}>
+                  {isInscrit ? "✓ Inscrit·e" : "📋 S'inscrire"}
+                </button>
+              )}
             </div>
           )}
         </div>

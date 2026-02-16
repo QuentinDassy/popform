@@ -125,9 +125,54 @@ export default function ComptePage() {
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 18, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => { setTab("inscriptions"); setSearch("") }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "inscriptions" ? C.accentBg : "transparent", color: tab === "inscriptions" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "inscriptions" ? 700 : 500, cursor: "pointer" }}>📋 Inscriptions ({inscF.length})</button>
+        <button onClick={() => setTab("calendrier")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "calendrier" ? C.accentBg : "transparent", color: tab === "calendrier" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "calendrier" ? 700 : 500, cursor: "pointer" }}>📅 Calendrier</button>
         <button onClick={() => setTab("avis")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "avis" ? "rgba(232,123,53,0.1)" : "transparent", color: tab === "avis" ? "#E87B35" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "avis" ? 700 : 500, cursor: "pointer" }}>⭐ Avis ({myAvis.length})</button>
         <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
       </div>
+
+      {/* Calendrier tab */}
+      {tab === "calendrier" && (() => {
+        const allSessions = inscF.flatMap(f => (f.sessions || []).map((s, i) => ({ ...s, titre: f.titre, fId: f.id, domaine: f.domaine, key: f.id + "-" + i })));
+        const months: Record<string, typeof allSessions> = {};
+        allSessions.forEach(s => {
+          // Try to extract month from dates string like "15-16 mars 2026"
+          const match = s.dates.match(/(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*(\d{4})/i);
+          const key = match ? `${match[1]} ${match[2]}` : "À planifier";
+          if (!months[key]) months[key] = [];
+          months[key].push(s);
+        });
+        const sortedMonths = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
+        return (
+          <div style={{ paddingBottom: 40 }}>
+            {allSessions.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
+                <p>Aucune session planifiée. Inscrivez-vous à des formations !</p>
+              </div>
+            ) : (
+              sortedMonths.map(([month, sessions]) => (
+                <div key={month} style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 10, textTransform: "capitalize" }}>📅 {month}</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {sessions.map(s => (
+                      <Link key={s.key} href={`/formation/${s.fId}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        <div style={{ display: "flex", gap: mob ? 8 : 14, alignItems: "center", padding: mob ? "10px 12px" : "12px 16px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, cursor: "pointer", flexWrap: "wrap" }}>
+                          <span style={{ padding: "4px 10px", borderRadius: 8, background: C.accentBg, color: C.accent, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{s.dates}</span>
+                          <div style={{ flex: 1, minWidth: 150 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.titre}</div>
+                            <div style={{ fontSize: 11, color: C.textTer }}>📍 {s.lieu}{s.adresse ? " — " + s.adresse : ""}</div>
+                          </div>
+                          <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontWeight: 600 }}>{s.domaine}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        );
+      })()}
 
       {/* Favoris tab */}
       {tab === "favoris" && (
@@ -196,7 +241,12 @@ export default function ComptePage() {
           )}
           {(() => { const filtered = search ? inscF.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : inscF; return filtered.length === 0 ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div> :
             <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
-              {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
+              {filtered.map(f => (
+                <div key={f.id} style={{ position: "relative" }}>
+                  <FormationCard f={f} mob={mob} />
+                  <button onClick={async () => { if (!confirm("Se désinscrire de cette formation ?")) return; await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", f.id); setInscriptionIds(prev => prev.filter(id => id !== f.id)) }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.border, color: C.pink, fontSize: 10, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✕ Se désinscrire</button>
+                </div>
+              ))}
             </div>
           })()}
         </div>

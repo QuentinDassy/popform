@@ -16,13 +16,15 @@ export type Formation = {
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   note: number; nb_avis: number; is_new: boolean; date_ajout: string;
   populations: string[]; mots_cles: string[]; professions: string[];
-  effectif: number; video_url: string; date_fin: string | null; sans_limite: boolean;
-  status: string; // 'en_attente' | 'publiee' | 'refusee' | 'archivee'
+  effectif: number; video_url: string; url_inscription: string;
+  date_fin: string | null; sans_limite: boolean;
+  status: string;
+  affiche_order: number | null;
   sessions?: Session[];
   formateur?: Formateur;
   organisme?: Organisme;
 };
-export type Avis = { id: number; formation_id: number; user_id: string; user_name: string; note: number; texte: string; created_at: string };
+export type Avis = { id: number; formation_id: number; user_id: string; user_name: string; note: number; texte: string; created_at: string; note_contenu: number | null; note_organisation: number | null; note_supports: number | null; note_pertinence: number | null };
 export type Inscription = { id: number; user_id: string; formation_id: number; status: string };
 export type Favori = { id: number; user_id: string; formation_id: number };
 export type AdminNotification = { id: number; type: string; formation_id: number; user_id: string; message: string; is_read: boolean; created_at: string };
@@ -79,8 +81,8 @@ export async function fetchAvis(formationId?: number): Promise<Avis[]> {
   return data || [];
 }
 
-export async function addAvis(formationId: number, userId: string, userName: string, note: number, texte: string): Promise<Avis | null> {
-  const { data, error } = await supabase.from("avis").insert({ formation_id: formationId, user_id: userId, user_name: userName, note, texte }).select().single();
+export async function addAvis(formationId: number, userId: string, userName: string, note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }): Promise<Avis | null> {
+  const { data, error } = await supabase.from("avis").insert({ formation_id: formationId, user_id: userId, user_name: userName, note, texte, note_contenu: subs?.contenu ?? null, note_organisation: subs?.organisation ?? null, note_supports: subs?.supports ?? null, note_pertinence: subs?.pertinence ?? null }).select().single();
   if (error) { console.error(error); return null; }
   return data;
 }

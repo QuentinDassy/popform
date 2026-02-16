@@ -18,6 +18,12 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("en_attente");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes">("formations");
+
+  // Villes management
+  const [villesList, setVillesList] = useState<{ nom: string; image: string }[]>([]);
+  const [newVille, setNewVille] = useState("");
+  const [newVilleImg, setNewVilleImg] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -29,6 +35,9 @@ export default function DashboardAdminPage() {
       setFormations(f || []);
       const notifs = await fetchAdminNotifications();
       setNotifications(notifs);
+      // Load villes config
+      const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
+      setVillesList(villes?.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })) || []);
       setLoading(false);
     })();
   }, [user]);
@@ -36,6 +45,28 @@ export default function DashboardAdminPage() {
   const handleStatus = async (id: number, status: string) => {
     await supabase.from("formations").update({ status }).eq("id", id);
     setFormations(prev => prev.map(f => f.id === id ? { ...f, status } : f));
+  };
+
+  const handleAfficheOrder = async (id: number, order: number | null) => {
+    await supabase.from("formations").update({ affiche_order: order }).eq("id", id);
+    setFormations(prev => prev.map(f => f.id === id ? { ...f, affiche_order: order } : f));
+  };
+
+  const handleAddVille = async () => {
+    if (!newVille.trim()) return;
+    await supabase.from("domaines").insert({ nom: newVille.trim(), image: newVilleImg.trim(), type: "ville" });
+    setVillesList(prev => [...prev, { nom: newVille.trim(), image: newVilleImg.trim() }]);
+    setNewVille(""); setNewVilleImg("");
+  };
+
+  const handleDeleteVille = async (nom: string) => {
+    await supabase.from("domaines").delete().eq("nom", nom).eq("type", "ville");
+    setVillesList(prev => prev.filter(v => v.nom !== nom));
+  };
+
+  const handleUpdateVilleImage = async (nom: string, image: string) => {
+    await supabase.from("domaines").update({ image }).eq("nom", nom).eq("type", "ville");
+    setVillesList(prev => prev.map(v => v.nom === nom ? { ...v, image } : v));
   };
 
   const markRead = async (id: number) => {
@@ -86,8 +117,66 @@ export default function DashboardAdminPage() {
         ))}
       </div>
 
+      {/* Admin section tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
+        <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
+        <button onClick={() => setAdminTab("affiche")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "affiche" ? C.surface : "transparent", color: adminTab === "affiche" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "affiche" ? 700 : 500, cursor: "pointer" }}>⭐ À l&apos;affiche</button>
+        <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
+      </div>
+
+      {/* ===== AFFICHE TAB ===== */}
+      {adminTab === "affiche" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Les formations publiées depuis moins de 30 jours sont automatiquement à l&apos;affiche. Vous pouvez les ordonner ou ajouter/retirer manuellement.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {formations.filter(f => f.status === "publiee").sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999)).map(f => {
+              const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+              const isAuto = f.date_ajout >= thirtyDaysAgo;
+              const isForced = f.affiche_order !== null && f.affiche_order !== undefined;
+              return (
+                <div key={f.id} style={{ padding: mob ? 10 : 14, background: C.surface, borderRadius: 12, border: "1px solid " + (isForced ? C.accent + "33" : C.borderLight), display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{f.titre}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>Ajoutée le {f.date_ajout} · {f.domaine}{isAuto ? " · 🆕 Auto" : ""}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input type="number" min="1" max="20" value={f.affiche_order ?? ""} onChange={e => handleAfficheOrder(f.id, e.target.value ? Number(e.target.value) : null)} placeholder="—" style={{ width: 50, padding: "5px 8px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 12, textAlign: "center" }} />
+                    <span style={{ fontSize: 10, color: C.textTer }}>ordre</span>
+                    {isForced && <button onClick={() => handleAfficheOrder(f.id, null)} style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 10, cursor: "pointer" }}>✕</button>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ===== VILLES TAB ===== */}
+      {adminTab === "villes" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez les villes qui apparaissent sur la page Villes et la homepage.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+            {villesList.map(v => (
+              <div key={v.nom} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {v.image && <img src={v.image} alt={v.nom} style={{ width: 60, height: 40, borderRadius: 8, objectFit: "cover" }} />}
+                <div style={{ flex: 1, minWidth: 100 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v.nom}</div>
+                </div>
+                <input value={v.image} onChange={e => handleUpdateVilleImage(v.nom, e.target.value)} placeholder="URL image..." style={{ flex: 2, padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 11, minWidth: 150 }} />
+                <button onClick={() => handleDeleteVille(v.nom)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑️</button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input value={newVille} onChange={e => setNewVille(e.target.value)} placeholder="Nom de la ville" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, width: 160 }} />
+            <input value={newVilleImg} onChange={e => setNewVilleImg(e.target.value)} placeholder="URL image (optionnel)" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, flex: 1, minWidth: 200 }} />
+            <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
+          </div>
+        </div>
+      )}
+
       {/* Notifications */}
-      {unreadNotifs > 0 && (
+      {adminTab === "formations" && unreadNotifs > 0 && (
         <div style={{ marginBottom: 20, padding: mob ? 12 : 16, background: C.yellowBg, borderRadius: 14, border: "1px solid " + C.yellow + "33" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.yellowDark, marginBottom: 8 }}>🔔 Notifications récentes</div>
           {notifications.filter(n => !n.is_read).slice(0, 5).map(n => (
@@ -102,6 +191,7 @@ export default function DashboardAdminPage() {
         </div>
       )}
 
+      {adminTab === "formations" && <>
       {/* Filter tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         {[
@@ -210,6 +300,7 @@ export default function DashboardAdminPage() {
           })}
         </div>
       )}
+      </>}
     </div>
   );
 }
