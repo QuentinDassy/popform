@@ -45,26 +45,34 @@ export default function DashboardFormateurPage() {
   const [fmtSexe, setFmtSexe] = useState("Non genré");
 
   useEffect(() => {
-    if (!user || !profile) return;
+    if (!user) return;
     (async () => {
       const orgs = await fetchOrganismes();
       setOrganismes(orgs);
 
-      // Find or create formateur linked to this user
-      const { data: existing } = await supabase.from("formateurs").select("*").eq("user_id", user.id).single();
-      let fmt = existing;
-      if (!fmt && profile.role === "formateur") {
-        const { data: newFmt } = await supabase.from("formateurs").insert({
-          nom: profile.full_name || "Mon nom",
+      // Find formateur linked to this user
+      const { data: existing, error: findErr } = await supabase.from("formateurs").select("*").eq("user_id", user.id);
+      let fmt = existing?.[0] || null;
+      
+      if (!fmt) {
+        // Create formateur entry for this user
+        const userName = profile?.full_name || user.email?.split("@")[0] || "Mon nom";
+        const { data: newFmt, error: createErr } = await supabase.from("formateurs").insert({
+          nom: userName,
           bio: "",
           sexe: "Non genré",
+          organisme_id: null,
           user_id: user.id,
         }).select().single();
+        if (createErr) {
+          console.error("Erreur création formateur:", createErr);
+          setMsg("Erreur création profil: " + createErr.message);
+        }
         fmt = newFmt;
       }
       setFormateur(fmt);
       if (fmt) {
-        setFmtNom(fmt.nom); setFmtBio(fmt.bio); setFmtSexe(fmt.sexe);
+        setFmtNom(fmt.nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré");
         const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
       }
@@ -151,17 +159,18 @@ export default function DashboardFormateurPage() {
   };
 
   const handleSaveProfil = async () => {
-    if (!formateur) return;
-    setSaving(true);
-    await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe }).eq("id", formateur.id);
+    if (!formateur) { setMsg("Profil formateur non trouvé."); return }
+    setSaving(true); setMsg(null);
+    const { error } = await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe }).eq("id", formateur.id);
+    if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     setFormateur({ ...formateur, nom: fmtNom, bio: fmtBio, sexe: fmtSexe });
     setSaving(false);
-    setTab("list");
+    setMsg("✅ Profil enregistré !");
+    setTimeout(() => setMsg(null), 3000);
   };
 
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
-  if (profile?.role !== "formateur") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
