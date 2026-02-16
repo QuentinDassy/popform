@@ -31,17 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = data.user;
       setUser(user);
       if (user) {
-        supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => setProfile(data));
+        supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
       }
       setLoading(false);
     }).catch(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", u.id).single();
-        setProfile(data);
+        const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
+        setProfile(pData);
       } else {
         setProfile(null);
       }
