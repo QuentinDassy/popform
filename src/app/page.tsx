@@ -81,6 +81,16 @@ export default function HomePage() {
     router.push("/catalogue?" + p.toString());
   };
 
+  // Detect auth code in URL (email confirm or password reset) and redirect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      router.replace("/auth/callback?code=" + code + "&type=" + (params.get("type") || ""));
+    }
+  }, [router]);
+
   useEffect(() => { fetchFormations().then(d => { setFormations(d); setLoading(false) }) }, []);
 
   const cities = getAllCitiesFromFormations(formations);

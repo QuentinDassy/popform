@@ -26,49 +26,44 @@ export default function ResetPasswordPage() {
       }
     });
 
-    // Method 2: Check if there's a hash fragment with tokens (Supabase PKCE flow)
     if (typeof window !== "undefined") {
+      // Method 2: Check hash fragment
       const hash = window.location.hash;
       if (hash && hash.includes("access_token")) {
-        // Parse hash params
         const params = new URLSearchParams(hash.substring(1));
         const accessToken = params.get("access_token");
         const refreshToken = params.get("refresh_token");
         if (accessToken && refreshToken) {
           supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-            if (!error) {
-              setReady(true);
-            } else {
-              setError("Lien invalide ou expiré.");
-            }
+            if (!error) setReady(true);
+            else setError("Lien invalide ou expiré.");
             setChecking(false);
           });
           return () => { subscription.unsubscribe() };
         }
       }
 
-      // Method 3: Check URL query params (code flow)
+      // Method 3: Check URL code param
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
       if (code) {
         supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-          if (!error) {
-            setReady(true);
-          } else {
-            setError("Lien invalide ou expiré.");
-          }
+          if (!error) setReady(true);
+          else setError("Lien invalide ou expiré.");
           setChecking(false);
         });
         return () => { subscription.unsubscribe() };
       }
 
-      // Method 4: Check if already has a session
+      // Method 4: Already have a session (redirected from /auth/callback)
       supabase.auth.getSession().then(({ data }) => {
         if (data.session) {
           setReady(true);
+          setChecking(false);
+        } else {
+          // Give the auth listener a moment to fire
+          setTimeout(() => setChecking(false), 2500);
         }
-        // Give the auth listener a moment to fire
-        setTimeout(() => setChecking(false), 2000);
       });
     }
 

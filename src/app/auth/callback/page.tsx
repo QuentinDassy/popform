@@ -1,32 +1,31 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { C } from "@/lib/constants";
+import { Suspense } from "react";
 
-export default function AuthCallbackPage() {
+function CallbackContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
+    const code = searchParams.get("code");
+    const type = searchParams.get("type");
 
-    // Handle hash fragment tokens (email confirm, password reset)
+    // Handle hash fragment tokens (older Supabase flow)
     if (typeof window !== "undefined") {
       const hash = window.location.hash;
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const type = params.get("type");
-
       if (hash && hash.includes("access_token")) {
         const hashParams = new URLSearchParams(hash.substring(1));
         const tokenType = hashParams.get("type");
         if (tokenType === "recovery") {
-          // Password reset — redirect to reset-password with the hash
           router.replace("/reset-password" + window.location.hash);
           return;
         }
-        // Email confirmation — set session and go home
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
@@ -36,22 +35,39 @@ export default function AuthCallbackPage() {
           return;
         }
       }
-
-      if (code) {
-        supabase.auth.exchangeCodeForSession(code).then(({ data }) => {
-          if (type === "recovery") {
-            router.replace("/reset-password");
-          } else {
-            router.replace("/");
-          }
-        });
-        return;
-      }
-
-      // Fallback
-      setTimeout(() => router.replace("/"), 3000);
     }
-  }, [router]);
+
+    // Handle PKCE code flow
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error: err }) => {
+        if (err) {
+          setError("Lien invalide ou expiré. Demandez un nouveau lien.");
+          return;
+        }
+        // Check if this is a recovery (password reset)
+        if (type === "recovery") {
+          router.replace("/reset-password");
+        } else {
+          // Email confirmation or other — go home
+          router.replace("/");
+        }
+      });
+      return;
+    }
+
+    // No code, no hash — fallback
+    setTimeout(() => router.replace("/"), 2000);
+  }, [router, searchParams]);
+
+  if (error) return (
+    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", maxWidth: 360 }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+        <p style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>{error}</p>
+        <button onClick={() => router.push("/")} style={{ marginTop: 12, padding: "10px 24px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Retour à l&apos;accueil</button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -62,4 +78,8 @@ export default function AuthCallbackPage() {
       </div>
     </div>
   );
+}
+
+export default function AuthCallbackPage() {
+  return (<Suspense fallback={<div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}><p>🍿 Chargement...</p></div>}><CallbackContent /></Suspense>);
 }
