@@ -27,8 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
+    let currentUserId: string | null = null;
+
     supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
       const user = data.user;
+      currentUserId = user?.id || null;
       setUser(user);
       if (user) {
         supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
@@ -38,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const u = session?.user ?? null;
+      // Only update state if user actually changed (not just token refresh)
+      if (u?.id === currentUserId) return;
+      currentUserId = u?.id || null;
       setUser(u);
       if (u) {
         const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
