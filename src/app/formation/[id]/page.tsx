@@ -174,7 +174,7 @@ export default function FormationPage() {
   useEffect(() => {
     if (!user) return;
     fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === id)));
-    supabase.from("inscriptions").select("id").eq("user_id", user.id).eq("formation_id", id).then(({ data }) => { if (data && data.length > 0) setIsInscrit(true) });
+    supabase.from("inscriptions").select("id").eq("user_id", user.id).eq("formation_id", id).then(({ data }: { data: unknown[] | null }) => { if (data && data.length > 0) setIsInscrit(true) });
   }, [user, id]);
 
   const handleFav = async () => { if (!user) { setShowAuth?.(true); return } const added = await toggleFavori(user.id, id); setIsFav(added) };
