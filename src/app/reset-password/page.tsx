@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
         const accessToken = params.get("access_token");
         const refreshToken = params.get("refresh_token");
         if (accessToken && refreshToken) {
-          supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+          supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }: { error: Error | null }) => {
             if (!error) setReady(true);
             else setError("Lien invalide ou expiré.");
             setChecking(false);
@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
       if (code) {
-        supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: Error | null }) => {
           if (!error) setReady(true);
           else setError("Lien invalide ou expiré.");
           setChecking(false);
@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
       }
 
       // Method 4: Already have a session (redirected from /auth/callback)
-      supabase.auth.getSession().then(({ data }) => {
+      supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
         if (data.session) {
           setReady(true);
           setChecking(false);
