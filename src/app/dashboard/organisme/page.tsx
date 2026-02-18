@@ -37,7 +37,7 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "" }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "" }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
