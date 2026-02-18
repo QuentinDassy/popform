@@ -185,7 +185,7 @@ export default function HomePage() {
                   <div key={f.id} onMouseDown={() => { router.push("/formation/" + f.id); setShowSuggestions(false) }} style={{ padding: "10px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight }}>
                     <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.accentBg, color: C.accent, fontWeight: 600, flexShrink: 0 }}>{f.domaine}</span>
                     <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
-                    {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer }}>📍 {f.sessions[0].lieu}</span>}
+                    {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer }}>📍 {f.sessions?.[0]?.lieu}</span>}
                   </div>
                 ))}
               </div>
