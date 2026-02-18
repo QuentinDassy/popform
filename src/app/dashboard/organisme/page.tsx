@@ -91,7 +91,7 @@ export default function DashboardOrganismePage() {
       }
       // Load admin villes
       const { data: villes } = await supabase.from("domaines").select("nom").eq("type", "ville").order("nom");
-      setAdminVilles(villes?.map(v => v.nom) || []);
+      setAdminVilles(villes?.map((v: { nom: string }) => v.nom) || []);
       setLoading(false);
     })();
   }, [user, profile]);
