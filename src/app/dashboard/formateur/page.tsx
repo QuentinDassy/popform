@@ -191,7 +191,7 @@ export default function DashboardFormateurPage() {
               { label: "Formations", value: formations.length, icon: "🎬" },
               { label: "Publiées", value: published, icon: "✅" },
               { label: "En attente", value: pending, icon: "⏳" },
-              { label: "Note moyenne", value: formations.length ? (formations.reduce((s, f) => s + f.note, 0) / formations.length).toFixed(1) : "—", icon: "⭐" },
+              { label: "Note moyenne", value: (() => { const rated = formations.filter(f => f.nb_avis > 0); return rated.length ? (rated.reduce((s, f) => s + f.note, 0) / rated.length).toFixed(1) : "—"; })(), icon: "⭐" },
             ].map(s => (
               <div key={s.label} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, textAlign: "center" }}>
                 <div style={{ fontSize: 20 }}>{s.icon}</div>

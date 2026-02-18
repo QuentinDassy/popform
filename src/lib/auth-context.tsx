@@ -40,8 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
+      // Handle token refresh errors — clear session silently
+      if (_event === "TOKEN_REFRESHED" && !session) {
+        setUser(null); setProfile(null); currentUserId = null; return;
+      }
       const u = session?.user ?? null;
-      // Only update state if user actually changed (not just token refresh)
       if (u?.id === currentUserId) return;
       currentUserId = u?.id || null;
       setUser(u);

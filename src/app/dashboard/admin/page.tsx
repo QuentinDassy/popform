@@ -31,21 +31,30 @@ export default function DashboardAdminPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: f } = await supabase
-        .from("formations")
-        .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
-        .order("date_ajout", { ascending: false });
-      setFormations(f || []);
-      const notifs = await fetchAdminNotifications();
-      setNotifications(notifs);
-      // Load villes config
       try {
-        const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
-        setVillesList(villes?.map((v: Record<string, string | number>) => ({ id: v.id as number, nom: v.nom as string, image: (v.image as string) || "" })) || []);
-      } catch { /* table may not exist yet */ }
-      // Load webinaires
-      const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
-      setWebinaires(wbs || []);
+        const { data: f, error: fErr } = await supabase
+          .from("formations")
+          .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+          .order("date_ajout", { ascending: false });
+        if (fErr?.message?.includes("refresh") || fErr?.message?.includes("JWT")) { setLoading(false); return; }
+        setFormations(f || []);
+        const notifs = await fetchAdminNotifications();
+        setNotifications(notifs);
+        // Load villes config
+        try {
+          const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
+          setVillesList(villes?.map((v: Record<string, string | number>) => ({ id: v.id as number, nom: v.nom as string, image: (v.image as string) || "" })) || []);
+        } catch { /* table may not exist yet */ }
+        // Load webinaires
+        const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
+        setWebinaires(wbs || []);
+      } catch (e: any) {
+        // Session expired - redirect to home
+        if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
+          window.location.href = "/";
+          return;
+        }
+      }
       setLoading(false);
     })();
   }, [user]);

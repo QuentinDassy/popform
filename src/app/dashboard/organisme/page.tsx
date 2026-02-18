@@ -263,7 +263,7 @@ export default function DashboardOrganismePage() {
             {[
               { label: "Formations", value: formations.length, icon: "🎬" },
               { label: "Sessions", value: formations.reduce((s, f) => s + (f.sessions?.length || 0), 0), icon: "📅" },
-              { label: "Note moyenne", value: formations.length ? (formations.reduce((s, f) => s + f.note, 0) / formations.length).toFixed(1) : "—", icon: "⭐" },
+              { label: "Note moyenne", value: (() => { const rated = formations.filter(f => f.nb_avis > 0); return rated.length ? (rated.reduce((s, f) => s + f.note, 0) / rated.length).toFixed(1) : "—"; })(), icon: "⭐" },
               { label: "Places totales", value: formations.reduce((s, f) => s + f.effectif, 0), icon: "👥" },
             ].map(s => (
               <div key={s.label} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, textAlign: "center" }}>
