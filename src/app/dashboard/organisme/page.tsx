@@ -13,7 +13,7 @@ const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognit
 const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL", "OPCO"];
 
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
 
 function emptyFormation() {
