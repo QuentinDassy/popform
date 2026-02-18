@@ -21,7 +21,7 @@ function CalendrierTab({ inscF, inscs, mob }: { inscF: Formation[]; inscs: InscR
   const allSessions = inscF.flatMap(f => {
     const ins = inscs.find(i => i.formation_id === f.id);
     const list = f.sessions || [];
-    const filtered = ins?.session_id ? list.filter(s => (s as any).id === ins.session_id) : list;
+    const filtered = ins?.session_id ? list.filter(s => s.id === ins.session_id) : list;
     return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, domaine: f.domaine, key: f.id + "-" + i }));
   });
 
@@ -158,7 +158,7 @@ export default function ComptePage() {
   const planSessions = inscF.flatMap(f => {
     const ins = inscs.find(i => i.formation_id === f.id);
     const list = f.sessions || [];
-    const filtered = ins?.session_id ? list.filter(s => (s as any).id === ins.session_id) : list;
+    const filtered = ins?.session_id ? list.filter(s => s.id === ins.session_id) : list;
     return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, key: f.id + "-" + i }));
   }).sort((a, b) => a.dates.localeCompare(b.dates));
 

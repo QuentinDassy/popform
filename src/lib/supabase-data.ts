@@ -4,7 +4,7 @@ export const supabase = createClient();
 
 // ============ TYPES ============
 
-export type Session = { id: number; dates: string; lieu: string; adresse: string };
+export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null };
 export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string };
 export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string };
 export type Formation = {
