@@ -44,7 +44,7 @@ function CatalogueContent() {
 
   useEffect(() => {
     fetchFormations().then(d => { setFormations(d); setLoading(false); });
-    supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }) => {
+    supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
   }, []);

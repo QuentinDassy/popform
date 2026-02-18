@@ -67,7 +67,7 @@ export default function DashboardFormateurPage() {
       }
       setLoading(false);
       // Load admin villes
-      supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }) => {
+      supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setAdminVilles(data.map(v => v.nom));
       });
     })();
