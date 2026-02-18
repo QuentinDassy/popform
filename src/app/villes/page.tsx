@@ -12,15 +12,14 @@ export default function VillesPage() {
   const [adminVilles, setAdminVilles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    Promise.all([
-      fetchFormations(),
-      supabase.from("domaines").select("*").eq("type", "ville")
-    ]).then(([formations, { data: villes }]) => {
-      const formationCities = getAllCitiesFromFormations(formations);
-      const villeMap: Record<string, string> = {};
+    let villeMap: Record<string, string> = {};
+    const loadVilles = supabase.from("domaines").select("*").eq("type", "ville").then(({ data: villes }) => {
       (villes || []).forEach((v: Record<string, string>) => { villeMap[v.nom] = v.image || "" });
       setAdminVilles(villeMap);
-      // Admin villes first, then others from formations
+    }).catch(() => {});
+    const loadFormations = fetchFormations();
+    Promise.all([loadFormations, loadVilles]).then(([formations]) => {
+      const formationCities = getAllCitiesFromFormations(formations);
       const adminNames = Object.keys(villeMap);
       const allCities: [string, number][] = [];
       adminNames.forEach(name => {
@@ -30,7 +29,7 @@ export default function VillesPage() {
       formationCities.forEach(([c, n]) => { if (!adminNames.includes(c)) allCities.push([c, n]) });
       setCities(allCities);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, []);
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   return (

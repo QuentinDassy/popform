@@ -9,17 +9,19 @@ import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
 import { useRouter } from "next/navigation";
 
-const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
-const MODALITES = ["Présentiel", "Distanciel", "Mixte"];
+const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle", "Autres"];
+const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL", "OPCO"];
 
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
 
 function emptyFormation() {
   return {
-    titre: "", sous_titre: "", description: "", domaine: DOMAINES[0], modalite: MODALITES[0],
-    prise_en_charge: [] as string[], duree: "", prix: 0, prix_salarie: null as number | null,
+    titre: "", sous_titre: "", description: "", domaine: DOMAINES[0], domaine_custom: "",
+    modalite: MODALITES[0],
+    prise_en_charge: [] as string[], prise_aucune: false,
+    duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null,
     is_new: false, populations: [] as string[], mots_cles: "",
     professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "",
@@ -32,7 +34,7 @@ export default function DashboardOrganismePage() {
   const [organisme, setOrganisme] = useState<Organisme | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"list" | "edit" | "formateurs">("list");
+  const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "" }]);
@@ -43,6 +45,15 @@ export default function DashboardOrganismePage() {
   const [fmtForm, setFmtForm] = useState({ nom: "", bio: "", sexe: "Non genré" });
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
+  // Admin villes
+  const [adminVilles, setAdminVilles] = useState<string[]>([]);
+  // Webinaires
+  type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
+  const [webinaires, setWebinaires] = useState<WbRow[]>([]);
+  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" });
+  const [editWId, setEditWId] = useState<number | null>(null);
+  const [wSaving, setWSaving] = useState(false);
+  const [wMsg, setWMsg] = useState<string | null>(null);
 
   // Load organisme + formations
   useEffect(() => {
@@ -73,10 +84,14 @@ export default function DashboardOrganismePage() {
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
-        // Load formateurs linked to this organisme
         const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
         setFormateurs(fmts || []);
+        const { data: wbs } = await supabase.from("webinaires").select("*").eq("organisme_id", myOrg.id).order("date_heure", { ascending: true });
+        setWebinaires(wbs || []);
       }
+      // Load admin villes
+      const { data: villes } = await supabase.from("domaines").select("nom").eq("type", "ville").order("nom");
+      setAdminVilles(villes?.map(v => v.nom) || []);
       setLoading(false);
     })();
   }, [user, profile]);
@@ -86,17 +101,18 @@ export default function DashboardOrganismePage() {
       setEditId(f.id);
       setForm({
         titre: f.titre, sous_titre: f.sous_titre || "", description: f.description,
-        domaine: f.domaine, modalite: f.modalite, prise_en_charge: f.prise_en_charge || [],
+        domaine: f.domaine, domaine_custom: "",
+        modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0,
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "",
       });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "" })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "" })));
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "" }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }]);
     }
     setMsg(null);
     setTab("edit");
@@ -112,11 +128,11 @@ export default function DashboardOrganismePage() {
       titre: form.titre.trim(),
       sous_titre: form.sous_titre.trim(),
       description: form.description.trim(),
-      domaine: form.domaine,
+      domaine: form.domaine === "Autres" ? (form.domaine_custom.trim() || "Autres") : form.domaine,
       modalite: form.modalite,
-      prise_en_charge: form.prise_en_charge,
+      prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h",
-      prix: form.prix || 0,
+      prix: form.prix ?? 0,
       prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null,
       prix_dpc: form.prix_dpc || null,
@@ -152,9 +168,16 @@ export default function DashboardOrganismePage() {
     // Sessions: delete old, insert new
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-      const validSessions = sessions.filter(s => s.dates.trim() && s.lieu.trim());
+      const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim()));
       if (validSessions.length > 0) {
-        await supabase.from("sessions").insert(validSessions.map(s => ({ formation_id: formationId, dates: s.dates.trim(), lieu: s.lieu.trim(), adresse: s.adresse.trim() })));
+        await supabase.from("sessions").insert(validSessions.map(s => ({
+          formation_id: formationId,
+          dates: s.dates.trim(),
+          lieu: s.ville.trim() || s.lieu.trim(),
+          adresse: [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+          modalite_session: s.modalite_session || null,
+          lien_visio: s.lien_visio || null,
+        })));
       }
     }
 
@@ -225,8 +248,9 @@ export default function DashboardOrganismePage() {
           <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} publiée{formations.length > 1 ? "s" : ""}</p>
         </div>
         {tab === "list" && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setTab("formateurs")} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => setTab("formateurs")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
+            <button onClick={() => setTab("webinaires")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: "#7C3AED", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📡 Webinaires</button>
             <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
           </div>
         )}
@@ -390,6 +414,9 @@ export default function DashboardOrganismePage() {
               <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
                 {DOMAINES.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
+              {form.domaine === "Autres" && (
+                <input value={form.domaine_custom} onChange={e => setForm({ ...form, domaine_custom: e.target.value })} placeholder="Précisez le domaine..." style={{ ...inputStyle, marginTop: 6 }} />
+              )}
             </div>
 
             {/* Modalité */}
@@ -403,7 +430,7 @@ export default function DashboardOrganismePage() {
             {/* Prix */}
             <div>
               <label style={labelStyle}>Prix (€)</label>
-              <input type="number" value={form.prix} onChange={e => setForm({ ...form, prix: Number(e.target.value) })} style={inputStyle} />
+              <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="0" style={inputStyle} />
             </div>
 
             {/* Durée */}
@@ -433,8 +460,12 @@ export default function DashboardOrganismePage() {
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>
-              <div style={{ display: "flex", gap: 6 }}>
-                {PRISES.map(p => (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button onClick={() => setForm({ ...form, prise_aucune: !form.prise_aucune, prise_en_charge: [] })}
+                  style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px solid " + (form.prise_aucune ? C.textTer + "88" : C.border), background: form.prise_aucune ? "#F5F5F5" : C.bgAlt, color: form.prise_aucune ? C.textSec : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.prise_aucune ? 700 : 400 }}>
+                  Aucune
+                </button>
+                {!form.prise_aucune && PRISES.map(p => (
                   <button key={p} onClick={() => setForm({ ...form, prise_en_charge: form.prise_en_charge.includes(p) ? form.prise_en_charge.filter(x => x !== p) : [...form.prise_en_charge, p] })}
                     style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px solid " + (form.prise_en_charge.includes(p) ? C.accent + "55" : C.border), background: form.prise_en_charge.includes(p) ? C.accentBg : C.bgAlt, color: form.prise_en_charge.includes(p) ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.prise_en_charge.includes(p) ? 700 : 400 }}>
                     {p}
@@ -453,7 +484,7 @@ export default function DashboardOrganismePage() {
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Populations</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["Enfant", "Adolescent", "Adulte", "Senior"].map(p => (
+                {["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"].map(p => (
                   <button key={p} onClick={() => setForm({ ...form, populations: form.populations.includes(p) ? form.populations.filter(x => x !== p) : [...form.populations, p] })}
                     style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.populations.includes(p) ? C.blue + "55" : C.border), background: form.populations.includes(p) ? C.blueBg : C.bgAlt, color: form.populations.includes(p) ? C.blue : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.populations.includes(p) ? 700 : 400 }}>
                     {p}
@@ -478,16 +509,79 @@ export default function DashboardOrganismePage() {
           {/* ===== SESSIONS ===== */}
           <div style={{ marginTop: 24 }}>
             <label style={labelStyle}>Sessions</label>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {sessions.map((s, i) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: mob ? "wrap" : "nowrap" }}>
-                  <input value={s.dates} onChange={e => { const n = [...sessions]; n[i].dates = e.target.value; setSessions(n) }} placeholder="Ex: 15-16 mars 2026" style={{ ...inputStyle, flex: 1, minWidth: mob ? "100%" : 150 }} />
-                  <input value={s.lieu} onChange={e => { const n = [...sessions]; n[i].lieu = e.target.value; setSessions(n) }} placeholder="Ville" style={{ ...inputStyle, flex: 1, minWidth: mob ? "45%" : 120 }} />
-                  <input value={s.adresse} onChange={e => { const n = [...sessions]; n[i].adresse = e.target.value; setSessions(n) }} placeholder="Adresse (optionnel)" style={{ ...inputStyle, flex: 1, minWidth: mob ? "45%" : 150 }} />
-                  <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer", flexShrink: 0 }}>✕</button>
-                </div>
-              ))}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "" }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {sessions.map((s, i) => {
+                const modaliteFormation = form.modalite;
+                const showModaliteSession = modaliteFormation === "Mixte";
+                const effModalite = showModaliteSession ? (s.modalite_session || "Présentiel") : modaliteFormation;
+                const isDistanciel = effModalite === "Distanciel";
+                const isPresentiel = effModalite === "Présentiel";
+                return (
+                  <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.textTer }}>Session {i + 1}</span>
+                      <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 8 }}>
+                      {/* Dates avec date picker */}
+                      <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                        <label style={labelStyle}>Dates</label>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                          <input type="date" value={s.date_debut || ""} onChange={e => { const n = [...sessions]; n[i] = { ...n[i], date_debut: e.target.value }; setSessions(n) }} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+                          <span style={{ color: C.textTer, fontSize: 12 }}>au</span>
+                          <input type="date" value={s.date_fin_session || ""} onChange={e => { const n = [...sessions]; n[i] = { ...n[i], date_fin_session: e.target.value, dates: (s.date_debut || "") + (e.target.value ? " → " + e.target.value : "") }; setSessions(n) }} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+                        </div>
+                      </div>
+                      {/* Modalité par session si Mixte */}
+                      {showModaliteSession && (
+                        <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                          <label style={labelStyle}>Modalité de cette session</label>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {["Présentiel", "Distanciel"].map(m => (
+                              <button key={m} type="button" onClick={() => { const n = [...sessions]; n[i] = { ...n[i], modalite_session: m }; setSessions(n) }}
+                                style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + ((s.modalite_session || "Présentiel") === m ? C.accent + "55" : C.border), background: (s.modalite_session || "Présentiel") === m ? C.accentBg : C.surface, color: (s.modalite_session || "Présentiel") === m ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: (s.modalite_session || "Présentiel") === m ? 700 : 400 }}>
+                                {m === "Présentiel" ? "🏢 Présentiel" : "💻 Distanciel"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Adresse si présentiel */}
+                      {(isPresentiel || !isDistanciel) && (
+                        <>
+                          <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                            <label style={labelStyle}>Adresse</label>
+                            <input value={s.adresse} onChange={e => { const n = [...sessions]; n[i].adresse = e.target.value; setSessions(n) }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Ville</label>
+                            {adminVilles.length > 0 ? (
+                              <select value={s.ville} onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} style={inputStyle}>
+                                <option value="">— Choisir une ville —</option>
+                                {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
+                              </select>
+                            ) : (
+                              <input value={s.ville} onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
+                            )}
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Code postal</label>
+                            <input value={s.code_postal} onChange={e => { const n = [...sessions]; n[i].code_postal = e.target.value; setSessions(n) }} placeholder="Ex: 75001" style={inputStyle} />
+                          </div>
+                        </>
+                      )}
+                      {/* Lien visio si distanciel */}
+                      {isDistanciel && (
+                        <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                          <label style={labelStyle}>Lien visioconférence</label>
+                          <input value={s.lien_visio || ""} onChange={e => { const n = [...sessions]; n[i].lien_visio = e.target.value; setSessions(n) }} placeholder="https://zoom.us/j/..." style={inputStyle} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 
@@ -498,6 +592,83 @@ export default function DashboardOrganismePage() {
               {saving ? "⏳ Enregistrement..." : editId ? "Enregistrer les modifications" : "Publier la formation 🍿"}
             </button>
             <button onClick={() => { setTab("list"); setMsg(null) }} style={{ padding: "12px 28px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 14, cursor: "pointer" }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== WEBINAIRES TAB ===== */}
+      {tab === "webinaires" && (
+        <div style={{ paddingBottom: 40 }}>
+          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>📡 Webinaires</h2>
+          <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires seront soumis à validation admin avant publication.</p>
+
+          {/* Liste webinaires existants */}
+          {webinaires.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              {webinaires.map(w => (
+                <div key={w.id} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>{w.titre}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>{w.date_heure ? new Date(w.date_heure).toLocaleString("fr-FR") : "—"} · {w.prix === 0 ? "Gratuit" : w.prix + "€"}</div>
+                    {w.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                    {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulaire webinaire */}
+          <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editWId ? "Modifier le webinaire" : "Créer un webinaire"}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Titre *</label>
+                <input value={wForm.titre} onChange={e => setWForm({ ...wForm, titre: e.target.value })} placeholder="Ex: Introduction à la prise en charge TDL" style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Description</label>
+                <textarea value={wForm.description} onChange={e => setWForm({ ...wForm, description: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, minHeight: 70, resize: "vertical" as const, fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date et heure *</label>
+                <input type="datetime-local" value={wForm.date_heure} onChange={e => setWForm({ ...wForm, date_heure: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (€) — 0 = gratuit</label>
+                <input type="number" min="0" value={wForm.prix} onChange={e => setWForm({ ...wForm, prix: Number(e.target.value) })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien de connexion (Zoom, Teams…)</label>
+                <input value={wForm.lien_url} onChange={e => setWForm({ ...wForm, lien_url: e.target.value })} placeholder="https://zoom.us/j/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+            </div>
+            {wMsg && <p style={{ color: wMsg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10 }}>{wMsg}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <button disabled={wSaving} onClick={async () => {
+                if (!wForm.titre.trim() || !wForm.date_heure) { setWMsg("Titre et date obligatoires."); return; }
+                setWSaving(true); setWMsg(null);
+                if (editWId) {
+                  await supabase.from("webinaires").update({ ...wForm }).eq("id", editWId);
+                  setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wForm } : x));
+                  setEditWId(null);
+                } else {
+                  const { data: wb } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "en_attente" }).select().single();
+                  if (wb) setWebinaires(prev => [...prev, wb]);
+                }
+                setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" });
+                setWSaving(false); setWMsg("✅ Webinaire soumis pour validation !");
+                setTimeout(() => setWMsg(null), 3000);
+              }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
+                {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "📡 Soumettre le webinaire"}
+              </button>
+              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+            </div>
           </div>
         </div>
       )}

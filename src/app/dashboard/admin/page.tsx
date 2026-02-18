@@ -18,12 +18,15 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("en_attente");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "webinaires">("formations");
 
   // Villes management
-  const [villesList, setVillesList] = useState<{ nom: string; image: string }[]>([]);
+  const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
   const [newVille, setNewVille] = useState("");
   const [newVilleImg, setNewVilleImg] = useState("");
+
+  // Webinaires management
+  const [webinaires, setWebinaires] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -36,8 +39,13 @@ export default function DashboardAdminPage() {
       const notifs = await fetchAdminNotifications();
       setNotifications(notifs);
       // Load villes config
-      const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
-      setVillesList(villes?.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })) || []);
+      try {
+        const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
+        setVillesList(villes?.map((v: Record<string, string | number>) => ({ id: v.id as number, nom: v.nom as string, image: (v.image as string) || "" })) || []);
+      } catch { /* table may not exist yet */ }
+      // Load webinaires
+      const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
+      setWebinaires(wbs || []);
       setLoading(false);
     })();
   }, [user]);
@@ -69,6 +77,17 @@ export default function DashboardAdminPage() {
     setVillesList(prev => prev.map(v => v.nom === nom ? { ...v, image } : v));
   };
 
+  const handleWebStatus = async (id: number, status: string) => {
+    await supabase.from("webinaires").update({ status }).eq("id", id);
+    setWebinaires(prev => prev.map(w => w.id === id ? { ...w, status } : w));
+  };
+
+  const handleDeleteWeb = async (id: number) => {
+    if (!confirm("Supprimer ce webinaire ?")) return;
+    await supabase.from("webinaires").delete().eq("id", id);
+    setWebinaires(prev => prev.filter(w => w.id !== id));
+  };
+
   const markRead = async (id: number) => {
     await supabase.from("admin_notifications").update({ is_read: true }).eq("id", id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -80,6 +99,7 @@ export default function DashboardAdminPage() {
 
   const filtered = filter === "all" ? formations : formations.filter(f => f.status === filter);
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
+  const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
   const unreadNotifs = notifications.filter(n => !n.is_read).length;
 
   const statusBadge = (status: string) => {
@@ -106,7 +126,7 @@ export default function DashboardAdminPage() {
           { label: "Total", value: formations.length, icon: "🎬" },
           { label: "En attente", value: pendingCount, icon: "⏳", highlight: pendingCount > 0 },
           { label: "Publiées", value: formations.filter(f => f.status === "publiee").length, icon: "✅" },
-          { label: "Refusées", value: formations.filter(f => f.status === "refusee").length, icon: "✕" },
+          { label: "Webinaires ⏳", value: pendingWebCount, icon: "📡", highlight: pendingWebCount > 0 },
           { label: "Notifications", value: unreadNotifs, icon: "🔔", highlight: unreadNotifs > 0 },
         ].map(s => (
           <div key={s.label} style={{ padding: mob ? 10 : 14, background: s.highlight ? C.yellowBg : C.surface, borderRadius: 14, border: "1px solid " + (s.highlight ? C.yellow + "44" : C.borderLight), textAlign: "center" }}>
@@ -120,9 +140,96 @@ export default function DashboardAdminPage() {
       {/* Admin section tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
+        <button onClick={() => setAdminTab("webinaires")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "webinaires" ? C.surface : "transparent", color: adminTab === "webinaires" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "webinaires" ? 700 : 500, cursor: "pointer" }}>📡 Webinaires {pendingWebCount > 0 ? `(${pendingWebCount} ⚡)` : ""}</button>
         <button onClick={() => setAdminTab("affiche")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "affiche" ? C.surface : "transparent", color: adminTab === "affiche" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "affiche" ? 700 : 500, cursor: "pointer" }}>⭐ À l&apos;affiche</button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
       </div>
+
+      {/* ===== WEBINAIRES TAB ===== */}
+      {adminTab === "webinaires" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Webinaires soumis par les organismes et formateurs. Publiez-les pour les rendre visibles sur le site.</p>
+
+          {/* Filtre par statut */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 14, padding: 4, background: C.bgAlt, borderRadius: 10, width: "fit-content" }}>
+            {[
+              { v: "en_attente", l: "⏳ En attente (" + pendingWebCount + ")" },
+              { v: "publie", l: "✅ Publiés" },
+              { v: "refuse", l: "✕ Refusés" },
+              { v: "all", l: "📋 Tous" },
+            ].map(t => {
+              const wFilter = t.v;
+              const isActive = webinaires.filter(w => t.v === "all" ? true : w.status === t.v).length > 0 || t.v === "all";
+              return (
+                <button key={t.v} onClick={() => (document.getElementById("wfilter") as any).value = t.v}
+                  style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "transparent", color: C.textTer, fontSize: 11, cursor: "pointer" }}>
+                  {t.l}
+                </button>
+              );
+            })}
+          </div>
+
+          {webinaires.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 50, color: C.textTer }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📡</div>
+              <p>Aucun webinaire soumis pour le moment.</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {webinaires.map(w => {
+                const d = new Date(w.date_heure);
+                const isPast = d < new Date();
+                return (
+                  <div key={w.id} style={{ background: C.surface, borderRadius: 14, border: "1px solid " + (w.status === "en_attente" ? "#7C3AED33" : C.borderLight), overflow: "hidden" }}>
+                    <div style={{ padding: mob ? 14 : 18 }}>
+                      <div style={{ display: "flex", gap: mob ? 8 : 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: mob ? 14 : 15, fontWeight: 700, color: C.text }}>{w.titre}</span>
+                            {w.status === "en_attente" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#7C3AED22", color: "#7C3AED" }}>⏳ EN ATTENTE</span>}
+                            {w.status === "publie" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ PUBLIÉ</span>}
+                            {w.status === "refuse" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ REFUSÉ</span>}
+                            {isPast && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.bgAlt, color: C.textTer }}>Passé</span>}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 12, color: C.textTer, marginBottom: 6 }}>
+                            <span>📅 {d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} à {d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                            <span>·</span>
+                            <span>{w.prix === 0 ? "🆓 Gratuit" : "💶 " + w.prix + "€"}</span>
+                          </div>
+                          {(w.organisme || w.formateur) && (
+                            <div style={{ fontSize: 11, color: C.textTer, marginBottom: 6 }}>
+                              {w.organisme && <span>🏢 {w.organisme.nom}</span>}
+                              {w.formateur && <span>🎤 {w.formateur.nom}</span>}
+                            </div>
+                          )}
+                          {w.description && <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, marginBottom: 8 }}>{w.description}</p>}
+                          {w.lien_url && (
+                            <a href={w.lien_url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#7C3AED", textDecoration: "none", background: "#7C3AED11", padding: "3px 8px", borderRadius: 6 }}>
+                              🔗 {w.lien_url.slice(0, 50)}{w.lien_url.length > 50 ? "…" : ""}
+                            </a>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                          {w.status !== "publie" && (
+                            <button onClick={() => handleWebStatus(w.id, "publie")} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
+                          )}
+                          {w.status !== "refuse" && (
+                            <button onClick={() => handleWebStatus(w.id, "refuse")} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.pink, background: "transparent", color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Refuser</button>
+                          )}
+                          {w.status !== "en_attente" && (
+                            <button onClick={() => handleWebStatus(w.id, "en_attente")} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.yellowDark, fontSize: 11, cursor: "pointer" }}>⏳ Attente</button>
+                          )}
+                          <button onClick={() => handleDeleteWeb(w.id)} style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>🗑</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== AFFICHE TAB ===== */}
       {adminTab === "affiche" && (
@@ -154,25 +261,20 @@ export default function DashboardAdminPage() {
       {/* ===== VILLES TAB ===== */}
       {adminTab === "villes" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez les villes qui apparaissent sur la homepage et la page Villes. Les villes ajoutées ici remplacent la détection automatique.</p>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les villes disponibles sur PopForm. Dès qu&apos;au moins une ville est ajoutée, <strong>seules ces villes</strong> apparaissent dans les filtres et dans les formulaires des organismes/formateurs — fini les doublons et fautes de frappe. Collez une URL d&apos;image pour l&apos;affichage sur la homepage.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-            {villesList.map(v => (
+              {villesList.map((v, idx) => (
               <div key={v.nom} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 {v.image ? <img src={v.image} alt={v.nom} style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : <div style={{ width: 80, height: 50, borderRadius: 8, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.textTer }}>Pas d&apos;image</div>}
                 <div style={{ flex: 1, minWidth: 100 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v.nom}</div>
+                  <input
+                    defaultValue={v.image}
+                    onBlur={e => { if (e.target.value !== v.image) handleUpdateVilleImage(v.nom, e.target.value); }}
+                    placeholder="URL de l'image (https://...)"
+                    style={{ marginTop: 4, padding: "4px 8px", borderRadius: 7, border: "1px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, width: "100%", boxSizing: "border-box" as const }}
+                  />
                 </div>
-                <label style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer", fontWeight: 600 }}>
-                  📷 {v.image ? "Changer" : "Ajouter image"}
-                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const ext = file.name.split(".").pop(); const path = `villes/${v.nom.toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
-                    const { error: upErr } = await supabase.storage.from("images").upload(path, file, { upsert: true });
-                    if (upErr) { alert("Erreur upload: " + upErr.message); return }
-                    const { data: urlData } = supabase.storage.from("images").getPublicUrl(path);
-                    handleUpdateVilleImage(v.nom, urlData.publicUrl);
-                  }} />
-                </label>
                 <button onClick={() => handleDeleteVille(v.nom)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑️</button>
               </div>
             ))}

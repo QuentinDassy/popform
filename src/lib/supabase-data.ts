@@ -23,7 +23,7 @@ export type Formation = {
   organisme?: Organisme;
 };
 export type Avis = { id: number; formation_id: number; user_id: string; user_name: string; note: number; texte: string; created_at: string; note_contenu: number | null; note_organisation: number | null; note_supports: number | null; note_pertinence: number | null };
-export type Inscription = { id: number; user_id: string; formation_id: number; status: string };
+export type Inscription = { id: number; user_id: string; formation_id: number; session_id?: number | null; status: string };
 export type Favori = { id: number; user_id: string; formation_id: number };
 export type AdminNotification = { id: number; type: string; formation_id: number; user_id: string; message: string; is_read: boolean; created_at: string };
 

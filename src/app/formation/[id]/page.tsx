@@ -159,6 +159,8 @@ export default function FormationPage() {
   const [isInscrit, setIsInscrit] = useState(false);
   const [inscribing, setInscribing] = useState(false);
   const [inscMsg, setInscMsg] = useState("");
+  const [selectedSession, setSelectedSession] = useState<number | null>(null);
+  const [showSessionPicker, setShowSessionPicker] = useState(false);
 
   useEffect(() => {
     Promise.all([fetchFormation(id), fetchFormations(), fetchAvis()]).then(([det, all, av]) => {
@@ -179,7 +181,7 @@ export default function FormationPage() {
   }, [user, id]);
 
   const handleFav = async () => { if (!user) { setShowAuth?.(true); return } const added = await toggleFavori(user.id, id); setIsFav(added) };
-  const handleInscription = async () => {
+  const handleInscription = async (sessionIdx?: number) => {
     if (!user) { setShowAuth?.(true); return }
     if (isInscrit) {
       // Désinscription
@@ -191,8 +193,15 @@ export default function FormationPage() {
       setTimeout(() => setInscMsg(""), 3000);
       return;
     }
+    // Si plusieurs sessions et aucune sélectionnée, afficher le picker
+    if (f && (f.sessions || []).length > 1 && sessionIdx === undefined) {
+      setShowSessionPicker(true);
+      return;
+    }
+    setShowSessionPicker(false);
     setInscribing(true); setInscMsg("");
-    const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, status: "inscrit" });
+    const sessId = sessionIdx !== undefined ? (f?.sessions || [])[sessionIdx]?.id : null;
+    const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: sessId || null, status: "inscrit" });
     if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit·e" : "Erreur") } else { setIsInscrit(true); setInscMsg("✓ Inscription confirmée !") }
     setInscribing(false);
   };
@@ -208,7 +217,14 @@ export default function FormationPage() {
   const priseEnCharge = f.prise_en_charge || [];
   const otherFmt = allF.filter(x => x.id !== f.id && x.formateur_id === f.formateur_id);
   const otherDomain = allF.filter(x => x.id !== f.id && x.domaine === f.domaine && !otherFmt.find(o => o.id === x.id)).slice(0, 4);
-  const embedUrl = f.video_url?.includes("watch?v=") ? f.video_url.replace("watch?v=", "embed/") : f.video_url?.includes("youtu.be") ? f.video_url.replace("youtu.be/", "youtube.com/embed/") : f.video_url;
+  const getEmbedUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.includes("watch?v=")) return url.replace("watch?v=", "embed/").split("&")[0].replace("youtube.com/watch", "youtube.com/embed");
+    if (url.includes("youtu.be/")) return "https://www.youtube.com/embed/" + url.split("youtu.be/")[1].split("?")[0];
+    if (url.includes("youtube.com/embed/")) return url;
+    return null; // non-embeddable URL
+  };
+  const embedUrl = getEmbedUrl(f.video_url);
   const fAvis = avis.filter(a => a.formation_id === f.id);
   const avg = fAvis.length ? (fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length).toFixed(1) : "—";
 
@@ -235,7 +251,12 @@ export default function FormationPage() {
         <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.95) 0%, rgba(45,27,6,0.4) 40%, transparent 70%)" }} />
         <div style={{ position: "absolute", top: mob ? 12 : 20, right: mob ? 12 : 20 }}>{favBtn}</div>
-        <div style={{ position: "absolute", top: mob ? 12 : 20, left: mob ? 12 : 20 }}>
+        <div style={{ position: "absolute", top: mob ? 12 : 20, left: mob ? 12 : 20, display: "flex", gap: 8, alignItems: "center" }}>
+          {mob ? (
+            <button onClick={() => window.history.back()} style={{ width: 36, height: 36, borderRadius: 18, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>←</button>
+          ) : (
+            <button onClick={() => window.history.back()} style={{ padding: "6px 14px", borderRadius: 20, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.text, display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>← Retour</button>
+          )}
           <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,0.9)", color: C.textSec, textDecoration: "none" }}>Formation</span>
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: mob ? "14px 16px" : "24px 40px", maxWidth: 1040, margin: "0 auto" }}>
@@ -325,10 +346,14 @@ export default function FormationPage() {
             </div>
 
             {/* Video */}
-            {embedUrl && (
+            {(embedUrl || f.video_url) && (
               <div style={{ marginBottom: 24 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 }}>Bande-annonce</h3>
-                <div style={{ borderRadius: 14, overflow: "hidden", background: "#000" }}><iframe src={embedUrl} width="100%" height={mob ? 200 : 340} frameBorder="0" allowFullScreen style={{ display: "block" }} /></div>
+                {embedUrl ? (
+                  <div style={{ borderRadius: 14, overflow: "hidden", background: "#000" }}><iframe src={embedUrl} width="100%" height={mob ? 200 : 340} frameBorder="0" allowFullScreen style={{ display: "block" }} /></div>
+                ) : (
+                  <a href={f.video_url!} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: C.accentBg, color: C.accent, fontWeight: 600, fontSize: 13, textDecoration: "none", border: "1.5px solid " + C.accent + "33" }}>🔗 Voir la vidéo de présentation ↗</a>
+                )}
               </div>
             )}
 
@@ -366,8 +391,21 @@ export default function FormationPage() {
                     </div>
                   )}
 
+                  {/* Session picker si plusieurs sessions */}
+                  {showSessionPicker && sessions.length > 1 && !isInscrit && (
+                    <div style={{ marginTop: 10, padding: 12, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8 }}>Choisissez votre session :</p>
+                      {sessions.map((s, i) => (
+                        <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 12, cursor: "pointer", marginBottom: 5, display: "block" }}>
+                          <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates}<br/>
+                          <span style={{ color: C.textTer }}>📍 {s.lieu}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Inscription interne (suivi) */}
-                  <button onClick={handleInscription} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
+                  <button onClick={() => handleInscription()} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
                     {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit·e — Se désinscrire" : "📋 Ajouter à mes formations"}
                   </button>
                   {inscMsg && <p style={{ fontSize: 11, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 6, textAlign: "center" }}>{inscMsg}</p>}
@@ -432,6 +470,19 @@ export default function FormationPage() {
             </div>
           )}
 
+          {/* Mobile: session picker popup */}
+          {mob && showSessionPicker && sessions.length > 1 && !isInscrit && (
+            <div style={{ position: "fixed", bottom: 70, left: 0, right: 0, zIndex: 60, background: C.surface, borderTop: "2px solid " + C.border, padding: "16px", boxShadow: "0 -8px 24px rgba(0,0,0,0.08)" }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Choisissez votre session :</p>
+              {sessions.map((s, i) => (
+                <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, cursor: "pointer", marginBottom: 6, display: "block" }}>
+                  <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates} · 📍 {s.lieu}
+                </button>
+              ))}
+              <button onClick={() => setShowSessionPicker(false)} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+            </div>
+          )}
+
           {/* Mobile: sticky bottom bar */}
           {mob && (
             <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, background: "rgba(255,253,247,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid " + C.borderLight, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -442,7 +493,7 @@ export default function FormationPage() {
               {f.url_inscription ? (
                 <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Réserver 🎬</a>
               ) : (
-                <button onClick={handleInscription} disabled={inscribing} style={{ padding: "10px 24px", borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 14, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: "pointer" }}>
+              <button onClick={() => handleInscription()} disabled={inscribing} style={{ padding: "10px 24px", borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 14, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: "pointer" }}>
                   {isInscrit ? "✓ Inscrit·e" : "📋 S'inscrire"}
                 </button>
               )}

@@ -46,6 +46,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [role, setRole] = useState("user");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +62,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const handleSubmit = async () => {
     setError(null);
     if (mode === "register" && !name.trim()) { setError("Veuillez entrer votre nom."); return }
+    if (mode === "register" && !firstName.trim()) { setError("Veuillez entrer votre prénom."); return }
     if (!email.trim()) { setError("Veuillez entrer votre email."); return }
     if (!password) { setError("Veuillez entrer un mot de passe."); return }
     if (mode === "register" && !pwValid) { setError("Le mot de passe ne respecte pas tous les critères."); return }
@@ -69,7 +71,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
       const { error } = await signIn(email, password);
       if (error) setError(error); else onSuccess();
     } else {
-      const { error } = await signUp(email, password, name, role);
+      const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role);
       if (error) setError(error); else setSuccess(true);
     }
     setLoading(false);
@@ -147,7 +149,10 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
             <form onSubmit={e => { e.preventDefault(); handleSubmit() }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {mode === "register" && (
                 <>
-                  <input placeholder="Votre nom" value={name} onChange={e => setName(e.target.value)} autoComplete="name" style={inputStyle} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input placeholder="Prénom *" value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="given-name" style={{ ...inputStyle, flex: 1 }} />
+                    <input placeholder="Nom *" value={name} onChange={e => setName(e.target.value)} autoComplete="family-name" style={{ ...inputStyle, flex: 1 }} />
+                  </div>
                   <div>
                     <label style={{ fontSize: 12, color: C.textTer, marginBottom: 6, display: "block" }}>Je suis :</label>
                     <div style={{ display: "flex", gap: 6 }}>

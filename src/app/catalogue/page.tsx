@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { C, getDC, fetchFormations, getAllCitiesFromFormations, type Formation } from "@/lib/data";
+import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 
@@ -39,10 +40,17 @@ function CatalogueContent() {
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminVilles, setAdminVilles] = useState<string[]>([]);
 
-  useEffect(() => { fetchFormations().then(d => { setFormations(d); setLoading(false) }) }, []);
+  useEffect(() => {
+    fetchFormations().then(d => { setFormations(d); setLoading(false); });
+    supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }) => {
+      if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
+    }).catch(() => {});
+  }, []);
 
-  const cities = useMemo(() => getAllCitiesFromFormations(formations).map(([c]) => c), [formations]);
+  const formationCities = useMemo(() => getAllCitiesFromFormations(formations).map(([c]) => c), [formations]);
+  const cities = adminVilles.length > 0 ? adminVilles : formationCities;
   const hasActiveFilters = selDomaine || selModalite || selPrise || selPop || selVille;
 
   let filtered = formations.filter(f => {
@@ -50,7 +58,12 @@ function CatalogueContent() {
       const q = search.toLowerCase();
       if (![f.titre, f.sous_titre || "", f.domaine, ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
     }
-    if (selVille && !(f.sessions || []).some(s => s.lieu.toLowerCase().includes(selVille.toLowerCase()))) return false;
+    if (selVille) {
+      const isVisioFilter = selVille.toLowerCase() === "visio";
+      const matchesVille = (f.sessions || []).some(s => s.lieu.toLowerCase().includes(selVille.toLowerCase()));
+      const matchesVisioModalite = isVisioFilter && (f.modalite === "Visio" || f.modalite === "Distanciel");
+      if (!matchesVille && !matchesVisioModalite) return false;
+    }
     if (selDomaine && f.domaine !== selDomaine) return false;
     if (selModalite && f.modalite !== selModalite) return false;
     if (selPrise && !(f.prise_en_charge || []).includes(selPrise)) return false;
@@ -113,6 +126,7 @@ function CatalogueContent() {
         </select>
         <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
           <option value="">Ville</option>
+          <option value="Visio">💻 En visio</option>
           {cities.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         {hasActiveFilters && (

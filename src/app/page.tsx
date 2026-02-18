@@ -24,7 +24,7 @@ function useTyping(words: string[]) {
 }
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
-const MODALITES = ["Présentiel", "Distanciel", "Mixte"];
+const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL", "OPCO"];
 
 const sel = (mob: boolean): React.CSSProperties => ({
@@ -64,6 +64,7 @@ export default function HomePage() {
   const [nlSent, setNlSent] = useState(false);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [webinaires, setWebinaires] = useState<any[]>([]);
   const [adminVilles, setAdminVilles] = useState<{ nom: string; image: string }[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -71,8 +72,13 @@ export default function HomePage() {
   const [selModalite, setSelModalite] = useState("");
   const [selPrise, setSelPrise] = useState("");
   const [selVille, setSelVille] = useState("");
+  const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const handleSearch = () => {
+    setShowSuggestions(false);
     const p = new URLSearchParams();
     if (heroSearch) p.set("q", heroSearch);
     if (selDomaine) p.set("domaine", selDomaine);
@@ -80,6 +86,23 @@ export default function HomePage() {
     if (selPrise) p.set("prise", selPrise);
     if (selVille) p.set("ville", selVille);
     router.push("/catalogue?" + p.toString());
+  };
+
+  const handleSearchInput = (val: string) => {
+    setHeroSearch(val);
+    if (val.length >= 2 && formations.length > 0) {
+      const norm = normalize(val);
+      const matches = formations.filter(f =>
+        normalize(f.titre).includes(norm) ||
+        normalize(f.domaine).includes(norm) ||
+        (f.mots_cles || []).some((m: string) => normalize(m).includes(norm)) ||
+        (f.sessions || []).some(s => normalize(s.lieu).includes(norm))
+      ).slice(0, 6);
+      setSearchSuggestions(matches);
+      setShowSuggestions(matches.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
   };
 
   // Detect auth code in URL (email confirm or password reset) and redirect
@@ -96,14 +119,18 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!redirecting) {
-      Promise.all([
-        fetchFormations(),
-        supabase.from("domaines").select("*").eq("type", "ville").order("nom")
-      ]).then(([d, { data: villes }]) => {
+      fetchFormations().then(d => {
         setFormations(d);
-        setAdminVilles((villes || []).map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
         setLoading(false);
-      });
+      }).catch(() => setLoading(false));
+      // Load webinaires publiés
+      supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data: wbs }) => {
+        if (wbs) setWebinaires(wbs);
+      }).catch(() => {});
+      // Load admin villes separately (non-blocking)
+      supabase.from("domaines").select("*").eq("type", "ville").order("nom").then(({ data: villes }) => {
+        if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
+      }).catch(() => {});
     }
   }, [redirecting]);
 
@@ -123,6 +150,7 @@ export default function HomePage() {
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const langOral = formations.filter(f => f.domaine === "Langage oral");
   const neuro = formations.filter(f => f.domaine === "Neurologie");
+  const visioF = formations.filter(f => f.modalite === "Visio" || f.modalite === "Distanciel" || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaine || selModalite || selPrise || selVille;
 
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
@@ -130,7 +158,7 @@ export default function HomePage() {
   return (
     <>
       {/* ===== HERO ===== */}
-      <section style={{ position: "relative", padding: mob ? "36px 16px 32px" : "70px 40px 56px", overflow: "hidden", background: C.gradientHero }}>
+      <section style={{ position: "relative", padding: mob ? "36px 16px 32px" : "70px 40px 56px", overflow: "visible", background: C.gradientHero }}>
         <div style={{ position: "absolute", top: -100, left: -60, width: 400, height: 400, background: "radial-gradient(circle, rgba(212,43,43,0.08), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -80, right: -40, width: 350, height: 350, background: "radial-gradient(circle, rgba(245,183,49,0.06), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "relative", textAlign: "center", maxWidth: 740, margin: "0 auto" }}>
@@ -142,14 +170,26 @@ export default function HomePage() {
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: mob ? "5px 5px 5px 14px" : "6px 6px 6px 20px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: mob ? 12 : 16, boxShadow: "0 8px 36px rgba(212,43,43,0.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: mob ? "5px 5px 5px 14px" : "6px 6px 6px 20px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: mob ? 12 : 16, boxShadow: "0 8px 36px rgba(212,43,43,0.07)", position: "relative" }}>
               <span style={{ color: C.textTer, fontSize: mob ? 16 : 18 }}>🔍</span>
               <div style={{ flex: 1, position: "relative", padding: mob ? "9px 0" : "12px 0" }}>
-                <input id="hero-search" value={heroSearch} onChange={e => setHeroSearch(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 16, fontFamily: "inherit" }} />
+                <input id="hero-search" value={heroSearch} onChange={e => handleSearchInput(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 16, fontFamily: "inherit" }} />
                 {!heroSearch && !searchFocused && <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", color: C.textTer, fontSize: mob ? 13 : 16, pointerEvents: "none" }}>{typed}<span style={{ color: C.accent }}>|</span></div>}
               </div>
               <div onClick={handleSearch} style={{ padding: mob ? "10px 16px" : "13px 26px", borderRadius: mob ? 9 : 12, background: C.gradient, color: "#fff", fontSize: mob ? 12 : 14, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer" }}>Rechercher</div>
             </div>
+            {/* Autocomplete suggestions */}
+            {showSuggestions && (
+              <div style={{ position: "absolute", left: 0, right: 0, marginTop: 4, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, boxShadow: "0 8px 32px rgba(45,27,6,0.12)", zIndex: 100, overflow: "hidden", maxWidth: mob ? "calc(100% - 32px)" : 600, marginLeft: "auto", marginRight: "auto" }}>
+                {searchSuggestions.map(f => (
+                  <div key={f.id} onMouseDown={() => { router.push("/formation/" + f.id); setShowSuggestions(false) }} style={{ padding: "10px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight }}>
+                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.accentBg, color: C.accent, fontWeight: 600, flexShrink: 0 }}>{f.domaine}</span>
+                    <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
+                    {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer }}>📍 {f.sessions[0].lieu}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Filter selects — 4 filters including Ville */}
@@ -168,11 +208,14 @@ export default function HomePage() {
             </select>
             <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
               <option value="">Ville</option>
+              <option value="Visio">💻 En visio</option>
               {formationCities.map(([c]) => <option key={c} value={c}>{c}</option>)}
             </select>
             {hasFilters && (
               <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelVille("") }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
             )}
+            {/* Bouton loupe pour lancer la recherche avec filtres seuls */}
+            <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: mob ? "9px 12px" : "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
           </div>
         </div>
       </section>
@@ -184,7 +227,7 @@ export default function HomePage() {
           <Link href="/villes" style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Toutes les villes →</Link>
         </div>
         {topCities.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: mob ? 8 : 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(4, 1fr)", gap: mob ? 8 : 14 }}>
             {topCities.map(c => <CityCard key={c.name} city={c.name} count={c.count} mob={mob} image={c.image} />)}
           </div>
         ) : (
@@ -197,6 +240,39 @@ export default function HomePage() {
       <SectionGrid title="⭐ Les mieux notées" formations={popularF} mob={mob} />
       {langOral.length > 0 && <SectionGrid title="🗣️ Langage oral" formations={langOral} mob={mob} max={4} />}
       {neuro.length > 0 && <SectionGrid title="🧠 Neurologie" formations={neuro} mob={mob} max={4} />}
+      {visioF.length > 0 && <SectionGrid title="💻 En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
+
+      {/* Section webinaires */}
+      {webinaires.length > 0 && (
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>📡 Webinaires à venir</h2>
+            <Link href="/webinaires" style={{ fontSize: 13, color: C.accent, textDecoration: "none", fontWeight: 600 }}>Voir tous →</Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+            {webinaires.slice(0, 4).map(w => {
+              const d = new Date(w.date_heure);
+              const now = new Date();
+              const isFuture = d > now;
+              return (
+                <div key={w.id} style={{ padding: mob ? 14 : 18, background: "linear-gradient(135deg, #7C3AED08, #7C3AED18)", borderRadius: 14, border: "1.5px solid #7C3AED33" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ padding: "3px 8px", borderRadius: 6, background: "#7C3AED", color: "#fff", fontSize: 10, fontWeight: 700 }}>📡 WEBINAIRE</span>
+                    {isFuture && <span style={{ padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontSize: 10, fontWeight: 700 }}>À venir</span>}
+                  </div>
+                  <div style={{ fontSize: mob ? 14 : 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>{w.titre}</div>
+                  <div style={{ fontSize: 12, color: C.textTer, marginBottom: 8 }}>📅 {d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} à {d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                  {w.description && <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{w.description}</p>}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: w.prix === 0 ? C.green : C.text }}>{w.prix === 0 ? "Gratuit" : w.prix + "€"}</span>
+                    <Link href="/webinaires" style={{ padding: "6px 14px", borderRadius: 8, background: "#7C3AED", color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>Voir →</Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
