@@ -45,7 +45,7 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
 export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boolean; mob?: boolean }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
-  const photo = getPhoto(f.domaine);
+  const photo = (f as any).photo_url || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const priseEnCharge = f.prise_en_charge || [];
@@ -53,9 +53,13 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
         <div style={{ position: "relative", height: compact ? (m ? 100 : 130) : (m ? 120 : 160), overflow: "hidden" }}>
-          <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+          {photo
+            ? <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+            : <div style={{ width: "100%", height: "100%", background: dc.bg.replace("0.1)", "0.3)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+                {f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}
+              </div>
+          }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
-          {f.is_new && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff", textTransform: "uppercase" }}>À l&apos;affiche 🍿</span>}
           {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, right: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
           <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: dc.color }}>{f.domaine}</span>

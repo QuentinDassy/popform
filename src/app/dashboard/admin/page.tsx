@@ -7,6 +7,7 @@ import { C, type Formation } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
+import { uploadImage } from "@/lib/upload";
 
 const ADMIN_EMAIL = "quentin.dassy@gmail.com"; // Change to your admin email
 
@@ -18,7 +19,7 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("en_attente");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "webinaires">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "webinaires" | "congres">("formations");
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -27,6 +28,9 @@ export default function DashboardAdminPage() {
 
   // Webinaires management
   const [webinaires, setWebinaires] = useState<any[]>([]);
+
+  // Congrès management
+  const [congresList, setCongresList] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -42,12 +46,14 @@ export default function DashboardAdminPage() {
         setNotifications(notifs);
         // Load villes config
         try {
-          const { data: villes } = await supabase.from("domaines").select("*").eq("type", "ville").order("nom");
+          const { data: villes } = await supabase.from("villes_admin").select("*").order("nom");
           setVillesList(villes?.map((v: Record<string, string | number>) => ({ id: v.id as number, nom: v.nom as string, image: (v.image as string) || "" })) || []);
         } catch { /* table may not exist yet */ }
         // Load webinaires
         const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
         setWebinaires(wbs || []);
+        const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").order("date", { ascending: true });
+        setCongresList(cgs || []);
       } catch (e: any) {
         // Session expired - redirect to home
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
@@ -62,6 +68,9 @@ export default function DashboardAdminPage() {
   const handleStatus = async (id: number, status: string) => {
     await supabase.from("formations").update({ status }).eq("id", id);
     setFormations(prev => prev.map(f => f.id === id ? { ...f, status } : f));
+    // Invalide le cache public pour que la formation apparaisse immédiatement
+    const { invalidateCache } = await import("@/lib/data");
+    invalidateCache();
   };
 
   const handleAfficheOrder = async (id: number, order: number | null) => {
@@ -71,18 +80,15 @@ export default function DashboardAdminPage() {
 
   const handleAddVille = async () => {
     if (!newVille.trim()) return;
-    const { data: inserted } = await supabase.from("domaines").insert({ nom: newVille.trim(), image: "", type: "ville" }).select().single();
+    const { data: inserted } = await supabase.from("villes_admin").insert({ nom: newVille.trim(), image: "" }).select().single();
     if (inserted) {
-      // Upload image if selected
       if (newVilleFile) {
-        const ext = newVilleFile.name.split(".").pop();
-        const path = `villes/${newVille.trim().toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("Images").upload(path, newVilleFile, { upsert: true });
-        if (!upErr) {
-          const { data: urlData } = supabase.storage.from("Images").getPublicUrl(path);
-          await supabase.from("domaines").update({ image: urlData.publicUrl }).eq("id", inserted.id);
-          setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: urlData.publicUrl }]);
-        } else {
+        try {
+          const url = await uploadImage(newVilleFile, "villes");
+          await supabase.from("villes_admin").update({ image: url }).eq("id", inserted.id);
+          setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: url }]);
+        } catch (e: any) {
+          alert("Erreur upload image : " + e.message);
           setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: "" }]);
         }
       } else {
@@ -94,28 +100,28 @@ export default function DashboardAdminPage() {
 
   const handleDeleteVille = async (nom: string) => {
     if (!confirm(`Supprimer la ville "${nom}" ?`)) return;
-    await supabase.from("domaines").delete().eq("nom", nom).eq("type", "ville");
+    await supabase.from("villes_admin").delete().eq("nom", nom);
     setVillesList(prev => prev.filter(v => v.nom !== nom));
   };
 
   const handleRenameVille = async (oldNom: string, newNom: string) => {
     if (!newNom.trim() || newNom === oldNom) return;
-    await supabase.from("domaines").update({ nom: newNom.trim() }).eq("nom", oldNom).eq("type", "ville");
+    await supabase.from("villes_admin").update({ nom: newNom.trim() }).eq("nom", oldNom);
     setVillesList(prev => prev.map(v => v.nom === oldNom ? { ...v, nom: newNom.trim() } : v));
   };
 
   const handleUpdateVilleImage = async (nom: string, image: string) => {
-    await supabase.from("domaines").update({ image }).eq("nom", nom).eq("type", "ville");
+    await supabase.from("villes_admin").update({ image }).eq("nom", nom);
     setVillesList(prev => prev.map(v => v.nom === nom ? { ...v, image } : v));
   };
 
   const handleUploadVilleImage = async (nom: string, file: File) => {
-    const ext = file.name.split(".").pop();
-    const path = `villes/${nom.toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("Images").upload(path, file, { upsert: true });
-    if (upErr) { alert("Erreur upload: " + upErr.message); return; }
-    const { data: urlData } = supabase.storage.from("Images").getPublicUrl(path);
-    handleUpdateVilleImage(nom, urlData.publicUrl);
+    try {
+      const url = await uploadImage(file, "villes");
+      handleUpdateVilleImage(nom, url);
+    } catch (e: any) {
+      alert("Erreur upload image : " + e.message);
+    }
   };
 
   const handleWebStatus = async (id: number, status: string) => {
@@ -181,8 +187,6 @@ export default function DashboardAdminPage() {
       {/* Admin section tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
-        <button onClick={() => setAdminTab("webinaires")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "webinaires" ? C.surface : "transparent", color: adminTab === "webinaires" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "webinaires" ? 700 : 500, cursor: "pointer" }}>📡 Webinaires {pendingWebCount > 0 ? `(${pendingWebCount} ⚡)` : ""}</button>
-        <button onClick={() => setAdminTab("affiche")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "affiche" ? C.surface : "transparent", color: adminTab === "affiche" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "affiche" ? 700 : 500, cursor: "pointer" }}>⭐ À l&apos;affiche</button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
       </div>
 
@@ -339,6 +343,51 @@ export default function DashboardAdminPage() {
               </label>
               <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== CONGRÈS TAB ===== */}
+      {adminTab === "congres" && (
+        <div style={{ paddingBottom: 40 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 16 }}>🎤 Validation des congrès</h2>
+          {congresList.length === 0 && (
+            <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucun congrès soumis.</div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {congresList.map((c: any) => (
+              <div key={c.id} style={{ padding: mob ? 14 : 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + (c.status === "en_attente" ? C.yellow + "88" : C.borderLight) }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                  {c.photo_url && <img src={c.photo_url} alt={c.titre} style={{ width: 80, height: 54, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{c.titre}</span>
+                      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, fontWeight: 700, background: c.status === "publie" ? C.greenBg : c.status === "refuse" ? C.pinkBg : "#FFF3C4", color: c.status === "publie" ? C.green : c.status === "refuse" ? C.pink : "#9B6B00" }}>
+                        {c.status === "publie" ? "✓ Publié" : c.status === "refuse" ? "✕ Refusé" : "⏳ En attente"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textTer, marginBottom: 4 }}>
+                      📅 {c.date ? new Date(c.date).toLocaleDateString("fr-FR") : "—"}
+                      {c.organisme?.nom && <> · 🏢 {c.organisme.nom}</>}
+                      {c.adresse && <> · 📍 {c.adresse}</>}
+                    </div>
+                    {c.description && <p style={{ fontSize: 12, color: C.textSec, marginBottom: 6 }}>{c.description}</p>}
+                    {(c.speakers || []).length > 0 && (
+                      <div style={{ fontSize: 11, color: C.textTer }}>
+                        👤 {(c.speakers as any[]).map((s: any) => s.nom + (s.titre_intervention ? ` (${s.titre_intervention})` : "")).join(" · ")}
+                      </div>
+                    )}
+                    {c.lien_url && <div style={{ fontSize: 11, color: C.accent, marginTop: 4 }}>🔗 {c.lien_url}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {c.status !== "publie" && <button onClick={async () => { await supabase.from("congres").update({ status: "publie" }).eq("id", c.id); setCongresList(prev => prev.map(x => x.id === c.id ? { ...x, status: "publie" } : x)); }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>}
+                    {c.status !== "refuse" && <button onClick={async () => { await supabase.from("congres").update({ status: "refuse" }).eq("id", c.id); setCongresList(prev => prev.map(x => x.id === c.id ? { ...x, status: "refuse" } : x)); }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: C.pinkBg, color: C.pink, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✕ Refuser</button>}
+                    {c.status !== "en_attente" && <button onClick={async () => { await supabase.from("congres").update({ status: "en_attente" }).eq("id", c.id); setCongresList(prev => prev.map(x => x.id === c.id ? { ...x, status: "en_attente" } : x)); }} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>⏳</button>}
+                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("congres").delete().eq("id", c.id); setCongresList(prev => prev.filter(x => x.id !== c.id)); }} style={{ padding: "7px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑</button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

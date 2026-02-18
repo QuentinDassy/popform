@@ -9,8 +9,8 @@ import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle", "Autres"];
-const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
-const PRISES = ["DPC", "FIF-PL", "OPCO"];
+const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const PRISES = ["DPC", "FIF-PL"];
 
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string };
 
@@ -22,7 +22,7 @@ function emptyFormation() {
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null,
     is_new: false, populations: [] as string[], mots_cles: "",
-    professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "",
+    professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "", photo_url: "" as string,
     organisme_id: null as number | null,
   };
 }
@@ -39,6 +39,7 @@ export default function DashboardFormateurPage() {
   const [form, setForm] = useState(emptyFormation());
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }]);
   const [saving, setSaving] = useState(false);
+  const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [profilSaved, setProfilSaved] = useState(false);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
@@ -67,7 +68,7 @@ export default function DashboardFormateurPage() {
       }
       setLoading(false);
       // Load admin villes
-      supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
+      supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setAdminVilles(data.map((v: { nom: string }) => v.nom));
       });
     })();
@@ -76,7 +77,7 @@ export default function DashboardFormateurPage() {
   const openEdit = (f?: Formation) => {
     if (f) {
       setEditId(f.id);
-      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id });
+      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
       setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "" })));
     } else {
       setEditId(null);
@@ -102,7 +103,7 @@ export default function DashboardFormateurPage() {
       is_new: true, populations: form.populations,
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
-      effectif: form.effectif || 20, video_url: form.video_url,
+      effectif: form.effectif || 20, video_url: form.video_url, photo_url: form.photo_url || null,
       url_inscription: form.url_inscription || "",
       formateur_id: formateur.id, organisme_id: form.organisme_id || null,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
@@ -114,6 +115,13 @@ export default function DashboardFormateurPage() {
       const { error } = await supabase.from("formations").update(payload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
     } else {
+      let formPhotoUrl2: string | null = form.photo_url || null;
+      if (formPhotoFile) {
+        const { uploadImage } = await import("@/lib/upload");
+        const url2 = await uploadImage(formPhotoFile, "formations");
+        if (url2) formPhotoUrl2 = url2;
+      }
+      if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
       formationId = data.id;
@@ -175,7 +183,14 @@ export default function DashboardFormateurPage() {
           <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🎤 Dashboard {fmtTitle(formateur)}</h1>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {tab === "list" && (
+          
+      {/* ===== CONTACT ===== */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 16 }}>💬</span>
+        <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
+      </div>
+
+{tab === "list" && (
             <>
               <button onClick={() => setTab("profil")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Mon profil</button>
               <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
@@ -310,6 +325,17 @@ export default function DashboardFormateurPage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Photo de la formation</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <label style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : form.photo_url ? "Changer la photo" : "Ajouter une photo"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
+                </label>
+                {form.photo_url && !formPhotoFile && <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />}
+              </div>
+            </div>
+
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL vidéo (YouTube)</label><input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} style={inputStyle} /></div>
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription</label><input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
           </div>
@@ -321,7 +347,7 @@ export default function DashboardFormateurPage() {
               {sessions.map((s, i) => {
                 const showModaliteSession = form.modalite === "Mixte";
                 const effModalite = showModaliteSession ? (s.modalite_session || "Présentiel") : form.modalite;
-                const isVisio = effModalite === "Distanciel" || effModalite === "Visio";
+                const isVisio = effModalite === "Visio";
                 return (
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>

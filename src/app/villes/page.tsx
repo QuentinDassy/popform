@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { C, fetchFormations, getAllCitiesFromFormations } from "@/lib/data";
+import { C, fetchFormations } from "@/lib/data";
 import { CityCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -12,23 +12,28 @@ export default function VillesPage() {
   const [adminVilles, setAdminVilles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    let villeMap: Record<string, string> = {};
-    const loadVilles = supabase.from("domaines").select("*").eq("type", "ville").then(({ data: villes }: { data: Record<string, string>[] | null }) => {
-      (villes || []).forEach((v: Record<string, string>) => { villeMap[v.nom] = v.image || "" });
-      setAdminVilles(villeMap);
-    }).catch(() => {});
-    const loadFormations = fetchFormations();
-    Promise.all([loadFormations, loadVilles]).then(([formations]) => {
-      const formationCities = getAllCitiesFromFormations(formations);
-      const adminNames = Object.keys(villeMap);
-      const allCities: [string, number][] = [];
-      adminNames.forEach(name => {
-        const found = formationCities.find(([c]) => c === name);
-        allCities.push([name, found ? found[1] : 0]);
-      });
-      formationCities.forEach(([c, n]) => { if (!adminNames.includes(c)) allCities.push([c, n]) });
-      setCities(allCities);
-      setLoading(false);
+    supabase.from("villes_admin").select("*").order("nom").then(({ data: villes }: { data: Record<string, string>[] | null }) => {
+      const adminMap: Record<string, string> = {};
+      (villes || []).forEach((v: Record<string, string>) => { adminMap[v.nom] = v.image || "" });
+      setAdminVilles(adminMap);
+      // Count formations per ville
+      fetchFormations().then(formations => {
+        const cityCount: Record<string, number> = {};
+        formations.forEach(f => {
+          (f.sessions || []).forEach((s: any) => {
+            if (s.ville) cityCount[s.ville] = (cityCount[s.ville] || 0) + 1;
+          });
+        });
+        // Only show admin-defined villes
+        const adminNames = Object.keys(adminMap);
+        if (adminNames.length > 0) {
+          setCities(adminNames.map(n => [n, cityCount[n] || 0]));
+        } else {
+          // No admin villes defined: show nothing (admin hasn't set up villes yet)
+          setCities([]);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
     }).catch(() => setLoading(false));
   }, []);
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;

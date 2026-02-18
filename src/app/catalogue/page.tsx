@@ -9,8 +9,8 @@ import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
-const MODALITES = ["Présentiel", "Distanciel", "Mixte"];
-const PRISES = ["DPC", "FIF-PL", "OPCO"];
+const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
 
 const sel = (mob: boolean): React.CSSProperties => ({
@@ -44,13 +44,13 @@ function CatalogueContent() {
 
   useEffect(() => {
     fetchFormations().then(d => { setFormations(d); setLoading(false); });
-    supabase.from("domaines").select("nom").eq("type", "ville").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
+    supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
   }, []);
 
   const formationCities = useMemo(() => getAllCitiesFromFormations(formations).map(([c]) => c), [formations]);
-  const cities = adminVilles.length > 0 ? adminVilles : formationCities;
+  const cities = adminVilles; // Only show admin-defined villes
   const hasActiveFilters = selDomaine || selModalite || selPrise || selPop || selVille;
 
   let filtered = formations.filter(f => {
@@ -61,7 +61,7 @@ function CatalogueContent() {
     if (selVille) {
       const isVisioFilter = selVille.toLowerCase() === "visio";
       const matchesVille = (f.sessions || []).some(s => s.lieu.toLowerCase().includes(selVille.toLowerCase()));
-      const matchesVisioModalite = isVisioFilter && (f.modalite === "Visio" || f.modalite === "Distanciel");
+      const matchesVisioModalite = isVisioFilter && f.modalite === "Visio";
       if (!matchesVille && !matchesVisioModalite) return false;
     }
     if (selDomaine && f.domaine !== selDomaine) return false;

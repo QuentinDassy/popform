@@ -12,7 +12,7 @@ interface AuthContextType {
   showAuth: boolean;
   setShowAuth: (v: boolean) => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, fullName: string, role: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
 }
@@ -64,12 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message || null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean) => {
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName, role } },
+      options: { data: { full_name: fullName, role, newsletter_opt: newsletterOpt ?? false } },
     });
+    // If signup succeeded and newsletter_opt is true, update profile after slight delay
+    if (!error && newsletterOpt) {
+      setTimeout(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await supabase.from("profiles").update({ newsletter_opt: true }).eq("id", user.id);
+      }, 2000);
+    }
     return { error: error?.message || null };
   };
 

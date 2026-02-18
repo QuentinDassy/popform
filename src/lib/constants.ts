@@ -84,4 +84,5 @@ export interface Profile {
   full_name: string | null;
   role: "user" | "organisme" | "formateur" | "admin";
   avatar_url: string | null;
+  newsletter_opt: boolean | null;
 }

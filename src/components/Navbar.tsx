@@ -17,7 +17,6 @@ const C = {
 const NAV_ITEMS = [
   { href: "/", label: "Accueil", icon: "🏠" },
   { href: "/catalogue", label: "Catalogue", icon: "🎬" },
-  { href: "/webinaires", label: "Webinaires 🔴", icon: "📡" },
   { href: "/villes", label: "Villes", icon: "📍" },
   { href: "/organismes", label: "Organismes", icon: "🏢" },
   { href: "/formateurs", label: "Formateur·rice·s", icon: "🎤" },

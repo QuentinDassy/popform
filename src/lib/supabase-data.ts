@@ -32,7 +32,7 @@ export type AdminNotification = { id: number; type: string; formation_id: number
 // ============ CACHE ============
 let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
-const CACHE_TTL = 60000; // 1 minute
+const CACHE_TTL = 0; // No cache - always fresh (can re-enable after launch)
 
 // Public: all formations with cache
 export async function fetchFormations(): Promise<Formation[]> {
@@ -40,7 +40,8 @@ export async function fetchFormations(): Promise<Formation[]> {
   if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
+    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
+    .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
   if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
   const result = data || [];
@@ -70,7 +71,8 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
 export async function fetchAllFormations(): Promise<Formation[]> {
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
+    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
+    .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
   if (error) { console.error(error); return []; }
   return data || [];

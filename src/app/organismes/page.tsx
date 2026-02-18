@@ -9,7 +9,17 @@ export default function OrganismesPage() {
   const [orgs, setOrgs] = useState<Organisme[]>([]);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { Promise.all([fetchOrganismes(), fetchFormations()]).then(([o, f]) => { setOrgs(o); setFormations(f); setLoading(false) }) }, []);
+  useEffect(() => { Promise.all([fetchOrganismes(), fetchFormations()]).then(([o, f]) => {
+    // Deduplicate: one organisme per user_id
+    const seen = new Set<string>();
+    const unique = o.filter(org => {
+      const key = org.user_id || String(org.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setOrgs(unique); setFormations(f); setLoading(false);
+  }) }, []);
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
@@ -18,7 +28,7 @@ export default function OrganismesPage() {
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Organismes</h1>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12, paddingBottom: 40 }}>
-        {orgs.map(o => { const count = formations.filter(f => f.organisme_id === o.id).length; return (
+        {orgs.map(o => { const count = formations.filter(f => f.organisme_id === o.id || (f.formateur && (f.formateur as any).organisme_id === o.id)).length; return (
           <Link key={o.id} href={`/catalogue`} style={{ textDecoration: "none", color: "inherit" }}>
             <div style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer" }}>
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>

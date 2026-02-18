@@ -48,6 +48,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const [name, setName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [role, setRole] = useState("user");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -71,7 +72,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
       const { error } = await signIn(email, password);
       if (error) setError(error); else onSuccess();
     } else {
-      const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role);
+      const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role, newsletterOptIn);
       if (error) setError(error); else setSuccess(true);
     }
     setLoading(false);
@@ -183,6 +184,19 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                 </button>
               </div>
               {mode === "register" && <PasswordStrength password={password} />}
+              {mode === "register" && (
+                <div
+                  onClick={() => setNewsletterOptIn(!newsletterOptIn)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: newsletterOptIn ? "linear-gradient(135deg,rgba(212,43,43,0.04),rgba(245,183,49,0.06))" : C.bgAlt, border: `1.5px solid ${newsletterOptIn ? C.accent + "33" : C.border}`, cursor: "pointer", userSelect: "none" }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${newsletterOptIn ? C.accent : C.border}`, background: newsletterOptIn ? C.gradient : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+                    {newsletterOptIn && <span style={{ fontSize: 11, color: "#fff", fontWeight: 800 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.4 }}>
+                    🍿 <strong>Newsletter PopForm</strong> — Nouvelles formations, actus, ne rien rater !
+                  </span>
+                </div>
+              )}
             </form>
 
             {mode === "login" && (

@@ -24,8 +24,8 @@ function useTyping(words: string[]) {
 }
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
-const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
-const PRISES = ["DPC", "FIF-PL", "OPCO"];
+const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const PRISES = ["DPC", "FIF-PL"];
 
 const sel = (mob: boolean): React.CSSProperties => ({
   padding: mob ? "9px 28px 9px 12px" : "10px 32px 10px 14px",
@@ -65,6 +65,7 @@ export default function HomePage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [webinaires, setWebinaires] = useState<any[]>([]);
+  const [congres, setCongres] = useState<any[]>([]);
   const [adminVilles, setAdminVilles] = useState<{ nom: string; image: string }[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -127,8 +128,12 @@ export default function HomePage() {
       supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data: wbs }: { data: any[] | null }) => {
         if (wbs) setWebinaires(wbs);
       }).catch(() => {});
+      // Load congrès publiés
+      supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").eq("status", "publie").order("date", { ascending: true }).then(({ data: cgs }: { data: any[] | null }) => {
+        if (cgs) setCongres(cgs.filter((c: any) => new Date(c.date) >= new Date()));
+      }).catch(() => {});
       // Load admin villes separately (non-blocking)
-      supabase.from("domaines").select("*").eq("type", "ville").order("nom").then(({ data: villes }: { data: any[] | null }) => {
+      supabase.from("villes_admin").select("*").order("nom").then(({ data: villes }: { data: any[] | null }) => {
         if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
       }).catch(() => {});
     }
@@ -150,7 +155,7 @@ export default function HomePage() {
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const langOral = formations.filter(f => f.domaine === "Langage oral");
   const neuro = formations.filter(f => f.domaine === "Neurologie");
-  const visioF = formations.filter(f => f.modalite === "Visio" || f.modalite === "Distanciel" || (f.sessions || []).some(s => s.lieu === "Visio"));
+  const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaine || selModalite || selPrise || selVille;
 
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
@@ -220,63 +225,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ===== VILLES ===== */}
-      <section style={{ padding: mob ? "24px 16px 16px" : "36px 40px 24px", maxWidth: 1240, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
-          <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text }}>📍 Formations par ville</h2>
-          <Link href="/villes" style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Toutes les villes →</Link>
-        </div>
-        {topCities.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(4, 1fr)", gap: mob ? 8 : 14 }}>
-            {topCities.map(c => <CityCard key={c.name} city={c.name} count={c.count} mob={mob} image={c.image} />)}
-          </div>
-        ) : (
-          <p style={{ textAlign: "center", color: C.textTer, fontSize: 13, padding: "20px 0" }}>Les villes seront affichées dès que des sessions seront ajoutées.</p>
-        )}
-      </section>
-
       {/* ===== SECTIONS ===== */}
-      <SectionGrid title="🎬 Les nouveautés à l'affiche" formations={newF.length > 0 ? newF : formations} mob={mob} max={6} link="/catalogue?sort=recent" />
       <SectionGrid title="⭐ Les mieux notées" formations={popularF} mob={mob} />
       {langOral.length > 0 && <SectionGrid title="🗣️ Langage oral" formations={langOral} mob={mob} max={4} />}
       {neuro.length > 0 && <SectionGrid title="🧠 Neurologie" formations={neuro} mob={mob} max={4} />}
       {visioF.length > 0 && <SectionGrid title="💻 En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
 
       {/* Section webinaires */}
-      {webinaires.length > 0 && (
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>📡 Webinaires à venir</h2>
-            <Link href="/webinaires" style={{ fontSize: 13, color: C.accent, textDecoration: "none", fontWeight: 600 }}>Voir tous →</Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
-            {webinaires.slice(0, 4).map(w => {
-              const d = new Date(w.date_heure);
-              const now = new Date();
-              const isFuture = d > now;
-              return (
-                <div key={w.id} style={{ padding: mob ? 14 : 18, background: "linear-gradient(135deg, #7C3AED08, #7C3AED18)", borderRadius: 14, border: "1.5px solid #7C3AED33" }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                    <span style={{ padding: "3px 8px", borderRadius: 6, background: "#7C3AED", color: "#fff", fontSize: 10, fontWeight: 700 }}>📡 WEBINAIRE</span>
-                    {isFuture && <span style={{ padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontSize: 10, fontWeight: 700 }}>À venir</span>}
-                  </div>
-                  <div style={{ fontSize: mob ? 14 : 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>{w.titre}</div>
-                  <div style={{ fontSize: 12, color: C.textTer, marginBottom: 8 }}>📅 {d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} à {d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
-                  {w.description && <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, marginBottom: 10, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{w.description}</p>}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: w.prix === 0 ? C.green : C.text }}>{w.prix === 0 ? "Gratuit" : w.prix + "€"}</span>
-                    <Link href="/webinaires" style={{ padding: "6px 14px", borderRadius: 8, background: "#7C3AED", color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>Voir →</Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ===== CTA ===== */}
+{/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
-        <Link href="/catalogue"><button style={{ padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", fontFamily: "inherit" }}>Voir tout le programme ({formations.length} formations) →</button></Link>
+        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto" }}>Voir tout le programme ({formations.length} formations) →</div></Link>
       </div>
 
       {/* ===== NEWSLETTER ===== */}

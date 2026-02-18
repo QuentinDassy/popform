@@ -10,51 +10,174 @@ import { supabase } from "@/lib/supabase-data";
 type InscRow = { formation_id: number; session_id?: number | null };
 
 // ─── Composant calendrier ── hooks toujours au top level ──────────────
-function CalendrierTab({ inscF, inscs, mob }: { inscF: Formation[]; inscs: InscRow[]; mob: boolean }) {
+function CalendrierTab({ inscF, inscs, congresInscs, setCongresInscs, webInscs, setWebInscs, setInscs, setInscriptionIds, user, mob }: {
+  inscF: Formation[]; inscs: InscRow[]; congresInscs: any[]; setCongresInscs: (v: any[]) => void; webInscs: any[];
+  setWebInscs: (v: any[]) => void; setInscs: (fn: (prev: InscRow[]) => InscRow[]) => void;
+  setInscriptionIds: (fn: (prev: number[]) => number[]) => void;
+  user: any; mob: boolean;
+}) {
+  const { supabase: sb } = { supabase };
   const domColors: Record<string, string> = {
     "Langage oral": C.green, "Neurologie": C.blue, "Langage écrit": C.blue,
     "OMF": C.pink, "Cognition mathématique": C.orange, "Pratique professionnelle": C.accent,
   };
 
+  // Parse a date string like "14-15 mai 2026" → Date for sorting
+  const parseSessionDate = (dates: string): Date | null => {
+    if (!dates) return null;
+    const allMonths: Record<string, number> = {
+      janvier: 0, fevrier: 1, "février": 1, mars: 2, avril: 3, mai: 4, juin: 5,
+      juillet: 6, "août": 7, aout: 7, septembre: 8, octobre: 9, novembre: 10, "décembre": 11, decembre: 11,
+      jan: 0, "fév": 1, fev: 1, mar: 2, avr: 3, jul: 6, "aoû": 7, aou: 7, sep: 8, oct: 9, nov: 10, "déc": 11, dec: 11,
+    };
+    const monthPat = Object.keys(allMonths).sort((a,b) => b.length-a.length).join("|");
+    // Match: day (possibly range like 14-15), month name, year
+    const re = new RegExp(`(\\d{1,2})(?:[^\\d\\w]|\\s)*(?:\\d{1,2}[^\\d\\w])?\\s*(${monthPat})\\s*(\\d{4})`, "i");
+    const m = dates.match(re);
+    if (m) return new Date(parseInt(m[3]), allMonths[m[2].toLowerCase()], parseInt(m[1]));
+    // Fallback: month + year only
+    const re2 = new RegExp(`(${monthPat})\\s*(\\d{4})`, "i");
+    const m2 = dates.match(re2);
+    if (m2) return new Date(parseInt(m2[2]), allMonths[m2[1].toLowerCase()], 1);
+    // Last resort: native Date.parse
+    const p = Date.parse(dates);
+    if (!isNaN(p)) return new Date(p);
+    return null;
+  };
+
   const allSessions = inscF.flatMap(f => {
-    const ins = inscs.find(i => i.formation_id === f.id);
+    const inscriptions = inscs.filter(i => i.formation_id === f.id);
     const list = f.sessions || [];
-    const filtered = ins?.session_id ? list.filter(s => s.id === ins.session_id) : list;
-    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, domaine: f.domaine, key: f.id + "-" + i }));
+    let filtered: typeof list;
+    if (inscriptions.length === 0) { filtered = []; }
+    else {
+      const sessionIds = inscriptions.map(i => i.session_id).filter(id => id != null);
+      filtered = sessionIds.length === 0 ? list : list.filter(s => sessionIds.includes(s.id));
+    }
+    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, domaine: f.domaine, key: f.id + "-" + s.id + "-" + i, type: "formation" as const, _sortDate: parseSessionDate(s.dates) }));
   });
 
-  const months: Record<string, typeof allSessions> = {};
+  // All events unified for calendar
+  type CalEvent = { key: string; type: "formation" | "congres" | "webinaire"; titre: string; _sortDate: Date | null; _monthKey: string; _data: any };
+
+  const allEvents: CalEvent[] = [];
+
   allSessions.forEach(s => {
-    const match = s.dates.match(/(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*(\d{4})/i);
-    const key = match ? `${match[1]} ${match[2]}` : "À planifier";
-    if (!months[key]) months[key] = [];
-    months[key].push(s);
+    const d = parseSessionDate(s.dates);
+    let monthKey: string;
+    if (d) {
+      monthKey = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    } else {
+      monthKey = "À planifier";
+    }
+    allEvents.push({ key: s.key, type: "formation", titre: s.titre, _sortDate: d, _monthKey: monthKey, _data: s });
   });
-  const sortedMonths = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
+
+  // Congrès et webinaires désactivés pour la v1 — réactiver plus tard
+  // congresInscs et webInscs conservés mais non affichés
+
+  // Group by month, sort months chronologically
+  const months: Record<string, CalEvent[]> = {};
+  allEvents.forEach(ev => {
+    if (!months[ev._monthKey]) months[ev._monthKey] = [];
+    months[ev._monthKey].push(ev);
+  });
+
+  // Sort months: "À planifier" at end, others by date
+  const sortedMonths = Object.entries(months).sort(([a], [b]) => {
+    if (a === "À planifier") return 1;
+    if (b === "À planifier") return -1;
+    const da = new Date("01 " + a); const db = new Date("01 " + b);
+    return da.getTime() - db.getTime();
+  });
+
+  // Sort events within each month by date
+  sortedMonths.forEach(([, evts]) => evts.sort((a, b) => {
+    if (!a._sortDate) return 1; if (!b._sortDate) return -1;
+    return a._sortDate.getTime() - b._sortDate.getTime();
+  }));
+
+  const handleDesinscribeFormation = async (ev: CalEvent) => {
+    if (!confirm("Se désinscrire de cette session ?")) return;
+    const s = ev._data;
+    if (s.id) {
+      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", s.fId).eq("session_id", s.id);
+    } else {
+      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", s.fId);
+    }
+    setInscs(prev => {
+      const remaining = prev.filter(i => !(i.formation_id === s.fId && (s.id ? i.session_id === s.id : true)));
+      // If no more sessions for this formation, remove from inscriptionIds
+      const stillHas = remaining.some(i => i.formation_id === s.fId);
+      if (!stillHas) setInscriptionIds(prev2 => prev2.filter(id => id !== s.fId));
+      return remaining;
+    });
+  };
+
+  const handleDesinscribeCongres = async (ev: CalEvent) => {
+    if (!confirm("Se désinscrire de ce congrès ?")) return;
+    await supabase.from("congres_inscriptions").delete().eq("user_id", user.id).eq("congres_id", ev._data.id);
+    setCongresInscs(congresInscs.filter((c: any) => c.id !== ev._data.id));
+  };
+
+  const handleDesinscribeWebinaire = async (ev: CalEvent) => {
+    if (!confirm("Se désinscrire de ce webinaire ?")) return;
+    await supabase.from("webinaire_inscriptions").delete().eq("user_id", user.id).eq("webinaire_id", ev._data.id);
+    setWebInscs(webInscs.filter(w => w.id !== ev._data.id));
+  };
+
+  const isEmpty = allEvents.length === 0;
 
   return (
     <div style={{ paddingBottom: 40 }}>
-      {allSessions.length === 0 ? (
+      {isEmpty ? (
         <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-          <p>Aucune session planifiée. Inscrivez-vous à des formations !</p>
+          <p>Aucun événement planifié. Inscrivez-vous à des formations pour les voir apparaître ici.</p>
         </div>
-      ) : sortedMonths.map(([month, sessions]) => (
+      ) : sortedMonths.map(([month, events]) => (
         <div key={month} style={{ marginBottom: 24 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10, textTransform: "capitalize" }}>📅 {month}</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {sessions.map(s => (
-              <Link key={s.key} href={`/formation/${s.fId}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <div style={{ display: "flex", gap: mob ? 8 : 14, alignItems: "center", padding: mob ? "10px 12px" : "12px 16px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, cursor: "pointer", flexWrap: "wrap", borderLeft: "4px solid " + (domColors[s.domaine] || C.accent) }}>
-                  <span style={{ padding: "4px 10px", borderRadius: 8, background: C.accentBg, color: C.accent, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{s.dates}</span>
-                  <div style={{ flex: 1, minWidth: 150 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.titre}</div>
-                    <div style={{ fontSize: 11, color: C.textTer }}>📍 {s.lieu}{s.adresse ? " — " + s.adresse : ""}</div>
-                  </div>
-                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontWeight: 600 }}>{s.domaine}</span>
+            {events.map(ev => {
+              const borderColor = ev.type === "congres" ? C.accent : ev.type === "webinaire" ? "#7C3AED" : (domColors[ev._data?.domaine] || C.accent);
+              const badgeBg = ev.type === "congres" ? C.accentBg : ev.type === "webinaire" ? "#7C3AED11" : C.accentBg;
+              const badgeColor = ev.type === "congres" ? C.accent : ev.type === "webinaire" ? "#7C3AED" : C.accent;
+              const href = ev.type === "congres" ? `/congres/${ev._data.id}` : ev.type === "webinaire" ? `/webinaires` : `/formation/${ev._data.fId}`;
+              const dateLabel = ev._sortDate ? ev._sortDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : ev._data?.dates || "—";
+              const badge = ev.type === "congres" ? "🎤 Congrès" : ev.type === "webinaire" ? "📡 Webinaire" : ev._data?.domaine;
+              const subtitle = ev.type === "webinaire"
+                ? (ev._sortDate ? ev._sortDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + " à " + ev._sortDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "")
+                : ev.type === "congres"
+                  ? (ev._data?.adresse || "")
+                  : `📍 ${ev._data?.lieu || ""}${ev._data?.adresse ? " — " + ev._data.adresse : ""}`;
+
+              return (
+                <div key={ev.key} style={{ display: "flex", gap: mob ? 8 : 12, alignItems: "center", padding: mob ? "10px 12px" : "11px 14px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, borderLeft: "4px solid " + borderColor, flexWrap: "wrap" }}>
+                  {/* Date badge */}
+                  <span style={{ padding: "3px 9px", borderRadius: 8, background: badgeBg, color: badgeColor, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    {ev.type === "formation" ? ev._data?.dates : dateLabel}
+                  </span>
+                  {/* Content — clickable */}
+                  <Link href={href} style={{ flex: 1, minWidth: 140, textDecoration: "none", color: "inherit" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{ev.titre}</div>
+                    {subtitle && <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>{subtitle}</div>}
+                  </Link>
+                  {/* Badge type */}
+                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: badgeBg, color: badgeColor, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>{badge}</span>
+                  {/* Desinscription button */}
+                  <button
+                    onClick={() => {
+                      if (ev.type === "formation") handleDesinscribeFormation(ev);
+                      else if (ev.type === "congres") handleDesinscribeCongres(ev);
+                      else handleDesinscribeWebinaire(ev);
+                    }}
+                    style={{ padding: "4px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 11, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+                    title="Se désinscrire"
+                  >✕ Retirer</button>
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -72,11 +195,14 @@ export default function ComptePage() {
   const [inscs, setInscs] = useState<InscRow[]>([]);
   const [inscriptionIds, setInscriptionIds] = useState<number[]>([]);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
+  const [congresInscs, setCongresInscs] = useState<any[]>([]); // congrès inscrits
+  const [webInscs, setWebInscs] = useState<any[]>([]); // webinaires inscrits
   const [loading, setLoading] = useState(true);
   const [editProfile, setEditProfile] = useState(false);
   const [pName, setPName] = useState("");
   const [pSaving, setPSaving] = useState(false);
   const [pMsg, setPMsg] = useState("");
+  const [newsletterOpt, setNewsletterOpt] = useState(false);
   const [showPwChange, setShowPwChange] = useState(false);
   const [newPw, setNewPw] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -95,6 +221,7 @@ export default function ComptePage() {
   useEffect(() => {
     if (!user) { setLoading(false); return; }
     setPName(profile?.full_name || "");
+    setNewsletterOpt(profile?.newsletter_opt ?? false);
     Promise.all([fetchFormations(), fetchAvis(), fetchInscriptions(user.id), fetchFavoris(user.id)]).then(([f, a, ins, favs]) => {
       setFormations(f); setAvis(a);
       const active = ins.filter(i => i.status === "inscrit");
@@ -103,6 +230,15 @@ export default function ComptePage() {
       setFavoriIds(favs.map(fv => fv.formation_id));
       setLoading(false);
     });
+    // Load congrès inscrits
+    supabase.from("congres_inscriptions").select("congres_id, congres:congres(id,titre,date,adresse,photo_url,lien_url)").eq("user_id", user.id).then(({ data }: { data: any[] | null }) => {
+      if (data) setCongresInscs(data.map(d => d.congres).filter(Boolean));
+    }).catch(() => {});
+    // Load webinaires inscrits
+    supabase.from("webinaire_inscriptions").select("webinaire_id, webinaire:webinaires(id,titre,date_heure,lien_url)").eq("user_id", user.id).then(({ data, error }: { data: any[] | null; error: any }) => {
+      if (error) console.error("webinaire_inscriptions load error:", error.message);
+      if (data) setWebInscs(data.map(d => d.webinaire).filter(Boolean));
+    }).catch((e: any) => console.error("webinaire catch:", e.message));
   }, [user, profile]);
 
   const handleToggleFav = async (formationId: number) => {
@@ -137,10 +273,15 @@ export default function ComptePage() {
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
 
   const planSessions = inscF.flatMap(f => {
-    const ins = inscs.find(i => i.formation_id === f.id);
+    const inscriptions = inscs.filter(i => i.formation_id === f.id);
     const list = f.sessions || [];
-    const filtered = ins?.session_id ? list.filter(s => s.id === ins.session_id) : list;
-    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, key: f.id + "-" + i }));
+    let filtered: typeof list;
+    if (inscriptions.length === 0) { filtered = []; }
+    else {
+      const sessionIds = inscriptions.map(i => i.session_id).filter(id => id != null);
+      filtered = sessionIds.length === 0 ? list : list.filter(s => sessionIds.includes(s.id));
+    }
+    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, key: f.id + "-" + s.id + "-" + i }));
   }).sort((a, b) => a.dates.localeCompare(b.dates));
 
   return (
@@ -160,6 +301,26 @@ export default function ComptePage() {
         <div style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
           <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Nom complet</label>
           <input value={pName} onChange={e => setPName(e.target.value)} style={{ ...inputStyle, maxWidth: 300 }} />
+
+          {/* Newsletter toggle */}
+          <div style={{ marginTop: 14, padding: "12px 14px", background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🍿 Newsletter PopForm</div>
+                <div style={{ fontSize: 11, color: C.textTer, marginTop: 2 }}>Nouvelles formations, actus et séances à ne pas rater</div>
+              </div>
+              <button onClick={async () => {
+                const newVal = !newsletterOpt;
+                setNewsletterOpt(newVal);
+                await supabase.from("profiles").update({ newsletter_opt: newVal }).eq("id", user?.id || "");
+                setPMsg(newVal ? "✓ Newsletter activée !" : "Newsletter désactivée");
+                setTimeout(() => setPMsg(""), 2000);
+              }} style={{ width: 44, height: 24, borderRadius: 12, border: "none", background: newsletterOpt ? C.green : C.border, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 3, left: newsletterOpt ? 23 : 3, transition: "left 0.2s" }} />
+              </button>
+            </div>
+          </div>
+
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
             <button onClick={handleSaveProfile} disabled={pSaving} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: pSaving ? 0.5 : 1 }}>Enregistrer</button>
             {pMsg && <span style={{ fontSize: 12, color: C.green }}>{pMsg}</span>}
@@ -189,7 +350,7 @@ export default function ComptePage() {
         <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
       </div>
 
-      {tab === "calendrier" && <CalendrierTab inscF={inscF} inscs={inscs} mob={mob} />}
+      {tab === "calendrier" && <CalendrierTab inscF={inscF} inscs={inscs} congresInscs={congresInscs} setCongresInscs={setCongresInscs} webInscs={webInscs} setWebInscs={setWebInscs} setInscs={setInscs} setInscriptionIds={setInscriptionIds} user={user} mob={mob} />}
 
       {tab === "favoris" && (
         <div>

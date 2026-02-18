@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Head from "next/head";
-import { C, getDC, getPhoto, fmtLabel, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, type Formation, type Avis } from "@/lib/data";
+import { C, getDC, fmtLabel, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, type Formation, type Avis } from "@/lib/data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -161,7 +161,7 @@ export default function FormationPage() {
   const [avis, setAvis] = useState<Avis[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFav, setIsFav] = useState(false);
-  const [isInscrit, setIsInscrit] = useState(false);
+  const [inscribedSessions, setInscribedSessions] = useState<number[]>([]); // session ids or [-1] for no-session
   const [inscribing, setInscribing] = useState(false);
   const [inscMsg, setInscMsg] = useState("");
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
@@ -182,32 +182,87 @@ export default function FormationPage() {
   useEffect(() => {
     if (!user) return;
     fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === id)));
-    supabase.from("inscriptions").select("id").eq("user_id", user.id).eq("formation_id", id).then(({ data }: { data: unknown[] | null }) => { if (data && data.length > 0) setIsInscrit(true) });
+    supabase.from("inscriptions").select("id, session_id").eq("user_id", user.id).eq("formation_id", id).then(({ data }: { data: { id: number; session_id: number | null }[] | null }) => {
+      if (data && data.length > 0) setInscribedSessions(data.map(i => i.session_id ?? -1));
+    });
   }, [user, id]);
+
+  const isInscrit = inscribedSessions.length > 0;
+  const isInscritSession = (sessionId: number) => inscribedSessions.includes(sessionId);
 
   const handleFav = async () => { if (!user) { setShowAuth?.(true); return } const added = await toggleFavori(user.id, id); setIsFav(added) };
   const handleInscription = async (sessionIdx?: number) => {
     if (!user) { setShowAuth?.(true); return }
-    if (isInscrit) {
-      // Désinscription
-      if (!confirm("Vous désinscrire de cette formation ?")) return;
-      setInscribing(true);
-      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id);
-      setIsInscrit(false); setInscMsg("Désinscrit·e");
+    const sessions = f?.sessions || [];
+
+    // Multi-session: clic sur une session
+    if (sessionIdx !== undefined) {
+      const sess = sessions[sessionIdx];
+      const sessId = sess?.id ?? -1;
+
+      // Désinscription si déjà inscrit à cette session précise
+      if (inscribedSessions.includes(sessId)) {
+        if (!confirm("Se désinscrire de cette session ?")) return;
+        setInscribing(true);
+        if (sess?.id) {
+          await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id).eq("session_id", sess.id);
+        } else {
+          await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id).is("session_id", null);
+        }
+        setInscribedSessions(prev => prev.filter(s => s !== sessId));
+        setInscribing(false);
+        return;
+      }
+
+      // Vérif côté client : session déjà inscrite ?
+      setInscribing(true); setInscMsg("");
+      // Check si cette session spécifique est déjà en base
+      const { data: existing } = await supabase.from("inscriptions")
+        .select("id").eq("user_id", user.id).eq("formation_id", id)
+        .eq("session_id", sess?.id ?? null);
+      if (existing && existing.length > 0) {
+        setInscribedSessions(prev => prev.includes(sessId) ? prev : [...prev, sessId]);
+        setInscMsg("Déjà inscrit·e à cette session");
+        setInscribing(false);
+        setTimeout(() => setInscMsg(""), 2000);
+        return;
+      }
+
+      const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: sess?.id ?? null, status: "inscrit" });
+      if (error) {
+        if (error.code === "23505") {
+          // Unique constraint on (user_id, formation_id) - DB needs updating
+          setInscMsg("⚠️ Déjà inscrit·e à une session de cette formation. Exécutez le SQL de correction en base.");
+        } else {
+          setInscMsg("Erreur : " + error.message);
+        }
+      }
+      else {
+        setInscribedSessions(prev => [...prev, sessId]);
+        setInscMsg("✓ Inscrit·e !");
+      }
       setInscribing(false);
       setTimeout(() => setInscMsg(""), 3000);
       return;
     }
-    // Si plusieurs sessions et aucune sélectionnée, afficher le picker
-    if (f && (f.sessions || []).length > 1 && sessionIdx === undefined) {
-      setShowSessionPicker(true);
+
+    // Sans session sélectionnée
+    if (isInscrit && sessions.length <= 1) {
+      if (!confirm("Se désinscrire de cette formation ?")) return;
+      setInscribing(true);
+      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id);
+      setInscribedSessions([]); setInscMsg("Désinscrit·e");
+      setInscribing(false);
+      setTimeout(() => setInscMsg(""), 3000);
       return;
     }
+    if (sessions.length > 1) { setShowSessionPicker(true); return; }
     setShowSessionPicker(false);
     setInscribing(true); setInscMsg("");
-    const sessId = sessionIdx !== undefined ? (f?.sessions || [])[sessionIdx]?.id : null;
-    const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: sessId || null, status: "inscrit" });
-    if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit·e" : "Erreur") } else { setIsInscrit(true); setInscMsg("✓ Inscription confirmée !") }
+    const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: null, status: "inscrit" });
+    if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit·e" : "Erreur") } else {
+      setInscribedSessions([-1]); setInscMsg("✓ Inscription confirmée !");
+    }
     setInscribing(false);
   };
   const handleAddAvis = async (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => { if (!user || !profile) return; const n = await addAvisDB(f!.id, user.id, profile.full_name || "Anonyme", note, texte, subs); if (n) setAvis(prev => [n, ...prev]) };
@@ -216,7 +271,7 @@ export default function FormationPage() {
   if (loading) return <PageSkeleton mob={mob} />;
   if (!f) return (<div style={{ maxWidth: 920, margin: "0 auto", padding: 40, textAlign: "center" }}><p style={{ color: C.textTer }}>Formation introuvable.</p><Link href="/catalogue" style={{ color: C.accent }}>← Retour au catalogue</Link></div>);
 
-  const dc = getDC(f.domaine); const photo = getPhoto(f.domaine);
+  const dc = getDC(f.domaine); const photo = (f as any).photo_url || null;
   const fmt = f.formateur; const org = f.organisme;
   const sessions = f.sessions || [];
   const priseEnCharge = f.prise_en_charge || [];
@@ -253,7 +308,12 @@ export default function FormationPage() {
 
       {/* ===== HERO IMAGE FULL-WIDTH ===== */}
       <div style={{ position: "relative", width: "100%", height: mob ? 220 : 380, overflow: "hidden" }}>
-        <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {photo
+          ? <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg.replace("0.1)", "0.4)")}, ${dc.color}22)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 64 }}>
+              {f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}
+            </div>
+        }
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.95) 0%, rgba(45,27,6,0.4) 40%, transparent 70%)" }} />
         <div style={{ position: "absolute", top: mob ? 12 : 20, right: mob ? 12 : 20 }}>{favBtn}</div>
         <div style={{ position: "absolute", top: mob ? 12 : 20, left: mob ? 12 : 20, display: "flex", gap: 8, alignItems: "center" }}>
@@ -303,8 +363,7 @@ export default function FormationPage() {
           <div>
             {/* Tags */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-              {f.is_new && <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: C.gradient, color: "#fff" }}>À l&apos;affiche 🍿</span>}
-              <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: dc.bg, color: dc.color }}>{f.domaine}</span>
+                            <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: dc.bg, color: dc.color }}>{f.domaine}</span>
               <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{f.modalite}</span>
               {priseEnCharge.map(p => <PriseTag key={p} label={p} />)}
             </div>
@@ -396,23 +455,39 @@ export default function FormationPage() {
                     </div>
                   )}
 
-                  {/* Session picker si plusieurs sessions */}
-                  {showSessionPicker && sessions.length > 1 && !isInscrit && (
-                    <div style={{ marginTop: 10, padding: 12, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8 }}>Choisissez votre session :</p>
-                      {sessions.map((s, i) => (
-                        <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 12, cursor: "pointer", marginBottom: 5, display: "block" }}>
-                          <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates}<br/>
-                          <span style={{ color: C.textTer }}>📍 {s.lieu}</span>
-                        </button>
-                      ))}
+                  {/* Sessions — multi-inscription */}
+                  {sessions.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", marginBottom: 6 }}>
+                        {sessions.length > 1 ? "Sessions disponibles — sélectionnez-en une ou plusieurs" : "Session"}
+                      </p>
+                      {sessions.map((s, i) => {
+                        const sessId = s.id ?? -1;
+                        const checked = isInscritSession(sessId);
+                        return (
+                          <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (checked ? C.green + "66" : C.border), background: checked ? C.greenBg : C.surface, color: C.text, fontSize: 12, cursor: "pointer", marginBottom: 5, display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (checked ? C.green : C.border), background: checked ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, color: "#fff" }}>{checked ? "✓" : ""}</span>
+                            <span style={{ flex: 1 }}>
+                              <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates}<br/>
+                              <span style={{ color: C.textTer }}>📍 {s.lieu}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
                   {/* Inscription interne (suivi) */}
-                  <button onClick={() => handleInscription()} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
-                    {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit·e — Se désinscrire" : "📋 Ajouter à mes formations"}
-                  </button>
+                  {sessions.length === 0 && (
+                    <button onClick={() => handleInscription()} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
+                      {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit·e — Se désinscrire" : "📋 Ajouter à mes formations"}
+                    </button>
+                  )}
+                  {inscribedSessions.length > 0 && sessions.length > 0 && (
+                    <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 8, background: C.greenBg, fontSize: 11, color: C.green, fontWeight: 600 }}>
+                      ✓ {inscribedSessions.length} session{inscribedSessions.length > 1 ? "s" : ""} sélectionnée{inscribedSessions.length > 1 ? "s" : ""}
+                    </div>
+                  )}
                   {inscMsg && <p style={{ fontSize: 11, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 6, textAlign: "center" }}>{inscMsg}</p>}
 
                   {/* Quick info */}
@@ -475,16 +550,24 @@ export default function FormationPage() {
             </div>
           )}
 
-          {/* Mobile: session picker popup */}
-          {mob && showSessionPicker && sessions.length > 1 && !isInscrit && (
-            <div style={{ position: "fixed", bottom: 70, left: 0, right: 0, zIndex: 60, background: C.surface, borderTop: "2px solid " + C.border, padding: "16px", boxShadow: "0 -8px 24px rgba(0,0,0,0.08)" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Choisissez votre session :</p>
-              {sessions.map((s, i) => (
-                <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, cursor: "pointer", marginBottom: 6, display: "block" }}>
-                  <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates} · 📍 {s.lieu}
-                </button>
-              ))}
-              <button onClick={() => setShowSessionPicker(false)} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+          {/* Mobile: session picker */}
+          {mob && sessions.length > 0 && (
+            <div style={{ padding: "0 16px 16px" }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", marginBottom: 8 }}>
+                {sessions.length > 1 ? "Sélectionnez vos sessions" : "Session"}
+              </p>
+              {sessions.map((s, i) => {
+                const sessId = s.id ?? -1;
+                const checked = isInscritSession(sessId);
+                return (
+                  <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + (checked ? C.green + "66" : C.border), background: checked ? C.greenBg : C.bgAlt, color: C.text, fontSize: 13, cursor: "pointer", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 6, border: "2px solid " + (checked ? C.green : C.border), background: checked ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>{checked ? "✓" : ""}</span>
+                    <span><span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates} · 📍 {s.lieu}</span>
+                  </button>
+                );
+              })}
+              {inscribedSessions.length > 0 && <p style={{ fontSize: 12, color: C.green, fontWeight: 600, marginTop: 4 }}>✓ {inscribedSessions.length} session{inscribedSessions.length > 1 ? "s" : ""} sélectionnée{inscribedSessions.length > 1 ? "s" : ""}</p>}
+              {inscMsg && <p style={{ fontSize: 12, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 4 }}>{inscMsg}</p>}
             </div>
           )}
 

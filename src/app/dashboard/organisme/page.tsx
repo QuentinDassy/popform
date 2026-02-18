@@ -7,11 +7,12 @@ import { C, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
+import { uploadImage } from "@/lib/upload";
 import { useRouter } from "next/navigation";
 
 const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle", "Autres"];
-const MODALITES = ["Présentiel", "Distanciel", "Visio", "Mixte"];
-const PRISES = ["DPC", "FIF-PL", "OPCO"];
+const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const PRISES = ["DPC", "FIF-PL"];
 
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
@@ -24,7 +25,7 @@ function emptyFormation() {
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null,
     is_new: false, populations: [] as string[], mots_cles: "",
-    professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "",
+    professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
   };
 }
 
@@ -34,7 +35,7 @@ export default function DashboardOrganismePage() {
   const [organisme, setOrganisme] = useState<Organisme | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires">("list");
+  const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "" }]);
@@ -47,6 +48,7 @@ export default function DashboardOrganismePage() {
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
+  const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   // Webinaires
   type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
@@ -54,13 +56,23 @@ export default function DashboardOrganismePage() {
   const [editWId, setEditWId] = useState<number | null>(null);
   const [wSaving, setWSaving] = useState(false);
   const [wMsg, setWMsg] = useState<string | null>(null);
+  // Congrès
+  type SpeakerRow = { nom: string; titre_intervention: string };
+  type CongresRow = { id?: number; titre: string; description: string; date: string; adresse: string; lien_url: string; lien_visio: string; photo_url?: string; status?: string; speakers: SpeakerRow[] };
+  const emptyCongres = (): CongresRow => ({ titre: "", description: "", date: "", adresse: "", lien_url: "", lien_visio: "", speakers: [] });
+  const [congresList, setCongresList] = useState<CongresRow[]>([]);
+  const [cForm, setCForm] = useState<CongresRow>(emptyCongres());
+  const [editCId, setEditCId] = useState<number | null>(null);
+  const [cSaving, setCSaving] = useState(false);
+  const [cMsg, setCMsg] = useState<string | null>(null);
+  const [cPhotoFile, setCPhotoFile] = useState<File | null>(null);
 
   // Load organisme + formations
   useEffect(() => {
     if (!user || !profile) return;
     (async () => {
       // Find organisme linked to this user
-      let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id);
+      let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
       let myOrg = myOrgs?.[0] || null;
       
       // If no organisme linked, try to find one without user_id and claim it, or create new
@@ -88,9 +100,11 @@ export default function DashboardOrganismePage() {
         setFormateurs(fmts || []);
         const { data: wbs } = await supabase.from("webinaires").select("*").eq("organisme_id", myOrg.id).order("date_heure", { ascending: true });
         setWebinaires(wbs || []);
+        const { data: cgs } = await supabase.from("congres").select("*, speakers:congres_speakers(nom,titre_intervention)").eq("organisme_id", myOrg.id).order("date", { ascending: true });
+        setCongresList((cgs || []).map((c: any) => ({ ...c, speakers: c.speakers || [] })));
       }
       // Load admin villes
-      const { data: villes } = await supabase.from("domaines").select("nom").eq("type", "ville").order("nom");
+      const { data: villes } = await supabase.from("villes_admin").select("nom").order("nom");
       setAdminVilles(villes?.map((v: { nom: string }) => v.nom) || []);
       setLoading(false);
     })();
@@ -106,7 +120,7 @@ export default function DashboardOrganismePage() {
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
-        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "",
+        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
       setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "" })));
     } else {
@@ -140,7 +154,7 @@ export default function DashboardOrganismePage() {
       populations: form.populations,
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
-      effectif: form.effectif || 20,
+      effectif: form.effectif ?? 0, photo_url: form.photo_url || null,
       video_url: form.video_url,
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
@@ -160,6 +174,14 @@ export default function DashboardOrganismePage() {
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     } else {
       // Création: en attente de validation
+      let formPhotoUrl: string | null = form.photo_url || null;
+      if (formPhotoFile) {
+        const { uploadImage } = await import("@/lib/upload");
+        const url = await uploadImage(formPhotoFile, "formations");
+        if (url) formPhotoUrl = url;
+        else setMsg("⚠️ Photo non uploadée, vérifiez le bucket Supabase");
+      }
+      if (formPhotoUrl) payload.photo_url = formPhotoUrl;
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
@@ -250,10 +272,18 @@ export default function DashboardOrganismePage() {
         {tab === "list" && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => setTab("formateurs")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
-            <button onClick={() => setTab("webinaires")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: "#7C3AED", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📡 Webinaires</button>
+            {/* Webinaires - désactivé v1 */}
+            {/* Congrès - désactivé v1 */}
             <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
           </div>
         )}
+      </div>
+
+
+      {/* ===== CONTACT ===== */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 16 }}>💬</span>
+        <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
       </div>
 
       {/* ===== STATS ===== */}
@@ -430,7 +460,7 @@ export default function DashboardOrganismePage() {
             {/* Prix */}
             <div>
               <label style={labelStyle}>Prix (€)</label>
-              <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="0" style={inputStyle} />
+              <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450€" style={inputStyle} />
             </div>
 
             {/* Durée */}
@@ -454,7 +484,7 @@ export default function DashboardOrganismePage() {
             </div>
             <div>
               <label style={labelStyle}>Effectif max</label>
-              <input type="number" value={form.effectif} onChange={e => setForm({ ...form, effectif: Number(e.target.value) })} style={inputStyle} />
+              <input type="number" value={form.effectif ?? ""} onChange={e => setForm({ ...form, effectif: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 20" style={inputStyle} />
             </div>
 
             {/* Prise en charge */}
@@ -493,6 +523,18 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            {/* Photo upload */}
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Photo de la formation</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <label style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : form.photo_url ? "Changer la photo" : "Ajouter une photo"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
+                </label>
+                {form.photo_url && !formPhotoFile && <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />}
+              </div>
+            </div>
+
             {/* Video URL */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>URL vidéo (YouTube)</label>
@@ -514,7 +556,7 @@ export default function DashboardOrganismePage() {
                 const modaliteFormation = form.modalite;
                 const showModaliteSession = modaliteFormation === "Mixte";
                 const effModalite = showModaliteSession ? (s.modalite_session || "Présentiel") : modaliteFormation;
-                const isDistanciel = effModalite === "Distanciel";
+                const isDistanciel = effModalite === "Visio";
                 const isPresentiel = effModalite === "Présentiel";
                 return (
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
@@ -537,10 +579,10 @@ export default function DashboardOrganismePage() {
                         <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
                           <label style={labelStyle}>Modalité de cette session</label>
                           <div style={{ display: "flex", gap: 6 }}>
-                            {["Présentiel", "Distanciel"].map(m => (
+                            {["Présentiel", "Visio"].map(m => (
                               <button key={m} type="button" onClick={() => { const n = [...sessions]; n[i] = { ...n[i], modalite_session: m }; setSessions(n) }}
                                 style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + ((s.modalite_session || "Présentiel") === m ? C.accent + "55" : C.border), background: (s.modalite_session || "Présentiel") === m ? C.accentBg : C.surface, color: (s.modalite_session || "Présentiel") === m ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: (s.modalite_session || "Présentiel") === m ? 700 : 400 }}>
-                                {m === "Présentiel" ? "🏢 Présentiel" : "💻 Distanciel"}
+                                {m === "Présentiel" ? "🏢 Présentiel" : "💻 Visio"}
                               </button>
                             ))}
                           </div>
@@ -668,6 +710,127 @@ export default function DashboardOrganismePage() {
                 {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "📡 Soumettre le webinaire"}
               </button>
               {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== CONGRÈS TAB ===== */}
+      {tab === "congres" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>🎤 Congrès</h2>
+            <button onClick={() => { setCForm(emptyCongres()); setEditCId(null); }} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Nouveau congrès</button>
+          </div>
+
+          {/* Liste */}
+          {congresList.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              {congresList.map((c, idx) => (
+                <div key={idx} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  {c.photo_url && <img src={c.photo_url} alt={c.titre} style={{ width: 60, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{c.titre}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>{c.date ? new Date(c.date).toLocaleDateString("fr-FR") : "—"} · {(c.speakers || []).length} intervenant{(c.speakers || []).length !== 1 ? "s" : ""}</div>
+                    {c.status === "en_attente" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: "#FFF3C4", color: "#9B6B00", fontWeight: 700 }}>⏳ En attente de validation</span>}
+                    {c.status === "publie" && <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, background: C.greenBg, color: C.green, fontWeight: 700 }}>✓ Publié</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setCForm({ titre: c.titre, description: c.description, date: c.date, adresse: c.adresse, lien_url: c.lien_url, lien_visio: c.lien_visio, photo_url: c.photo_url, speakers: c.speakers || [] }); setEditCId(c.id || null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("congres").delete().eq("id", c.id); setCongresList(prev => prev.filter(x => x.id !== c.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulaire */}
+          <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 16, border: "1.5px solid " + C.borderLight }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editCId ? "Modifier le congrès" : "Créer un congrès"}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: mob ? "1" : "1/-1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Titre *</label>
+                <input value={cForm.titre} onChange={e => setCForm({ ...cForm, titre: e.target.value })} placeholder="Ex: 32e Congrès National d'Orthophonie" style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1/-1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Description</label>
+                <textarea value={cForm.description} onChange={e => setCForm({ ...cForm, description: e.target.value })} rows={3} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, resize: "vertical" as const, fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Date *</label>
+                <input type="datetime-local" value={cForm.date} onChange={e => setCForm({ ...cForm, date: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Adresse</label>
+                <input value={cForm.adresse} onChange={e => setCForm({ ...cForm, adresse: e.target.value })} placeholder="Ex: Palais des Congrès, Paris" style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>URL site / programme</label>
+                <input value={cForm.lien_url} onChange={e => setCForm({ ...cForm, lien_url: e.target.value })} placeholder="https://..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Lien visio (si applicable)</label>
+                <input value={cForm.lien_visio} onChange={e => setCForm({ ...cForm, lien_visio: e.target.value })} placeholder="https://zoom.us/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1/-1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Photo</label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                  📷 {cPhotoFile ? "✓ " + cPhotoFile.name.slice(0, 24) : cForm.photo_url ? "Changer la photo" : "Ajouter une photo"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setCPhotoFile(e.target.files?.[0] || null)} />
+                </label>
+                {cForm.photo_url && !cPhotoFile && <img src={cForm.photo_url} alt="" style={{ marginLeft: 10, width: 80, height: 50, borderRadius: 8, objectFit: "cover", verticalAlign: "middle" }} />}
+              </div>
+
+              {/* Intervenants */}
+              <div style={{ gridColumn: mob ? "1" : "1/-1" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const }}>Intervenants</label>
+                  <button onClick={() => setCForm({ ...cForm, speakers: [...cForm.speakers, { nom: "", titre_intervention: "" }] })} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>+ Ajouter</button>
+                </div>
+                {cForm.speakers.map((s, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                    <input value={s.nom} onChange={e => { const sp = [...cForm.speakers]; sp[i] = { ...sp[i], nom: e.target.value }; setCForm({ ...cForm, speakers: sp }); }} placeholder="Nom Prénom" style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                    <input value={s.titre_intervention} onChange={e => { const sp = [...cForm.speakers]; sp[i] = { ...sp[i], titre_intervention: e.target.value }; setCForm({ ...cForm, speakers: sp }); }} placeholder="Titre de l'intervention" style={{ flex: 2, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                    <button onClick={() => setCForm({ ...cForm, speakers: cForm.speakers.filter((_, j) => j !== i) })} style={{ padding: "6px 8px", borderRadius: 7, border: "none", background: C.pinkBg, color: C.pink, fontSize: 12, cursor: "pointer" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {cMsg && <p style={{ color: cMsg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10 }}>{cMsg}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button disabled={cSaving} onClick={async () => {
+                if (!cForm.titre.trim() || !cForm.date) { setCMsg("Titre et date obligatoires."); return; }
+                setCSaving(true); setCMsg(null);
+                let photoUrl = cForm.photo_url || null;
+                if (cPhotoFile) {
+                  try {
+                    photoUrl = await uploadImage(cPhotoFile, "congres");
+                  } catch (e: any) {
+                    setCMsg("⚠️ Photo non uploadée : " + e.message + " — vérifiez la variable SUPABASE_SERVICE_ROLE_KEY dans votre .env.local");
+                  }
+                }
+                const payload = { titre: cForm.titre, description: cForm.description, date: cForm.date, adresse: cForm.adresse, lien_url: cForm.lien_url || null, lien_visio: cForm.lien_visio || null, photo_url: photoUrl, organisme_id: organisme?.id, status: "en_attente" };
+                if (editCId) {
+                  await supabase.from("congres").update(payload).eq("id", editCId);
+                  await supabase.from("congres_speakers").delete().eq("congres_id", editCId);
+                  if (cForm.speakers.length > 0) await supabase.from("congres_speakers").insert(cForm.speakers.filter(s => s.nom.trim()).map(s => ({ ...s, congres_id: editCId })));
+                  setCongresList(prev => prev.map(c => c.id === editCId ? { ...c, ...payload, speakers: cForm.speakers } : c));
+                  setEditCId(null);
+                } else {
+                  const { data: nc } = await supabase.from("congres").insert(payload).select().single();
+                  if (nc) {
+                    if (cForm.speakers.length > 0) await supabase.from("congres_speakers").insert(cForm.speakers.filter(s => s.nom.trim()).map(s => ({ ...s, congres_id: nc.id })));
+                    setCongresList(prev => [...prev, { ...nc, speakers: cForm.speakers }]);
+                  }
+                }
+                setCForm(emptyCongres()); setCPhotoFile(null);
+                setCSaving(false); setCMsg("✅ Congrès soumis pour validation !");
+                setTimeout(() => setCMsg(null), 3000);
+              }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: cSaving ? 0.5 : 1 }}>
+                {cSaving ? "⏳ ..." : editCId ? "Enregistrer" : "🎤 Soumettre le congrès"}
+              </button>
+              {editCId && <button onClick={() => { setEditCId(null); setCForm(emptyCongres()); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
             </div>
           </div>
         </div>
