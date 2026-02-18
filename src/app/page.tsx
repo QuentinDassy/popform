@@ -124,11 +124,11 @@ export default function HomePage() {
         setLoading(false);
       }).catch(() => setLoading(false));
       // Load webinaires publiés
-      supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data: wbs }) => {
+      supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data: wbs }: { data: any[] | null }) => {
         if (wbs) setWebinaires(wbs);
       }).catch(() => {});
       // Load admin villes separately (non-blocking)
-      supabase.from("domaines").select("*").eq("type", "ville").order("nom").then(({ data: villes }) => {
+      supabase.from("domaines").select("*").eq("type", "ville").order("nom").then(({ data: villes }: { data: any[] | null }) => {
         if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
       }).catch(() => {});
     }

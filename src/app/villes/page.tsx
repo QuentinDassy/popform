@@ -13,7 +13,7 @@ export default function VillesPage() {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let villeMap: Record<string, string> = {};
-    const loadVilles = supabase.from("domaines").select("*").eq("type", "ville").then(({ data: villes }) => {
+    const loadVilles = supabase.from("domaines").select("*").eq("type", "ville").then(({ data: villes }: { data: Record<string, string>[] | null }) => {
       (villes || []).forEach((v: Record<string, string>) => { villeMap[v.nom] = v.image || "" });
       setAdminVilles(villeMap);
     }).catch(() => {});
