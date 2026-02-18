@@ -11,8 +11,6 @@ type InscRow = { formation_id: number; session_id?: number | null };
 
 // ─── Composant calendrier ── hooks toujours au top level ──────────────
 function CalendrierTab({ inscF, inscs, mob }: { inscF: Formation[]; inscs: InscRow[]; mob: boolean }) {
-  const [calView, setCalView] = useState<"list" | "grid">("list");
-
   const domColors: Record<string, string> = {
     "Langage oral": C.green, "Neurologie": C.blue, "Langage écrit": C.blue,
     "OMF": C.pink, "Cognition mathématique": C.orange, "Pratique professionnelle": C.accent,
@@ -36,10 +34,6 @@ function CalendrierTab({ inscF, inscs, mob }: { inscF: Formation[]; inscs: InscR
 
   return (
     <div style={{ paddingBottom: 40 }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        <button onClick={() => setCalView("list")} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: calView === "list" ? C.accentBg : C.surface, color: calView === "list" ? C.accent : C.textTer, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 Liste</button>
-        <button onClick={() => setCalView("grid")} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: calView === "grid" ? C.accentBg : C.surface, color: calView === "grid" ? C.accent : C.textTer, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎨 Calendrier coloré</button>
-      </div>
       {allSessions.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
@@ -51,27 +45,14 @@ function CalendrierTab({ inscF, inscs, mob }: { inscF: Formation[]; inscs: InscR
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {sessions.map(s => (
               <Link key={s.key} href={`/formation/${s.fId}`} style={{ textDecoration: "none", color: "inherit" }}>
-                {calView === "list" ? (
-                  <div style={{ display: "flex", gap: mob ? 8 : 14, alignItems: "center", padding: mob ? "10px 12px" : "12px 16px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, cursor: "pointer", flexWrap: "wrap", borderLeft: "4px solid " + (domColors[s.domaine] || C.accent) }}>
-                    <span style={{ padding: "4px 10px", borderRadius: 8, background: C.accentBg, color: C.accent, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{s.dates}</span>
-                    <div style={{ flex: 1, minWidth: 150 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.titre}</div>
-                      <div style={{ fontSize: 11, color: C.textTer }}>📍 {s.lieu}{s.adresse ? " — " + s.adresse : ""}</div>
-                    </div>
-                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontWeight: 600 }}>{s.domaine}</span>
+                <div style={{ display: "flex", gap: mob ? 8 : 14, alignItems: "center", padding: mob ? "10px 12px" : "12px 16px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, cursor: "pointer", flexWrap: "wrap", borderLeft: "4px solid " + (domColors[s.domaine] || C.accent) }}>
+                  <span style={{ padding: "4px 10px", borderRadius: 8, background: C.accentBg, color: C.accent, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>{s.dates}</span>
+                  <div style={{ flex: 1, minWidth: 150 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.titre}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>📍 {s.lieu}{s.adresse ? " — " + s.adresse : ""}</div>
                   </div>
-                ) : (
-                  <div style={{ padding: "12px 16px", borderRadius: 12, background: (domColors[s.domaine] || C.accent) + "18", border: "1.5px solid " + (domColors[s.domaine] || C.accent) + "44", cursor: "pointer" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 5, background: domColors[s.domaine] || C.accent, marginTop: 3, flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.titre}</div>
-                        <div style={{ fontSize: 11, color: C.textTer, marginTop: 2 }}>{s.dates} · 📍 {s.lieu}</div>
-                        <div style={{ fontSize: 10, color: domColors[s.domaine] || C.accent, fontWeight: 600, marginTop: 2 }}>{s.domaine}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: C.greenBg, color: C.green, fontWeight: 600 }}>{s.domaine}</span>
+                </div>
               </Link>
             ))}
           </div>

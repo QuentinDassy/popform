@@ -86,9 +86,6 @@ export default function WebinaireListPage() {
   const handleInscription = async (w: Webinaire) => {
     if (!user) return alert("Connectez-vous pour vous inscrire.");
     if (inscribed.includes(w.id)) return;
-    if (w.lien_url) {
-      window.open(w.lien_url, "_blank");
-    }
     await supabase.from("webinaire_inscriptions").upsert({ user_id: user.id, webinaire_id: w.id, email: user.email });
     setInscribed(prev => [...prev, w.id]);
     setReminder(w.id);
@@ -165,9 +162,16 @@ export default function WebinaireListPage() {
                     </div>
 
                     {/* Bouton inscription */}
-                    <button onClick={() => handleInscription(w)} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: isInscribed ? C.greenBg : C.gradient, color: isInscribed ? C.green : "#fff", fontSize: 13, fontWeight: 700, cursor: isInscribed ? "default" : "pointer" }}>
-                      {isInscribed ? "✅ Inscrit·e" : "S'inscrire →"}
-                    </button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                      <button onClick={() => handleInscription(w)} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: isInscribed ? C.greenBg : C.gradient, color: isInscribed ? C.green : "#fff", fontSize: 13, fontWeight: 700, cursor: isInscribed ? "default" : "pointer" }}>
+                        {isInscribed ? "✅ Inscrit·e" : "S'inscrire →"}
+                      </button>
+                      {isInscribed && w.lien_url && (
+                        <a href={w.lien_url} target="_blank" rel="noreferrer" style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid #7C3AED44", background: "#7C3AED11", color: "#7C3AED", fontSize: 12, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+                          🔗 Lien de connexion
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   {/* Modal rappel email */}

@@ -23,7 +23,7 @@ export default function DashboardAdminPage() {
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
   const [newVille, setNewVille] = useState("");
-  const [newVilleImg, setNewVilleImg] = useState("");
+  const [newVilleFile, setNewVilleFile] = useState<File | null>(null);
 
   // Webinaires management
   const [webinaires, setWebinaires] = useState<any[]>([]);
@@ -62,19 +62,51 @@ export default function DashboardAdminPage() {
 
   const handleAddVille = async () => {
     if (!newVille.trim()) return;
-    await supabase.from("domaines").insert({ nom: newVille.trim(), image: newVilleImg.trim(), type: "ville" });
-    setVillesList(prev => [...prev, { nom: newVille.trim(), image: newVilleImg.trim() }]);
-    setNewVille(""); setNewVilleImg("");
+    const { data: inserted } = await supabase.from("domaines").insert({ nom: newVille.trim(), image: "", type: "ville" }).select().single();
+    if (inserted) {
+      // Upload image if selected
+      if (newVilleFile) {
+        const ext = newVilleFile.name.split(".").pop();
+        const path = `villes/${newVille.trim().toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("Images").upload(path, newVilleFile, { upsert: true });
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from("Images").getPublicUrl(path);
+          await supabase.from("domaines").update({ image: urlData.publicUrl }).eq("id", inserted.id);
+          setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: urlData.publicUrl }]);
+        } else {
+          setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: "" }]);
+        }
+      } else {
+        setVillesList(prev => [...prev, { id: inserted.id, nom: newVille.trim(), image: "" }]);
+      }
+    }
+    setNewVille(""); setNewVilleFile(null);
   };
 
   const handleDeleteVille = async (nom: string) => {
+    if (!confirm(`Supprimer la ville "${nom}" ?`)) return;
     await supabase.from("domaines").delete().eq("nom", nom).eq("type", "ville");
     setVillesList(prev => prev.filter(v => v.nom !== nom));
+  };
+
+  const handleRenameVille = async (oldNom: string, newNom: string) => {
+    if (!newNom.trim() || newNom === oldNom) return;
+    await supabase.from("domaines").update({ nom: newNom.trim() }).eq("nom", oldNom).eq("type", "ville");
+    setVillesList(prev => prev.map(v => v.nom === oldNom ? { ...v, nom: newNom.trim() } : v));
   };
 
   const handleUpdateVilleImage = async (nom: string, image: string) => {
     await supabase.from("domaines").update({ image }).eq("nom", nom).eq("type", "ville");
     setVillesList(prev => prev.map(v => v.nom === nom ? { ...v, image } : v));
+  };
+
+  const handleUploadVilleImage = async (nom: string, file: File) => {
+    const ext = file.name.split(".").pop();
+    const path = `villes/${nom.toLowerCase().replace(/\s/g, "-")}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("Images").upload(path, file, { upsert: true });
+    if (upErr) { alert("Erreur upload: " + upErr.message); return; }
+    const { data: urlData } = supabase.storage.from("Images").getPublicUrl(path);
+    handleUpdateVilleImage(nom, urlData.publicUrl);
   };
 
   const handleWebStatus = async (id: number, status: string) => {
@@ -261,28 +293,43 @@ export default function DashboardAdminPage() {
       {/* ===== VILLES TAB ===== */}
       {adminTab === "villes" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les villes disponibles sur PopForm. Dès qu&apos;au moins une ville est ajoutée, <strong>seules ces villes</strong> apparaissent dans les filtres et dans les formulaires des organismes/formateurs — fini les doublons et fautes de frappe. Collez une URL d&apos;image pour l&apos;affichage sur la homepage.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-              {villesList.map((v, idx) => (
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les villes disponibles sur PopForm. Dès qu&apos;au moins une ville est ajoutée, <strong>seules ces villes</strong> apparaissent dans les filtres et formulaires — fini les doublons et fautes de frappe.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+            {villesList.map(v => (
               <div key={v.nom} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                {v.image ? <img src={v.image} alt={v.nom} style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : <div style={{ width: 80, height: 50, borderRadius: 8, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.textTer }}>Pas d&apos;image</div>}
-                <div style={{ flex: 1, minWidth: 100 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{v.nom}</div>
-                  <input
-                    defaultValue={v.image}
-                    onBlur={e => { if (e.target.value !== v.image) handleUpdateVilleImage(v.nom, e.target.value); }}
-                    placeholder="URL de l'image (https://...)"
-                    style={{ marginTop: 4, padding: "4px 8px", borderRadius: 7, border: "1px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, width: "100%", boxSizing: "border-box" as const }}
-                  />
-                </div>
-                <button onClick={() => handleDeleteVille(v.nom)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑️</button>
+                {v.image
+                  ? <img src={v.image} alt={v.nom} style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                  : <div style={{ width: 80, height: 50, borderRadius: 8, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.textTer, flexShrink: 0 }}>Pas d&apos;image</div>
+                }
+                <input
+                  defaultValue={v.nom}
+                  onBlur={e => handleRenameVille(v.nom, e.target.value)}
+                  style={{ flex: 1, minWidth: 120, padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, fontWeight: 700 }}
+                />
+                <label style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  📷 {v.image ? "Changer" : "Ajouter image"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadVilleImage(v.nom, file);
+                  }} />
+                </label>
+                <button onClick={() => handleDeleteVille(v.nom)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer", flexShrink: 0 }}>🗑️</button>
               </div>
             ))}
+            {villesList.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: C.textTer, fontSize: 13 }}>Aucune ville ajoutée. Les villes seront détectées automatiquement depuis les formations.</div>
+            )}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input value={newVille} onChange={e => setNewVille(e.target.value)} placeholder="Nom de la ville" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, width: 200 }} />
-            <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
-            <span style={{ fontSize: 11, color: C.textTer }}>Vous pourrez ajouter l&apos;image après</span>
+          <div style={{ padding: 16, background: C.bgAlt, borderRadius: 12, border: "1.5px dashed " + C.border }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 10, textTransform: "uppercase" }}>+ Nouvelle ville</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input value={newVille} onChange={e => setNewVille(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddVille()} placeholder="Nom de la ville" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: 180 }} />
+              <label style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                📷 {newVilleFile ? "✓ " + newVilleFile.name.slice(0, 18) : "Image (optionnel)"}
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setNewVilleFile(e.target.files?.[0] || null)} />
+              </label>
+              <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
+            </div>
           </div>
         </div>
       )}

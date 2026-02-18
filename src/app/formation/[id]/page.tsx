@@ -56,11 +56,16 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
   const startEdit = () => { setNote(myAvis!.note); setTexte(myAvis!.texte); setEditMode(true); setShowForm(true) };
   const handleSubmit = () => { if (!texte.trim()) return; if (editMode && myAvis) { onEdit(myAvis.id, note, texte.trim()) } else { onAdd(note, texte.trim(), { contenu: subContenu, organisation: subOrganisation, supports: subSupports, pertinence: subPertinence }) } setShowForm(false); setEditMode(false) };
   const avg = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length * 10) / 10 : 0;
-  const avgContenu = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_contenu ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
-  const avgOrga = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_organisation ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
-  const avgSupports = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_supports ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
-  const avgPertinence = fAvis.length ? Math.round(fAvis.reduce((s, a) => s + (a.note_pertinence ?? a.note), 0) / fAvis.length * 10) / 10 : 0;
-  const avgAll = fAvis.length ? (avgContenu + avgOrga + avgSupports + avgPertinence) / 4 : 0;
+  const notedContenu = fAvis.filter(a => a.note_contenu !== null);
+  const notedOrga = fAvis.filter(a => a.note_organisation !== null);
+  const notedSupports = fAvis.filter(a => a.note_supports !== null);
+  const notedPertinence = fAvis.filter(a => a.note_pertinence !== null);
+  const avgContenu = notedContenu.length ? Math.round(notedContenu.reduce((s, a) => s + a.note_contenu!, 0) / notedContenu.length * 10) / 10 : 0;
+  const avgOrga = notedOrga.length ? Math.round(notedOrga.reduce((s, a) => s + a.note_organisation!, 0) / notedOrga.length * 10) / 10 : 0;
+  const avgSupports = notedSupports.length ? Math.round(notedSupports.reduce((s, a) => s + a.note_supports!, 0) / notedSupports.length * 10) / 10 : 0;
+  const avgPertinence = notedPertinence.length ? Math.round(notedPertinence.reduce((s, a) => s + a.note_pertinence!, 0) / notedPertinence.length * 10) / 10 : 0;
+  const subCount = [notedContenu.length, notedOrga.length, notedSupports.length, notedPertinence.length].filter(n => n > 0).length;
+  const avgAll = subCount > 0 ? (avgContenu + avgOrga + avgSupports + avgPertinence) / subCount : avg;
   const pctSat = fAvis.length ? Math.round(avgAll / 5 * 100) : 0;
 
   const SubRatingInput = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
