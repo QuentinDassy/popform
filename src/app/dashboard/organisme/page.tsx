@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
@@ -207,7 +207,7 @@ export default function DashboardOrganismePage() {
           formation_id: formationId,
           dates: s.dates.trim(),
           lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-          adresse: s.is_visio ? (s.lien_visio.trim() || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+          adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
         })));
