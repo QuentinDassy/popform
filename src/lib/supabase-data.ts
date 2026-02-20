@@ -71,7 +71,7 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
   }
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
+    .select("*, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
     .eq("id", id)
     .single();
   if (error) { console.error("fetchFormation error:", error); return null; }

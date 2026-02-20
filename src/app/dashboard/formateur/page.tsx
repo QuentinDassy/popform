@@ -69,7 +69,7 @@ export default function DashboardFormateurPage() {
       setFormateur(fmt);
       if (fmt) {
         setFmtNom(fmt.nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré");
-        const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
       }
       setLoading(false);
@@ -84,7 +84,7 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false, parties: (s as any).parties || [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false, parties: ((s as any).session_parties || []).map((p: any) => ({ titre: p.titre || "", date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) })));
     } else {
       setEditId(null);
       // Set first domaine as default if available
@@ -174,7 +174,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
       }
     }
 
-    const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     setTab("list");

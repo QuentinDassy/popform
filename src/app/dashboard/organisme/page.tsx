@@ -15,7 +15,7 @@ const PRISES = ["DPC", "FIF-PL"];
 
 type PartieRow = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; lien_visio: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; parties?: PartieRow[] };
-type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null };
+type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null; photo_url?: string | null };
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
   return {
@@ -38,12 +38,13 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "" }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [] }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
   const [formateurs, setFormateurs] = useState<FormateurRow[]>([]);
-  const [fmtForm, setFmtForm] = useState({ nom: "", bio: "", sexe: "Non genré" });
+  const [fmtForm, setFmtForm] = useState({ nom: "", bio: "", sexe: "Non genré", photo_url: "" });
+  const [fmtPhotoFile, setFmtPhotoFile] = useState<File | null>(null);
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
   // Admin villes
@@ -97,7 +98,7 @@ export default function DashboardOrganismePage() {
       }
       setOrganisme(myOrg);
       if (myOrg) {
-        const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
         const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
         setFormateurs(fmts || []);
@@ -128,11 +129,11 @@ export default function DashboardOrganismePage() {
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, parties: ((s as any).session_parties || []).map((p: any) => ({ titre: p.titre || "", date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) })));
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -182,10 +183,14 @@ export default function DashboardOrganismePage() {
     // Upload photo si présente
     let formPhotoUrl: string | null = form.photo_url || null;
     if (formPhotoFile) {
-      const { uploadImage } = await import("@/lib/upload");
-      const url = await uploadImage(formPhotoFile, "formations");
-      if (url) formPhotoUrl = url;
-      else setMsg("⚠️ Photo non uploadée, vérifiez le bucket Supabase");
+      try {
+        const { uploadImage } = await import("@/lib/upload");
+        formPhotoUrl = await uploadImage(formPhotoFile, "formations");
+      } catch (e: any) {
+        setMsg("⚠️ Erreur photo: " + e.message);
+        setSaving(false);
+        return;
+      }
     }
     if (formPhotoUrl) payload.photo_url = formPhotoUrl;
 
@@ -241,7 +246,7 @@ export default function DashboardOrganismePage() {
     }
 
     // Reload
-    const { data: f } = await supabase.from("formations").select("*, sessions(*)").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     setTab("list");
@@ -253,17 +258,26 @@ export default function DashboardOrganismePage() {
     if (!organisme) return;
     if (!fmtForm.nom.trim()) { setMsg("Le nom du formateur est obligatoire."); return }
     setSaving(true); setMsg(null);
+    let photoUrl: string | null = fmtForm.photo_url || null;
+    if (fmtPhotoFile) {
+      try {
+        const { uploadImage } = await import("@/lib/upload");
+        photoUrl = await uploadImage(fmtPhotoFile, "profils");
+        setFmtPhotoFile(null);
+      } catch (e: any) { setMsg("Erreur photo: " + e.message); setSaving(false); return; }
+    }
     if (editFmtId) {
-      const { error } = await supabase.from("formateurs").update({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe }).eq("id", editFmtId);
+      const { error } = await supabase.from("formateurs").update({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, photo_url: photoUrl }).eq("id", editFmtId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     } else {
-      const { error } = await supabase.from("formateurs").insert({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, organisme_id: organisme.id }).select().single();
+      const { error } = await supabase.from("formateurs").insert({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, organisme_id: organisme.id, photo_url: photoUrl }).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     }
     // Reload formateurs
     const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", organisme.id);
     setFormateurs(fmts || []);
-    setFmtForm({ nom: "", bio: "", sexe: "Non genré" });
+    setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" });
+    setFmtPhotoFile(null);
     setEditFmtId(null);
     setSaving(false);
     setMsg("✅ Formateur·rice enregistré·e !");
@@ -279,7 +293,8 @@ export default function DashboardOrganismePage() {
 
   const openEditFormateur = (f: FormateurRow) => {
     setEditFmtId(f.id);
-    setFmtForm({ nom: f.nom, bio: f.bio || "", sexe: f.sexe || "Non genré" });
+    setFmtForm({ nom: f.nom, bio: f.bio || "", sexe: f.sexe || "Non genré", photo_url: f.photo_url || "" });
+    setFmtPhotoFile(null);
     setMsg(null);
   };
 
@@ -315,11 +330,13 @@ export default function DashboardOrganismePage() {
               </div>
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
                 if (!e.target.files?.[0] || !organisme) return;
-                const { uploadImage } = await import("@/lib/upload");
-                const url = await uploadImage(e.target.files[0], "logos");
-                if (url) {
+                try {
+                  const { uploadImage } = await import("@/lib/upload");
+                  const url = await uploadImage(e.target.files[0], "logos");
                   await supabase.from("organismes").update({ logo: url }).eq("id", organisme.id);
                   setOrganisme(prev => prev ? { ...prev, logo: url } : prev);
+                } catch (e: any) {
+                  setMsg("Erreur upload logo: " + e.message);
                 }
               }} />
             </label>
@@ -407,7 +424,7 @@ export default function DashboardOrganismePage() {
       {/* ===== FORMATEURS TAB ===== */}
       {tab === "formateurs" && (
         <div style={{ paddingBottom: 40 }}>
-          <button onClick={() => { setTab("list"); setMsg(null); setEditFmtId(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré" }) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <button onClick={() => { setTab("list"); setMsg(null); setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" }) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>🎤 Formateur·rice·s de {organisme?.nom}</h2>
 
           {/* Liste des formateurs existants */}
@@ -432,6 +449,24 @@ export default function DashboardOrganismePage() {
           <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editFmtId ? "Modifier le·la formateur·rice" : "Ajouter un·e formateur·rice"}</h3>
             <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={labelStyle}>Photo de profil (optionnel)</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <label style={{ cursor: "pointer" }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 28, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 700, overflow: "hidden", border: "2px solid " + C.borderLight }}>
+                      {fmtPhotoFile ? (
+                        <img src={URL.createObjectURL(fmtPhotoFile)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : fmtForm.photo_url ? (
+                        <img src={fmtForm.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span>{fmtForm.nom?.[0]?.toUpperCase() || "?"}</span>
+                      )}
+                    </div>
+                    <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFmtPhotoFile(e.target.files[0]); }} />
+                  </label>
+                  <span style={{ fontSize: 12, color: C.textTer }}>Cliquez sur l&apos;avatar pour ajouter une photo</span>
+                </div>
+              </div>
               <div>
                 <label style={labelStyle}>Nom complet *</label>
                 <input value={fmtForm.nom} onChange={e => setFmtForm({ ...fmtForm, nom: e.target.value })} placeholder="Ex: Dr. Marie Lefort" style={inputStyle} />
@@ -457,7 +492,7 @@ export default function DashboardOrganismePage() {
                 {saving ? "⏳ ..." : editFmtId ? "Enregistrer" : "Ajouter 🎤"}
               </button>
               {editFmtId && (
-                <button onClick={() => { setEditFmtId(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré" }); setMsg(null) }} style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+                <button onClick={() => { setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" }); setMsg(null) }} style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
               )}
             </div>
           </div>
@@ -708,32 +743,6 @@ export default function DashboardOrganismePage() {
                           <input value={s.lien_visio || ""} onChange={e => { const n = [...sessions]; n[i].lien_visio = e.target.value; setSessions(n) }} placeholder="https://zoom.us/j/..." style={inputStyle} />
                         </div>
                       )}
-                    </div>
-
-                    {/* ===== PARTIES ===== */}
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed " + C.borderLight }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.textSec }}>Parties de cette session</span>
-                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "Partie " + ((n[i].parties?.length || 0) + 1), date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }]; setSessions(n); }} style={{ padding: "3px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
-                      </div>
-                      {(s.parties || []).map((p, pi) => (
-                        <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                            <input value={p.titre} onChange={e => { const n = [...sessions]; n[i].parties![pi].titre = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 11, fontWeight: 700, flex: 1, marginRight: 8 }} placeholder={"Partie " + (pi + 1)} />
-                            {(s.parties || []).length > 1 && <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = n[i].parties!.filter((_, pj) => pj !== pi); setSessions(n); }} style={{ padding: "2px 8px", borderRadius: 6, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 10, cursor: "pointer" }}>✕</button>}
-                          </div>
-                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 6 }}>
-                            <div><label style={labelStyle}>Date début</label><input type="date" value={p.date_debut} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_debut = e.target.value; setSessions(n); }} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Date fin</label><input type="date" value={p.date_fin} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_fin = e.target.value; setSessions(n); }} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Modalité</label><select value={p.modalite} onChange={e => { const n = [...sessions]; n[i].parties![pi].modalite = e.target.value; setSessions(n); }} style={inputStyle}><option>Présentiel</option><option>Visio</option></select></div>
-                            {p.modalite === "Visio" ? (
-                              <div><label style={labelStyle}>Lien visio</label><input value={p.lien_visio} onChange={e => { const n = [...sessions]; n[i].parties![pi].lien_visio = e.target.value; setSessions(n); }} placeholder="https://zoom.us/j/..." style={inputStyle} /></div>
-                            ) : (
-                              <><div><label style={labelStyle}>Adresse</label><input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties![pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue" style={inputStyle} /></div><div><label style={labelStyle}>Ville</label><input value={p.lieu} onChange={e => { const n = [...sessions]; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} /></div></>
-                            )}
-                          </div>
-                        </div>
-                      ))}
                     </div>
 
                     {/* ===== PARTIES ===== */}

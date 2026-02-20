@@ -425,9 +425,15 @@ export default function FormationPage() {
                             </>
                           )}
                         </div>
-                        <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
-                          {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
-                        </button>
+                        {f.url_inscription ? (
+                          <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            Voir la formation →
+                          </a>
+                        ) : (
+                          <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                            {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
+                          </button>
+                        )}
                       </div>
                     </div>
                     );
