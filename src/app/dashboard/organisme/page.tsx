@@ -715,7 +715,7 @@ export default function DashboardOrganismePage() {
                     <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed " + C.borderLight }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: C.textSec }}>Parties de cette session</span>
-                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "Partie " + ((n[i].parties?.length || 0) + 1), date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }]; setSessions(n); }} style={{ padding: "3px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
+                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "Partie " + ((n[i].parties?.length || 0) + 1), date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }]; setSessions(n); }} style={{ padding: "3px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
                       </div>
                       {(s.parties || []).map((p, pi) => (
                         <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
