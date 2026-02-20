@@ -59,7 +59,7 @@ export default function DashboardOrganismePage() {
   const [wMsg, setWMsg] = useState<string | null>(null);
   // Congrès
   type SpeakerRow = { nom: string; titre_intervention: string };
-  type CongresRow = { id?: number; titre: string; description: string; date: string; adresse: string; lien_url: string; lien_visio: string; photo_url?: string; status?: string; speakers: SpeakerRow[] };
+  type CongresRow = { id?: number; titre: string; description: string; date: string; adresse: string; lien_url: string | null; lien_visio: string | null; photo_url?: string | null; status?: string; speakers: SpeakerRow[] };
   const emptyCongres = (): CongresRow => ({ titre: "", description: "", date: "", adresse: "", lien_url: "", lien_visio: "", speakers: [] });
   const [congresList, setCongresList] = useState<CongresRow[]>([]);
   const [cForm, setCForm] = useState<CongresRow>(emptyCongres());
