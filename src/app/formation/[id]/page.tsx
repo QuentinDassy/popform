@@ -194,7 +194,7 @@ export default function FormationPage() {
   }, [id, user]);
 
   const handleFav = async () => {
-    if (!user) { alert("Connectez-vous pour ajouter aux favoris"); return; }
+    if (!user) { setShowAuth(true); return; }
     const added = await toggleFavori(user.id, Number(id));
     setIsFav(added);
   };
@@ -336,9 +336,15 @@ export default function FormationPage() {
 
               {/* CTA Buttons */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <button onClick={() => handleInscription()} disabled={inscribing} style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, opacity: inscribing ? 0.7 : 1 }}>
-                  {inscriptions.some(i => i.formation_id === f.id) ? "✓ Inscrit·e" : "S'inscrire →"}
-                </button>
+                {f.url_inscription ? (
+                  <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    Voir la formation →
+                  </a>
+                ) : (
+                  <button onClick={() => handleInscription()} disabled={inscribing} style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, opacity: inscribing ? 0.7 : 1 }}>
+                    {inscriptions.some(i => i.formation_id === f.id) ? "✓ Inscrit·e" : "S'inscrire →"}
+                  </button>
+                )}
                 <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.surface, border: "2px solid " + C.border, color: C.text, fontSize: 15, fontWeight: 600, textDecoration: "none" }}>
                   Voir les sessions
                 </a>

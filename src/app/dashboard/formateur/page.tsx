@@ -40,6 +40,7 @@ export default function DashboardFormateurPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const [profilPhotoFile, setProfilPhotoFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [profilSaved, setProfilSaved] = useState(false);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
@@ -150,7 +151,7 @@ export default function DashboardFormateurPage() {
 
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim()));      if (validSessions.length > 0) {
+const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));      if (validSessions.length > 0) {
         const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim(),
@@ -189,9 +190,17 @@ const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || 
   const handleSaveProfil = async () => {
     if (!formateur) return;
     setSaving(true); setMsg(null);
-    const { error } = await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe }).eq("id", formateur.id);
+    let photoUrl = (formateur as any).photo_url || null;
+    if (profilPhotoFile) {
+      try {
+        const { uploadImage } = await import("@/lib/upload");
+        photoUrl = await uploadImage(profilPhotoFile, "profils");
+        setProfilPhotoFile(null);
+      } catch (e: any) { setMsg("Erreur photo: " + e.message); setSaving(false); return; }
+    }
+    const { error } = await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe, photo_url: photoUrl }).eq("id", formateur.id);
     if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
-    setFormateur({ ...formateur, nom: fmtNom, bio: fmtBio, sexe: fmtSexe });
+    setFormateur({ ...formateur, nom: fmtNom, bio: fmtBio, sexe: fmtSexe, ...(photoUrl ? { photo_url: photoUrl } : {}) } as any);
     setSaving(false); setProfilSaved(true); setMsg("✅ Profil enregistré !");
     setTimeout(() => { setMsg(null); setProfilSaved(false); }, 3000);
   };
@@ -281,6 +290,24 @@ const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || 
           <button onClick={() => setTab("list")} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>Mon profil formateur</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Photo de profil</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <label style={{ cursor: "pointer" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 32, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#fff", fontWeight: 700, overflow: "hidden", position: "relative" }}>
+                    {profilPhotoFile ? (
+                      <img src={URL.createObjectURL(profilPhotoFile)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (formateur as any)?.photo_url ? (
+                      <img src={(formateur as any).photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span>{formateur?.nom?.[0]?.toUpperCase() || "?"}</span>
+                    )}
+                  </div>
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setProfilPhotoFile(e.target.files[0]); }} />
+                </label>
+                <span style={{ fontSize: 12, color: C.textTer }}>Cliquez sur l&apos;avatar pour changer la photo</span>
+              </div>
+            </div>
             <div><label style={labelStyle}>Nom complet</label><input value={fmtNom} onChange={e => setFmtNom(e.target.value)} style={inputStyle} /></div>
             <div><label style={labelStyle}>Biographie</label><textarea value={fmtBio} onChange={e => setFmtBio(e.target.value)} style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} /></div>
             <div>

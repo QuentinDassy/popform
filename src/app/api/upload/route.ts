@@ -17,37 +17,35 @@ export async function POST(req: NextRequest) {
 
     if (!url) return NextResponse.json({ error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, { status: 500 });
 
-    // Use service role if available, fall back to anon
-    const supabase = createClient(url, serviceKey || anonKey, {
+    const client = createClient(url, serviceKey || anonKey, {
       auth: { persistSession: false },
     });
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Try bucket "Images" first, then "images" (Supabase is case-sensitive)
-    for (const bucket of ["Images", "images", "public"]) {
-      const { error, data } = await supabase.storage
+    // List buckets to find the right one
+    const { data: buckets } = await client.storage.listBuckets();
+    const bucketNames = buckets?.map(b => b.name) || [];
+    console.log("Available buckets:", bucketNames);
+
+    // Try all possible bucket names
+    const toTry = [...bucketNames, "images", "Images", "public"].filter((v, i, a) => a.indexOf(v) === i);
+    
+    for (const bucket of toTry) {
+      const { error } = await client.storage
         .from(bucket)
         .upload(path, buffer, { contentType: file.type, upsert: true });
 
       if (!error) {
-        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+        const { data: urlData } = client.storage.from(bucket).getPublicUrl(path);
         return NextResponse.json({ url: urlData.publicUrl });
       }
-
-      // If bucket not found, try next; if RLS/auth error, stop and report
-      if (!error.message.includes("not found") && !error.message.includes("Bucket not found")) {
-        console.error(`Upload error (bucket: ${bucket}):`, error.message);
-        // Don't fail completely - return guidance
-        return NextResponse.json({
-          error: `Upload failed: ${error.message}. Fix: In Supabase → Storage → Buckets → create bucket "Images" → set to Public, OR add SUPABASE_SERVICE_ROLE_KEY to .env.local`
-        }, { status: 500 });
-      }
+      console.log(`Bucket ${bucket} failed:`, error.message);
     }
 
     return NextResponse.json({
-      error: "No storage bucket found. Create a bucket named 'Images' (capital I) in Supabase Storage and set it to Public."
+      error: `Upload failed. Available buckets: ${bucketNames.join(", ") || "none"}. Create a public bucket named "images" in Supabase Storage.`
     }, { status: 500 });
 
   } catch (e: any) {

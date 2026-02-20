@@ -210,7 +210,7 @@ export default function DashboardOrganismePage() {
     // Sessions: delete old, insert new
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-      const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim()));
+      const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
         const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
