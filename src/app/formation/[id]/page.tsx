@@ -383,7 +383,7 @@ export default function FormationPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {sessions.map((s, si) => {
-                    const parts = (s as any).parties as Array<{titre:string;date_debut:string;date_fin:string;modalite:string;lieu:string;adresse:string;lien_visio:string}> | null;
+                    const parts = (s as any).parties as Array<{titre:string;date_debut:string;date_fin:string;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
                     const isInscrit = inscriptions.some(ins => ins.formation_id === f.id && ins.session_id === s.id);
                     return (
                     <div key={si} style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
