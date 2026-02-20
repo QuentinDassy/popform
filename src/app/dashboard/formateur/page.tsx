@@ -11,8 +11,7 @@ import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/su
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string };
-
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean };
 function emptyFormation() {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
