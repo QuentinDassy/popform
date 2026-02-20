@@ -178,7 +178,6 @@ export default function FormationPage() {
   const [isFav, setIsFav] = useState(false);
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [inscribing, setInscribing] = useState(false);
-  const { setShowAuth } = useAuth();
   const { user, profile, setShowAuth } = useAuth();
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
