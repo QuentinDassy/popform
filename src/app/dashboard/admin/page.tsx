@@ -717,6 +717,7 @@ export default function DashboardAdminPage() {
                         <Link href={`/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>👁️ Voir sur le site</Link>
                       )}
                       <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>
+                      <button onClick={async () => { const newVal = !f.is_new; await supabase.from("formations").update({ is_new: newVal }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, is_new: newVal } : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.yellowBg, background: f.is_new ? C.yellowBg : C.surface, color: f.is_new ? C.yellowDark : C.textTer, fontSize: 12, fontWeight: f.is_new ? 700 : 400, cursor: "pointer" }}>{f.is_new ? "⭐ Nouvelle (retirer)" : "☆ Marquer nouvelle"}</button>
                     </div>
                   </div>
                 )}

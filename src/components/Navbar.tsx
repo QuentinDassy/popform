@@ -100,23 +100,25 @@ export default function Navbar() {
               ))}
               {user && (
                 <>
+                  <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "8px 0" }} />
                   {profile?.role === "organisme" && (
                     <Link href="/dashboard/organisme" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/dashboard") ? C.yellowBg : "transparent", color: pathname.includes("/dashboard") ? C.yellowDark : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                      🏢 Dashboard
+                      Dashboard
                     </Link>
                   )}
                   {profile?.role === "formateur" && (
                     <Link href="/dashboard/formateur" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/dashboard") ? C.yellowBg : "transparent", color: pathname.includes("/dashboard") ? C.yellowDark : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                      🎤 Dashboard
+                      Dashboard
                     </Link>
                   )}
                   {user?.email === "quentin.dassy@gmail.com" && (
                     <Link href="/dashboard/admin" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/admin") ? C.accentBg : "transparent", color: pathname.includes("/admin") ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                      🛡️ Admin
+                      Admin
                     </Link>
                   )}
+                  <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "6px 0" }} />
                   <Link href="/compte" style={{ padding: "10px 14px", borderRadius: 9, background: pathname === "/compte" ? C.accentBg : "transparent", color: pathname === "/compte" ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                    👤 Mon compte
+                    Mon compte
                   </Link>
                 </>
               )}

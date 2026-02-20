@@ -159,7 +159,6 @@ const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || 
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
           code_postal: s.code_postal || null,
-          parties: s.parties && s.parties.length > 0 ? s.parties : null,
         }))).select();
         if (insertedSessions) {
           for (let si = 0; si < validSessions.length; si++) {

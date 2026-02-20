@@ -276,7 +276,7 @@ export default function HomePage() {
           return (
             <SectionGrid 
               key={domaine.id} 
-              title={`${domaine.emoji || DOMAINE_EMOJIS[domaine.nom] || "📚"} ${domaine.nom}`} 
+              title={domaine.nom} 
               formations={domaineFormations} 
               mob={mob} 
               max={4}
@@ -288,15 +288,15 @@ export default function HomePage() {
         // Fallback: show hardcoded sections if no admin domaines configured
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
-            <SectionGrid title="🗣️ Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
+            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
           )}
           {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
-            <SectionGrid title="🧠 Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
+            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
           )}
         </>
       )}
       
-      {visioF.length > 0 && <SectionGrid title="💻 En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
+      {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
 
       {/* Section webinaires */}
 {/* ===== CTA ===== */}

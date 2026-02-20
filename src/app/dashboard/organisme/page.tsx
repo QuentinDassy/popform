@@ -225,7 +225,6 @@ export default function DashboardOrganismePage() {
             : (s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", ")),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
-          parties: s.parties && s.parties.length > 0 ? s.parties : null,
         }))).select();
         // Save parties for each session
         if (insertedSessions) {
@@ -378,7 +377,7 @@ export default function DashboardOrganismePage() {
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
-                      {f.is_new && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff" }}>NEW</span>}
+
                       {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}{(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6", marginLeft: 4 }}>🔄 Modif. en attente</span>}
                       {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
                       {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}

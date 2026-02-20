@@ -261,7 +261,14 @@ export default function FormationPage() {
   };
 
   // Autres formations du même formateur
-  const autresFormations = formations.filter(ff => ff.formateur_id === f.formateur_id && ff.id !== f.id).slice(0, 3);
+  const autresFormations = formations.filter(ff => 
+    ff.id !== f.id && 
+    ff.titre?.trim() &&
+    (
+      (f.formateur_id && ff.formateur_id === f.formateur_id) || 
+      (f.organisme_id && ff.organisme_id === f.organisme_id)
+    )
+  ).slice(0, 3);
 
   return (
     <>
@@ -296,7 +303,7 @@ export default function FormationPage() {
 
               {/* Badges */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                {f.is_new && <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✨ Nouvelle formation</span>}
+
                 <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: dc.bg, color: dc.color }}>{f.domaine}</span>
                 <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⭐ {avg} ({fAvis.length} avis)</span>
               </div>
