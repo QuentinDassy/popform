@@ -767,7 +767,7 @@ export default function DashboardOrganismePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
               {congresList.map((c, idx) => (
                 <div key={idx} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                  {c.photo_url && <img src={c.photo_url} alt={c.titre} style={{ width: 60, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />}
+                  {c.photo_url && <img src={c.photo_url as string} alt={c.titre} style={{ width: 60, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />}
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{c.titre}</div>
                     <div style={{ fontSize: 11, color: C.textTer }}>{c.date ? new Date(c.date).toLocaleDateString("fr-FR") : "—"} · {(c.speakers || []).length} intervenant{(c.speakers || []).length !== 1 ? "s" : ""}</div>
@@ -805,11 +805,11 @@ export default function DashboardOrganismePage() {
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>URL site / programme</label>
-                <input value={cForm.lien_url} onChange={e => setCForm({ ...cForm, lien_url: e.target.value })} placeholder="https://..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+                <input value={cForm.lien_url || ""} onChange={e => setCForm({ ...cForm, lien_url: e.target.value })} placeholder="https://..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Lien visio (si applicable)</label>
-                <input value={cForm.lien_visio} onChange={e => setCForm({ ...cForm, lien_visio: e.target.value })} placeholder="https://zoom.us/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+                <input value={cForm.lien_visio || ""} onChange={e => setCForm({ ...cForm, lien_visio: e.target.value })} placeholder="https://zoom.us/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
               </div>
               <div style={{ gridColumn: mob ? "1" : "1/-1" }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, display: "block", marginBottom: 4 }}>Photo</label>
