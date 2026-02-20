@@ -50,6 +50,7 @@ export default function DashboardOrganismePage() {
   // Domaines from admin
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   // Webinaires
   type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
@@ -189,8 +190,15 @@ export default function DashboardOrganismePage() {
 
     if (editId) {
       // Modification: remet en attente
-      const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
+      // If formation was published, keep it published but mark as pending update
+      const { data: currentF } = await supabase.from("formations").select("status").eq("id", editId).single();
+      const wasPublished = currentF?.status === "publiee";
+      const updatePayload = wasPublished 
+        ? { pending_update: JSON.stringify({ ...payload, sessions }) } // Keep published, store changes for admin review
+        : { ...payload, status: "en_attente" };
+      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
+      if (wasPublished) { setMsg("✅ Modifications soumises à validation. La formation reste visible en attendant."); setSaving(false); setTab("list"); return; }
     } else {
       // Création: en attente de validation
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
@@ -203,14 +211,32 @@ export default function DashboardOrganismePage() {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
       const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim()));
       if (validSessions.length > 0) {
-        await supabase.from("sessions").insert(validSessions.map(s => ({
+        const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
-          dates: s.dates.trim(),
-          lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-          adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+          dates: s.parties && s.parties.length > 0 
+            ? s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi+1))}: ${p.date_debut}${p.date_fin ? " → " + p.date_fin : ""}`).join(" | ")
+            : (s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim()),
+          lieu: s.parties && s.parties.length > 0
+            ? [...new Set(s.parties.map(p => p.modalite === "Visio" ? "Visio" : p.lieu).filter(Boolean))].join(", ")
+            : (s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim())),
+          adresse: s.parties && s.parties.length > 0
+            ? s.parties.map(p => p.modalite === "Visio" ? (p.lien_visio || "Visio") : [p.adresse, p.lieu].filter(Boolean).join(", ")).join(" | ")
+            : (s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", ")),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
-        })));
+          parties: s.parties && s.parties.length > 0 ? s.parties : null,
+        }))).select();
+        // Save parties for each session
+        if (insertedSessions) {
+          for (let si = 0; si < validSessions.length; si++) {
+            const parties = validSessions[si].parties || [];
+            if (parties.length > 0 && insertedSessions[si]) {
+              await supabase.from("session_parties").insert(
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.date_debut || null, date_fin: p.date_fin || null }))
+              );
+            }
+          }
+        }
       }
     }
 
@@ -277,8 +303,31 @@ export default function DashboardOrganismePage() {
       <div style={{ padding: "18px 0 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <div>
           <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
-          <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Dashboard {organisme?.nom}</h1>
-          <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} publiée{formations.length > 1 ? "s" : ""}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 6 }}>
+            {/* Logo organisme */}
+            <label style={{ cursor: "pointer", flexShrink: 0 }} title="Changer le logo">
+              <div style={{ width: 56, height: 56, borderRadius: 14, background: organisme?.logo?.startsWith("http") ? "transparent" : C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 800, overflow: "hidden", border: "2px solid " + C.borderLight }}>
+                {organisme?.logo?.startsWith("http") ? (
+                  <img src={organisme.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span>{organisme?.logo || "🏢"}</span>
+                )}
+              </div>
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
+                if (!e.target.files?.[0] || !organisme) return;
+                const { uploadImage } = await import("@/lib/upload");
+                const url = await uploadImage(e.target.files[0], "logos");
+                if (url) {
+                  await supabase.from("organismes").update({ logo: url }).eq("id", organisme.id);
+                  setOrganisme(prev => prev ? { ...prev, logo: url } : prev);
+                }
+              }} />
+            </label>
+            <div>
+              <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text }}>Dashboard {organisme?.nom}</h1>
+              <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} · <span style={{ fontSize: 11, color: C.textTer }}>📷 Cliquez sur le logo pour le changer</span></p>
+            </div>
+          </div>
         </div>
         {tab === "list" && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -329,7 +378,8 @@ export default function DashboardOrganismePage() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {f.is_new && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.gradient, color: "#fff" }}>NEW</span>}
-                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}{(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6", marginLeft: 4 }}>🔄 Modif. en attente</span>}
+                      {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
                       {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
                       {f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
                     </div>
@@ -454,7 +504,7 @@ export default function DashboardOrganismePage() {
               <label style={labelStyle}>Domaine</label>
               <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
                 {domainesList.length > 0 ? (
-                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)
+                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)
                 ) : (
                   <option value="">Chargement...</option>
                 )}
@@ -659,10 +709,64 @@ export default function DashboardOrganismePage() {
                         </div>
                       )}
                     </div>
+
+                    {/* ===== PARTIES ===== */}
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed " + C.borderLight }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.textSec }}>Parties de cette session</span>
+                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "Partie " + ((n[i].parties?.length || 0) + 1), date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }]; setSessions(n); }} style={{ padding: "3px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
+                      </div>
+                      {(s.parties || []).map((p, pi) => (
+                        <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                            <input value={p.titre} onChange={e => { const n = [...sessions]; n[i].parties![pi].titre = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 11, fontWeight: 700, flex: 1, marginRight: 8 }} placeholder={"Partie " + (pi + 1)} />
+                            {(s.parties || []).length > 1 && <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = n[i].parties!.filter((_, pj) => pj !== pi); setSessions(n); }} style={{ padding: "2px 8px", borderRadius: 6, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 10, cursor: "pointer" }}>✕</button>}
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 6 }}>
+                            <div><label style={labelStyle}>Date début</label><input type="date" value={p.date_debut} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_debut = e.target.value; setSessions(n); }} style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Date fin</label><input type="date" value={p.date_fin} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_fin = e.target.value; setSessions(n); }} style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Modalité</label><select value={p.modalite} onChange={e => { const n = [...sessions]; n[i].parties![pi].modalite = e.target.value; setSessions(n); }} style={inputStyle}><option>Présentiel</option><option>Visio</option></select></div>
+                            {p.modalite === "Visio" ? (
+                              <div><label style={labelStyle}>Lien visio</label><input value={p.lien_visio} onChange={e => { const n = [...sessions]; n[i].parties![pi].lien_visio = e.target.value; setSessions(n); }} placeholder="https://zoom.us/j/..." style={inputStyle} /></div>
+                            ) : (
+                              <><div><label style={labelStyle}>Adresse</label><input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties![pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue" style={inputStyle} /></div><div><label style={labelStyle}>Ville</label><input value={p.lieu} onChange={e => { const n = [...sessions]; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} /></div></>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ===== PARTIES ===== */}
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed " + C.borderLight }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const }}>Parties de la session</span>
+                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" }]; setSessions(n); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
+                      </div>
+                      {(s.parties || []).length === 0 && <p style={{ fontSize: 11, color: C.textTer, fontStyle: "italic" }}>Pas de parties — la session entière est en {isSessionVisio ? "visio" : "présentiel"}.</p>}
+                      {(s.parties || []).map((p, pi) => (
+                        <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent }}>Partie {pi + 1}</span>
+                            <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = (n[i].parties || []).filter((_, pj) => pj !== pi); setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 11, cursor: "pointer" }}>✕</button>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 6 }}>
+                            <input value={p.titre} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].titre = e.target.value; setSessions(n); }} placeholder="Titre de la partie (ex: Journée théorique)" style={{ ...inputStyle, fontSize: 12 }} />
+                            <select value={p.modalite} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].modalite = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }}>
+                              {["Présentiel", "Visio", "Mixte"].map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <input type="date" value={p.date_debut} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_debut = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                            <input type="date" value={p.date_fin} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_fin = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                            {p.modalite !== "Visio" && <input value={p.ville} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].ville = e.target.value; setSessions(n); }} placeholder="Ville" style={{ ...inputStyle, fontSize: 12 }} />}
+                            {p.modalite !== "Visio" && <input value={p.adresse} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].adresse = e.target.value; setSessions(n); }} placeholder="Adresse" style={{ ...inputStyle, fontSize: 12 }} />}
+                            {p.modalite !== "Présentiel" && <input value={p.lien_visio} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].lien_visio = e.target.value; setSessions(n); }} placeholder="Lien visio" style={{ ...inputStyle, fontSize: 12, gridColumn: "1 / -1" }} />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

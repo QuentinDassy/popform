@@ -11,7 +11,8 @@ import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/su
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean };
+type SessionPartieRow = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; lien_visio: string };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; parties: SessionPartieRow[] };
 function emptyFormation() {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
@@ -36,7 +37,7 @@ export default function DashboardFormateurPage() {
   const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -82,13 +83,13 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false, parties: (s as any).parties || [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] })));
     } else {
       setEditId(null);
       // Set first domaine as default if available
       const defaultDomaine = domainesList.length > 0 ? domainesList[0].nom : "";
       setForm({ ...emptyFormation(), domaine: defaultDomaine });
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -133,8 +134,14 @@ export default function DashboardFormateurPage() {
     if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
 
     if (editId) {
-      const { error } = await supabase.from("formations").update(payload).eq("id", editId);
+      const { data: currentF } = await supabase.from("formations").select("status").eq("id", editId).single();
+      const wasPublished = currentF?.status === "publiee";
+      const updatePayload = wasPublished
+        ? { pending_update: JSON.stringify({ ...payload, sessions }) }
+        : payload;
+      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
+      if (wasPublished) { setMsg("✅ Modifications soumises à validation. La formation reste visible en attendant."); setSaving(false); setTab("list"); return; }
     } else {
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
@@ -144,15 +151,26 @@ export default function DashboardFormateurPage() {
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
 const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim()));      if (validSessions.length > 0) {
-        await supabase.from("sessions").insert(validSessions.map(s => ({
+        const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim(),
           lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+          adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
           code_postal: s.code_postal || null,
-        })));
+          parties: s.parties && s.parties.length > 0 ? s.parties : null,
+        }))).select();
+        if (insertedSessions) {
+          for (let si = 0; si < validSessions.length; si++) {
+            const parties = validSessions[si].parties || [];
+            if (parties.length > 0 && insertedSessions[si]) {
+              await supabase.from("session_parties").insert(
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.date_debut || null, date_fin: p.date_fin || null }))
+              );
+            }
+          }
+        }
       }
     }
 
@@ -299,7 +317,7 @@ adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville
               <label style={labelStyle}>Domaine</label>
               <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
                 {domainesList.length > 0 ? (
-                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)
+                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)
                 ) : (
                   <option value="">Chargement...</option>
                 )}
@@ -452,10 +470,36 @@ adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville
                         </div>
                       )}
                     </div>
+                    {/* ===== PARTIES ===== */}
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed " + C.borderLight }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const }}>Parties de la session</span>
+                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" }]; setSessions(n); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
+                      </div>
+                      {(s.parties || []).length === 0 && <p style={{ fontSize: 11, color: C.textTer, fontStyle: "italic" }}>Pas de parties — session unique.</p>}
+                      {(s.parties || []).map((p, pi) => (
+                        <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent }}>Partie {pi + 1}</span>
+                            <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = (n[i].parties || []).filter((_, pj) => pj !== pi); setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 11, cursor: "pointer" }}>✕</button>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 6 }}>
+                            <input value={p.titre} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].titre = e.target.value; setSessions(n); }} placeholder="Titre (ex: Journée théorique)" style={{ ...inputStyle, fontSize: 12 }} />
+                            <select value={p.modalite} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].modalite = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }}>
+                              {["Présentiel", "Visio", "Mixte"].map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <input type="date" value={p.date_debut} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_debut = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                            <input type="date" value={p.date_fin} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_fin = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                            {p.modalite !== "Visio" && <input value={p.ville} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].ville = e.target.value; setSessions(n); }} placeholder="Ville" style={{ ...inputStyle, fontSize: 12 }} />}
+                            {p.modalite !== "Présentiel" && <input value={p.lien_visio} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].lien_visio = e.target.value; setSessions(n); }} placeholder="Lien visio" style={{ ...inputStyle, fontSize: 12, gridColumn: "1 / -1" }} />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

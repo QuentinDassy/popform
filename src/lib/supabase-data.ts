@@ -4,7 +4,8 @@ export const supabase = createClient();
 
 // ============ TYPES ============
 
-export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null };
+export type SessionPartie = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; lien_visio: string };
+export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null; parties?: SessionPartie[] | null };
 export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string };
 export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string };
 export type Formation = {
@@ -17,6 +18,7 @@ export type Formation = {
   effectif: number; video_url: string; url_inscription: string;
   date_fin: string | null; sans_limite: boolean;
   status: string;
+  pending_update?: boolean;
   affiche_order: number | null;
   sessions?: Session[];
   formateur?: Formateur;

@@ -74,7 +74,14 @@ function CatalogueContent() {
     }
     if (selVille) {
       const isVisioFilter = selVille.toLowerCase() === "visio";
-      const matchesVille = (f.sessions || []).some(s => s.lieu.toLowerCase().includes(selVille.toLowerCase()));
+      const matchesVille = (f.sessions || []).some(s => {
+        // Check session lieu
+        if (s.lieu.toLowerCase().includes(selVille.toLowerCase())) return true;
+        // Check parties cities
+        const parties = (s as any).parties as Array<{lieu:string;modalite:string}> | null;
+        if (parties) return parties.some(p => p.lieu?.toLowerCase().includes(selVille.toLowerCase()));
+        return false;
+      });
       const matchesVisioModalite = isVisioFilter && f.modalite === "Visio";
       if (!matchesVille && !matchesVisioModalite) return false;
     }
@@ -127,7 +134,7 @@ function CatalogueContent() {
           {/* Use domaines from admin if available, fallback to formations domaines */}
           {(domainesFiltres.length > 0 ? domainesFiltres : 
             [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
-          ).map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)}
+          ).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
         </select>
         <select value={selModalite} onChange={e => setSelModalite(e.target.value)} style={sel(mob)}>
           <option value="">Modalité</option>

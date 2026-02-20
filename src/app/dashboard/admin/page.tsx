@@ -84,6 +84,38 @@ export default function DashboardAdminPage() {
     invalidateCache();
   };
 
+  const handleApprovePendingUpdate = async (id: number) => {
+    const f = formations.find(f => f.id === id);
+    if (!f || !(f as any).pending_update) return;
+    try {
+      const pending = JSON.parse((f as any).pending_update);
+      const { sessions: pendingSessions, ...pendingData } = pending;
+      await supabase.from("formations").update({ ...pendingData, pending_update: null }).eq("id", id);
+      if (pendingSessions) {
+        await supabase.from("sessions").delete().eq("formation_id", id);
+        if (pendingSessions.length > 0) {
+          await supabase.from("sessions").insert(pendingSessions.map((s: any) => ({
+            formation_id: id,
+            dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates,
+            lieu: s.is_visio ? "Visio" : (s.ville || s.lieu || ""),
+            adresse: s.is_visio ? (s.lien_visio || "") : [s.adresse, s.ville, s.code_postal].filter(Boolean).join(", "),
+            modalite_session: s.modalite_session || null,
+            lien_visio: s.lien_visio || null,
+            parties: s.parties || null,
+          })));
+        }
+      }
+      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, pending_update: null } : f));
+      const { invalidateCache } = await import("@/lib/data");
+      invalidateCache();
+    } catch(e) { console.error("Approve update error:", e); }
+  };
+
+  const handleRefusePendingUpdate = async (id: number) => {
+    await supabase.from("formations").update({ pending_update: null }).eq("id", id);
+    setFormations(prev => prev.map(f => f.id === id ? { ...f, pending_update: null } : f));
+  };
+
   const handleAfficheOrder = async (id: number, order: number | null) => {
     await supabase.from("formations").update({ affiche_order: order }).eq("id", id);
     setFormations(prev => prev.map(f => f.id === id ? { ...f, affiche_order: order } : f));
@@ -602,7 +634,14 @@ export default function DashboardAdminPage() {
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {statusBadge(f.status)}
+                      {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
+                    {(f as any).pending_update && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <button onClick={() => handleApprovePendingUpdate(f.id)} style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✅ Approuver modif.</button>
+                        <button onClick={() => handleRefusePendingUpdate(f.id)} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Refuser modif.</button>
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
                       <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span>
                       {f.formateur && <><span>·</span><span>🎤 {f.formateur.nom}</span></>}
@@ -665,6 +704,9 @@ export default function DashboardAdminPage() {
                     <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                       {f.status !== "publiee" && (
                         <button onClick={() => handleStatus(f.id, "publiee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
+                      )}
+                      {(f as any).pending_update && (
+                        <button onClick={async () => { await supabase.from("formations").update({ pending_update: false }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, pending_update: false } as any : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Valider modif.</button>
                       )}
                       {f.status !== "refusee" && (
                         <button onClick={() => handleStatus(f.id, "refusee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.pink, background: "transparent", color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Refuser</button>
