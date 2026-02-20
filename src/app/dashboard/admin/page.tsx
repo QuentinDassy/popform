@@ -90,7 +90,7 @@ export default function DashboardAdminPage() {
     try {
       const pending = JSON.parse((f as any).pending_update);
       const { sessions: pendingSessions, ...pendingData } = pending;
-      await supabase.from("formations").update({ ...pendingData, pending_update: null }).eq("id", id);
+      await supabase.from("formations").update({ ...pendingData, pending_update: false }).eq("id", id);
       if (pendingSessions) {
         await supabase.from("sessions").delete().eq("formation_id", id);
         if (pendingSessions.length > 0) {
@@ -105,15 +105,15 @@ export default function DashboardAdminPage() {
           })));
         }
       }
-      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, pending_update: null } : f));
+      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, pending_update: false } : f));
       const { invalidateCache } = await import("@/lib/data");
       invalidateCache();
     } catch(e) { console.error("Approve update error:", e); }
   };
 
   const handleRefusePendingUpdate = async (id: number) => {
-    await supabase.from("formations").update({ pending_update: null }).eq("id", id);
-    setFormations(prev => prev.map(f => f.id === id ? { ...f, pending_update: null } : f));
+    await supabase.from("formations").update({ pending_update: false }).eq("id", id);
+    setFormations(prev => prev.map(f => f.id === id ? { ...f, pending_update: false } : f));
   };
 
   const handleAfficheOrder = async (id: number, order: number | null) => {
