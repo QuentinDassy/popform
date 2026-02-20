@@ -148,7 +148,7 @@ const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || 
           formation_id: formationId,
           dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim(),
           lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-          adresse: s.is_visio ? (s.lien_visio.trim() || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+adresse: s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
           code_postal: s.code_postal || null,
