@@ -143,8 +143,7 @@ export default function DashboardFormateurPage() {
 
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-      const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || s.lien_visio.trim()));
-      if (validSessions.length > 0) {
+const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim()));      if (validSessions.length > 0) {
         await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim(),
