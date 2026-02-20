@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getAllCitiesFromFormations, fetchFormations, type Formation } from "@/lib/data";
+import { C, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -23,9 +23,18 @@ function useTyping(words: string[]) {
   return d;
 }
 
-const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
+
+// Domaine emoji mapping (fallback if emoji not set in admin)
+const DOMAINE_EMOJIS: Record<string, string> = {
+  "Langage oral": "🗣️",
+  "Langage écrit": "📝",
+  "Neurologie": "🧠",
+  "OMF": "👄",
+  "Cognition mathématique": "🔢",
+  "Pratique professionnelle": "📚",
+};
 
 const sel = (mob: boolean): React.CSSProperties => ({
   padding: mob ? "9px 28px 9px 12px" : "10px 32px 10px 14px",
@@ -67,6 +76,8 @@ export default function HomePage() {
   const [webinaires, setWebinaires] = useState<any[]>([]);
   const [congres, setCongres] = useState<any[]>([]);
   const [adminVilles, setAdminVilles] = useState<{ nom: string; image: string }[]>([]);
+  const [domainesAccueil, setDomainesAccueil] = useState<DomaineAdmin[]>([]);
+  const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [selDomaine, setSelDomaine] = useState("");
@@ -120,22 +131,50 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!redirecting) {
-      fetchFormations().then(d => {
-        setFormations(d);
-        setLoading(false);
-      }).catch(() => setLoading(false));
-      // Load webinaires publiés
-      supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data: wbs }: { data: any[] | null }) => {
-        if (wbs) setWebinaires(wbs);
-      }).catch(() => {});
-      // Load congrès publiés
-      supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").eq("status", "publie").order("date", { ascending: true }).then(({ data: cgs }: { data: any[] | null }) => {
-        if (cgs) setCongres(cgs.filter((c: any) => new Date(c.date) >= new Date()));
-      }).catch(() => {});
-      // Load admin villes separately (non-blocking)
-      supabase.from("villes_admin").select("*").order("nom").then(({ data: villes }: { data: any[] | null }) => {
-        if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
-      }).catch(() => {});
+      // Load all data in parallel with timeout
+      const loadData = async () => {
+        try {
+          // Load formations (most important)
+          const formationsData = await fetchFormations();
+          setFormations(formationsData);
+        } catch (e) {
+          console.error("Error loading formations:", e);
+        } finally {
+          setLoading(false); // Always stop loading
+        }
+        
+        // Load other data (non-blocking)
+        try {
+          const domainesData = await fetchDomainesAccueil();
+          setDomainesAccueil(domainesData);
+        } catch (e) {
+          console.log("domaines_admin table may not exist yet");
+        }
+        
+        try {
+          const filtresData = await fetchDomainesFiltres();
+          setDomainesFiltres(filtresData);
+        } catch (e) {
+          console.log("domaines_admin table may not exist yet");
+        }
+        
+        try {
+          const { data: wbs } = await supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true });
+          if (wbs) setWebinaires(wbs);
+        } catch (e) {}
+        
+        try {
+          const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").eq("status", "publie").order("date", { ascending: true });
+          if (cgs) setCongres(cgs.filter((c: any) => new Date(c.date) >= new Date()));
+        } catch (e) {}
+        
+        try {
+          const { data: villes } = await supabase.from("villes_admin").select("*").order("nom");
+          if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
+        } catch (e) {}
+      };
+      
+      loadData();
     }
   }, [redirecting]);
 
@@ -153,8 +192,6 @@ export default function HomePage() {
     .filter(f => f.date_ajout >= thirtyDaysAgo || f.affiche_order)
     .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
-  const langOral = formations.filter(f => f.domaine === "Langage oral");
-  const neuro = formations.filter(f => f.domaine === "Neurologie");
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaine || selModalite || selPrise || selVille;
 
@@ -201,7 +238,10 @@ export default function HomePage() {
           <div style={{ display: "flex", gap: mob ? 6 : 8, marginTop: mob ? 14 : 18, maxWidth: 600, marginLeft: "auto", marginRight: "auto", flexWrap: "wrap" }}>
             <select value={selDomaine} onChange={e => setSelDomaine(e.target.value)} style={sel(mob)}>
               <option value="">Domaine</option>
-              {DOMAINES.map(d => <option key={d} value={d}>{d}</option>)}
+              {/* Use domaines from admin if available, fallback to formations domaines */}
+              {(domainesFiltres.length > 0 ? domainesFiltres : 
+                [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
+              ).map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)}
             </select>
             <select value={selModalite} onChange={e => setSelModalite(e.target.value)} style={sel(mob)}>
               <option value="">Modalité</option>
@@ -213,7 +253,6 @@ export default function HomePage() {
             </select>
             <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
               <option value="">Ville</option>
-              <option value="Visio">💻 En visio</option>
               {formationCities.map(([c]) => <option key={c} value={c}>{c}</option>)}
             </select>
             {hasFilters && (
@@ -226,9 +265,37 @@ export default function HomePage() {
       </section>
 
       {/* ===== SECTIONS ===== */}
-      <SectionGrid title="⭐ Les mieux notées" formations={popularF} mob={mob} />
-      {langOral.length > 0 && <SectionGrid title="🗣️ Langage oral" formations={langOral} mob={mob} max={4} />}
-      {neuro.length > 0 && <SectionGrid title="🧠 Neurologie" formations={neuro} mob={mob} max={4} />}
+      {/* NOTE: Section "Les mieux notées" désactivée - à réactiver plus tard si besoin */}
+      {/* <SectionGrid title="⭐ Les mieux notées" formations={popularF} mob={mob} /> */}
+      
+      {/* Dynamic sections from admin domaines - always show configured domaines */}
+      {domainesAccueil.length > 0 ? (
+        // Use domaines from admin - show even if no formations yet
+        domainesAccueil.map(domaine => {
+          const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
+          return (
+            <SectionGrid 
+              key={domaine.id} 
+              title={`${domaine.emoji || DOMAINE_EMOJIS[domaine.nom] || "📚"} ${domaine.nom}`} 
+              formations={domaineFormations} 
+              mob={mob} 
+              max={4}
+              link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
+            />
+          );
+        })
+      ) : (
+        // Fallback: show hardcoded sections if no admin domaines configured
+        <>
+          {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
+            <SectionGrid title="🗣️ Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
+          )}
+          {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
+            <SectionGrid title="🧠 Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
+          )}
+        </>
+      )}
+      
       {visioF.length > 0 && <SectionGrid title="💻 En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
 
       {/* Section webinaires */}

@@ -21,7 +21,11 @@ export default function VillesPage() {
         const cityCount: Record<string, number> = {};
         formations.forEach(f => {
           (f.sessions || []).forEach((s: any) => {
-            if (s.ville) cityCount[s.ville] = (cityCount[s.ville] || 0) + 1;
+            // Use 'lieu' field from sessions table (not 'ville')
+            const cityName = s.lieu || s.ville;
+            if (cityName && cityName !== "Visio" && cityName !== "En ligne") {
+              cityCount[cityName] = (cityCount[cityName] || 0) + 1;
+            }
           });
         });
         // Only show admin-defined villes

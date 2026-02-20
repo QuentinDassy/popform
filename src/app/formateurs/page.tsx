@@ -13,7 +13,28 @@ export default function FormateursPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => { Promise.all([fetchFormateurs(), fetchFormations()]).then(([f, fo]) => { setFmts(f); setFormations(fo); setLoading(false); }); }, []);
+  useEffect(() => { Promise.all([fetchFormateurs(), fetchFormations()]).then(([f, fo]) => {
+    // Deduplicate: one formateur per nom (case-insensitive) or user_id
+    const seen = new Set<string>();
+    const unique = f.filter((fmt: any) => {
+      const nameKey = fmt.nom?.toLowerCase().trim();
+      const userKey = fmt.user_id;
+      const idKey = String(fmt.id);
+      
+      // Si on a déjà vu ce nom, c'est un doublon
+      if (nameKey && seen.has(nameKey)) return false;
+      // Si on a déjà vu ce user_id, c'est un doublon
+      if (userKey && seen.has(userKey)) return false;
+      
+      if (nameKey) seen.add(nameKey);
+      if (userKey) seen.add(userKey);
+      seen.add(idKey);
+      return true;
+    });
+    setFmts(unique);
+    setFormations(fo);
+    setLoading(false);
+  }); }, []);
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 

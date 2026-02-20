@@ -3,15 +3,24 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, getAllCitiesFromFormations, type Formation } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, getAllCitiesFromFormations, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 
-const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle"];
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
+
+// Fallback emojis for domaines
+const DOMAINE_EMOJIS: Record<string, string> = {
+  "Langage oral": "🗣️",
+  "Langage écrit": "📝",
+  "Neurologie": "🧠",
+  "OMF": "👄",
+  "Cognition mathématique": "🔢",
+  "Pratique professionnelle": "📚",
+};
 
 const sel = (mob: boolean): React.CSSProperties => ({
   padding: mob ? "9px 28px 9px 12px" : "10px 32px 10px 14px",
@@ -41,11 +50,16 @@ function CatalogueContent() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
+  const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
 
   useEffect(() => {
     fetchFormations().then(d => { setFormations(d); setLoading(false); });
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
+    }).catch(() => {});
+    // Load domaines from admin
+    fetchDomainesFiltres().then(d => {
+      setDomainesFiltres(d);
     }).catch(() => {});
   }, []);
 
@@ -93,9 +107,9 @@ function CatalogueContent() {
       {/* Search bar */}
       <div style={{ display: "flex", gap: mob ? 6 : 10, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: mob ? "100%" : 280, display: "flex", alignItems: "center", gap: 8, padding: mob ? "0 12px" : "0 16px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, height: mob ? 44 : 50, boxShadow: "0 2px 10px rgba(212,43,43,0.04)" }}>
-          <span style={{ color: C.textTer, fontSize: 16 }}>🔍</span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une formation, un mot-clé, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit" }} />
-          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14 }}>✕</button>}
+          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14, order: 1 }}>✕</button>}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une formation, un mot-clé, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit", order: 2 }} />
+          <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
         </div>
         <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...sel(mob), flex: "none", width: mob ? "100%" : "auto", minWidth: 140 }}>
           <option value="pertinence">Pertinence</option>
@@ -110,7 +124,10 @@ function CatalogueContent() {
       <div style={{ display: "flex", gap: mob ? 6 : 8, marginBottom: 16, flexWrap: "wrap" }}>
         <select value={selDomaine} onChange={e => setSelDomaine(e.target.value)} style={sel(mob)}>
           <option value="">Domaine</option>
-          {DOMAINES.map(d => <option key={d} value={d}>{d}</option>)}
+          {/* Use domaines from admin if available, fallback to formations domaines */}
+          {(domainesFiltres.length > 0 ? domainesFiltres : 
+            [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
+          ).map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)}
         </select>
         <select value={selModalite} onChange={e => setSelModalite(e.target.value)} style={sel(mob)}>
           <option value="">Modalité</option>

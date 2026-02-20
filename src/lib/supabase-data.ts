@@ -26,6 +26,15 @@ export type Avis = { id: number; formation_id: number; user_id: string; user_nam
 export type Inscription = { id: number; user_id: string; formation_id: number; session_id?: number | null; status: string };
 export type Favori = { id: number; user_id: string; formation_id: number };
 export type AdminNotification = { id: number; type: string; formation_id: number; user_id: string; message: string; is_read: boolean; created_at: string };
+export type DomaineAdmin = { 
+  id: number; 
+  nom: string; 
+  emoji: string; 
+  afficher_sur_accueil: boolean; 
+  ordre_affichage: number;
+  afficher_dans_filtres: boolean;
+  created_at?: string;
+};
 
 // ============ FETCH FUNCTIONS ============
 
@@ -143,4 +152,71 @@ export async function fetchAdminNotifications(): Promise<AdminNotification[]> {
 
 export async function notifyAdmin(formationId: number, userId: string, message: string, type = "nouvelle_formation") {
   await supabase.from("admin_notifications").insert({ type, formation_id: formationId, user_id: userId, message });
+}
+
+// ============ DOMAINES ADMIN ============
+
+// Fetch all domaines (for filters)
+export async function fetchDomainesAdmin(): Promise<DomaineAdmin[]> {
+  const { data, error } = await supabase
+    .from("domaines_admin")
+    .select("*")
+    .order("ordre_affichage", { ascending: true });
+  if (error) { console.error("fetchDomainesAdmin error:", error); return []; }
+  return data || [];
+}
+
+// Fetch only domaines that should appear on homepage
+export async function fetchDomainesAccueil(): Promise<DomaineAdmin[]> {
+  const { data, error } = await supabase
+    .from("domaines_admin")
+    .select("*")
+    .eq("afficher_sur_accueil", true)
+    .order("ordre_affichage", { ascending: true });
+  if (error) { console.error("fetchDomainesAccueil error:", error); return []; }
+  return data || [];
+}
+
+// Fetch only domaines that should appear in filters
+export async function fetchDomainesFiltres(): Promise<DomaineAdmin[]> {
+  const { data, error } = await supabase
+    .from("domaines_admin")
+    .select("*")
+    .eq("afficher_dans_filtres", true)
+    .order("ordre_affichage", { ascending: true });
+  if (error) { console.error("fetchDomainesFiltres error:", error); return []; }
+  return data || [];
+}
+
+// Create a new domaine
+export async function createDomaineAdmin(domaine: Omit<DomaineAdmin, 'id' | 'created_at'>): Promise<DomaineAdmin | null> {
+  const { data, error } = await supabase
+    .from("domaines_admin")
+    .insert(domaine)
+    .select();
+  if (error) { 
+    console.error("createDomaineAdmin error:", error.message || error); 
+    throw new Error(error.message || "Erreur lors de la création du domaine");
+  }
+  return data?.[0] || null;
+}
+
+// Update a domaine
+export async function updateDomaineAdmin(id: number, updates: Partial<DomaineAdmin>): Promise<boolean> {
+  const { error } = await supabase
+    .from("domaines_admin")
+    .update(updates)
+    .eq("id", id);
+  if (error) { console.error("updateDomaineAdmin error:", error); return false; }
+  return true;
+}
+
+// Delete a domaine
+export async function deleteDomaineAdmin(id: number): Promise<boolean> {
+  const { error } = await supabase
+    .from("domaines_admin")
+    .delete()
+    .eq("id", id);
+  if (error) { console.error("deleteDomaineAdmin error:", error); return false; }
+  return true;
 }

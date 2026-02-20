@@ -9,182 +9,6 @@ import { supabase } from "@/lib/supabase-data";
 
 type InscRow = { formation_id: number; session_id?: number | null };
 
-// ─── Composant calendrier ── hooks toujours au top level ──────────────
-function CalendrierTab({ inscF, inscs, congresInscs, setCongresInscs, webInscs, setWebInscs, setInscs, setInscriptionIds, user, mob }: {
-  inscF: Formation[]; inscs: InscRow[]; congresInscs: any[]; setCongresInscs: (v: any[]) => void; webInscs: any[];
-  setWebInscs: (v: any[]) => void; setInscs: (fn: (prev: InscRow[]) => InscRow[]) => void;
-  setInscriptionIds: (fn: (prev: number[]) => number[]) => void;
-  user: any; mob: boolean;
-}) {
-  const { supabase: sb } = { supabase };
-  const domColors: Record<string, string> = {
-    "Langage oral": C.green, "Neurologie": C.blue, "Langage écrit": C.blue,
-    "OMF": C.pink, "Cognition mathématique": C.orange, "Pratique professionnelle": C.accent,
-  };
-
-  // Parse a date string like "14-15 mai 2026" → Date for sorting
-  const parseSessionDate = (dates: string): Date | null => {
-    if (!dates) return null;
-    const allMonths: Record<string, number> = {
-      janvier: 0, fevrier: 1, "février": 1, mars: 2, avril: 3, mai: 4, juin: 5,
-      juillet: 6, "août": 7, aout: 7, septembre: 8, octobre: 9, novembre: 10, "décembre": 11, decembre: 11,
-      jan: 0, "fév": 1, fev: 1, mar: 2, avr: 3, jul: 6, "aoû": 7, aou: 7, sep: 8, oct: 9, nov: 10, "déc": 11, dec: 11,
-    };
-    const monthPat = Object.keys(allMonths).sort((a,b) => b.length-a.length).join("|");
-    // Match: day (possibly range like 14-15), month name, year
-    const re = new RegExp(`(\\d{1,2})(?:[^\\d\\w]|\\s)*(?:\\d{1,2}[^\\d\\w])?\\s*(${monthPat})\\s*(\\d{4})`, "i");
-    const m = dates.match(re);
-    if (m) return new Date(parseInt(m[3]), allMonths[m[2].toLowerCase()], parseInt(m[1]));
-    // Fallback: month + year only
-    const re2 = new RegExp(`(${monthPat})\\s*(\\d{4})`, "i");
-    const m2 = dates.match(re2);
-    if (m2) return new Date(parseInt(m2[2]), allMonths[m2[1].toLowerCase()], 1);
-    // Last resort: native Date.parse
-    const p = Date.parse(dates);
-    if (!isNaN(p)) return new Date(p);
-    return null;
-  };
-
-  const allSessions = inscF.flatMap(f => {
-    const inscriptions = inscs.filter(i => i.formation_id === f.id);
-    const list = f.sessions || [];
-    let filtered: typeof list;
-    if (inscriptions.length === 0) { filtered = []; }
-    else {
-      const sessionIds = inscriptions.map(i => i.session_id).filter(id => id != null);
-      filtered = sessionIds.length === 0 ? list : list.filter(s => sessionIds.includes(s.id));
-    }
-    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, domaine: f.domaine, key: f.id + "-" + s.id + "-" + i, type: "formation" as const, _sortDate: parseSessionDate(s.dates) }));
-  });
-
-  // All events unified for calendar
-  type CalEvent = { key: string; type: "formation" | "congres" | "webinaire"; titre: string; _sortDate: Date | null; _monthKey: string; _data: any };
-
-  const allEvents: CalEvent[] = [];
-
-  allSessions.forEach(s => {
-    const d = parseSessionDate(s.dates);
-    let monthKey: string;
-    if (d) {
-      monthKey = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-    } else {
-      monthKey = "À planifier";
-    }
-    allEvents.push({ key: s.key, type: "formation", titre: s.titre, _sortDate: d, _monthKey: monthKey, _data: s });
-  });
-
-  // Congrès et webinaires désactivés pour la v1 — réactiver plus tard
-  // congresInscs et webInscs conservés mais non affichés
-
-  // Group by month, sort months chronologically
-  const months: Record<string, CalEvent[]> = {};
-  allEvents.forEach(ev => {
-    if (!months[ev._monthKey]) months[ev._monthKey] = [];
-    months[ev._monthKey].push(ev);
-  });
-
-  // Sort months: "À planifier" at end, others by date
-  const sortedMonths = Object.entries(months).sort(([a], [b]) => {
-    if (a === "À planifier") return 1;
-    if (b === "À planifier") return -1;
-    const da = new Date("01 " + a); const db = new Date("01 " + b);
-    return da.getTime() - db.getTime();
-  });
-
-  // Sort events within each month by date
-  sortedMonths.forEach(([, evts]) => evts.sort((a, b) => {
-    if (!a._sortDate) return 1; if (!b._sortDate) return -1;
-    return a._sortDate.getTime() - b._sortDate.getTime();
-  }));
-
-  const handleDesinscribeFormation = async (ev: CalEvent) => {
-    if (!confirm("Se désinscrire de cette session ?")) return;
-    const s = ev._data;
-    if (s.id) {
-      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", s.fId).eq("session_id", s.id);
-    } else {
-      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", s.fId);
-    }
-    setInscs(prev => {
-      const remaining = prev.filter(i => !(i.formation_id === s.fId && (s.id ? i.session_id === s.id : true)));
-      // If no more sessions for this formation, remove from inscriptionIds
-      const stillHas = remaining.some(i => i.formation_id === s.fId);
-      if (!stillHas) setInscriptionIds(prev2 => prev2.filter(id => id !== s.fId));
-      return remaining;
-    });
-  };
-
-  const handleDesinscribeCongres = async (ev: CalEvent) => {
-    if (!confirm("Se désinscrire de ce congrès ?")) return;
-    await supabase.from("congres_inscriptions").delete().eq("user_id", user.id).eq("congres_id", ev._data.id);
-    setCongresInscs(congresInscs.filter((c: any) => c.id !== ev._data.id));
-  };
-
-  const handleDesinscribeWebinaire = async (ev: CalEvent) => {
-    if (!confirm("Se désinscrire de ce webinaire ?")) return;
-    await supabase.from("webinaire_inscriptions").delete().eq("user_id", user.id).eq("webinaire_id", ev._data.id);
-    setWebInscs(webInscs.filter(w => w.id !== ev._data.id));
-  };
-
-  const isEmpty = allEvents.length === 0;
-
-  return (
-    <div style={{ paddingBottom: 40 }}>
-      {isEmpty ? (
-        <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-          <p>Aucun événement planifié. Inscrivez-vous à des formations pour les voir apparaître ici.</p>
-        </div>
-      ) : sortedMonths.map(([month, events]) => (
-        <div key={month} style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10, textTransform: "capitalize" }}>📅 {month}</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {events.map(ev => {
-              const borderColor = ev.type === "congres" ? C.accent : ev.type === "webinaire" ? "#7C3AED" : (domColors[ev._data?.domaine] || C.accent);
-              const badgeBg = ev.type === "congres" ? C.accentBg : ev.type === "webinaire" ? "#7C3AED11" : C.accentBg;
-              const badgeColor = ev.type === "congres" ? C.accent : ev.type === "webinaire" ? "#7C3AED" : C.accent;
-              const href = ev.type === "congres" ? `/congres/${ev._data.id}` : ev.type === "webinaire" ? `/webinaires` : `/formation/${ev._data.fId}`;
-              const dateLabel = ev._sortDate ? ev._sortDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : ev._data?.dates || "—";
-              const badge = ev.type === "congres" ? "🎤 Congrès" : ev.type === "webinaire" ? "📡 Webinaire" : ev._data?.domaine;
-              const subtitle = ev.type === "webinaire"
-                ? (ev._sortDate ? ev._sortDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + " à " + ev._sortDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "")
-                : ev.type === "congres"
-                  ? (ev._data?.adresse || "")
-                  : `📍 ${ev._data?.lieu || ""}${ev._data?.adresse ? " — " + ev._data.adresse : ""}`;
-
-              return (
-                <div key={ev.key} style={{ display: "flex", gap: mob ? 8 : 12, alignItems: "center", padding: mob ? "10px 12px" : "11px 14px", background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, borderLeft: "4px solid " + borderColor, flexWrap: "wrap" }}>
-                  {/* Date badge */}
-                  <span style={{ padding: "3px 9px", borderRadius: 8, background: badgeBg, color: badgeColor, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    {ev.type === "formation" ? ev._data?.dates : dateLabel}
-                  </span>
-                  {/* Content — clickable */}
-                  <Link href={href} style={{ flex: 1, minWidth: 140, textDecoration: "none", color: "inherit" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{ev.titre}</div>
-                    {subtitle && <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>{subtitle}</div>}
-                  </Link>
-                  {/* Badge type */}
-                  <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: badgeBg, color: badgeColor, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>{badge}</span>
-                  {/* Desinscription button */}
-                  <button
-                    onClick={() => {
-                      if (ev.type === "formation") handleDesinscribeFormation(ev);
-                      else if (ev.type === "congres") handleDesinscribeCongres(ev);
-                      else handleDesinscribeWebinaire(ev);
-                    }}
-                    style={{ padding: "4px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 11, cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
-                    title="Se désinscrire"
-                  >✕ Retirer</button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function ComptePage() {
   const [tab, setTab] = useState("inscriptions");
   const [search, setSearch] = useState("");
@@ -195,8 +19,6 @@ export default function ComptePage() {
   const [inscs, setInscs] = useState<InscRow[]>([]);
   const [inscriptionIds, setInscriptionIds] = useState<number[]>([]);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
-  const [congresInscs, setCongresInscs] = useState<any[]>([]); // congrès inscrits
-  const [webInscs, setWebInscs] = useState<any[]>([]); // webinaires inscrits
   const [loading, setLoading] = useState(true);
   const [editProfile, setEditProfile] = useState(false);
   const [pName, setPName] = useState("");
@@ -230,15 +52,6 @@ export default function ComptePage() {
       setFavoriIds(favs.map(fv => fv.formation_id));
       setLoading(false);
     });
-    // Load congrès inscrits
-    supabase.from("congres_inscriptions").select("congres_id, congres:congres(id,titre,date,adresse,photo_url,lien_url)").eq("user_id", user.id).then(({ data }: { data: any[] | null }) => {
-      if (data) setCongresInscs(data.map(d => d.congres).filter(Boolean));
-    }).catch(() => {});
-    // Load webinaires inscrits
-    supabase.from("webinaire_inscriptions").select("webinaire_id, webinaire:webinaires(id,titre,date_heure,lien_url)").eq("user_id", user.id).then(({ data, error }: { data: any[] | null; error: any }) => {
-      if (error) console.error("webinaire_inscriptions load error:", error.message);
-      if (data) setWebInscs(data.map(d => d.webinaire).filter(Boolean));
-    }).catch((e: any) => console.error("webinaire catch:", e.message));
   }, [user, profile]);
 
   const handleToggleFav = async (formationId: number) => {
@@ -272,18 +85,6 @@ export default function ComptePage() {
 
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
 
-  const planSessions = inscF.flatMap(f => {
-    const inscriptions = inscs.filter(i => i.formation_id === f.id);
-    const list = f.sessions || [];
-    let filtered: typeof list;
-    if (inscriptions.length === 0) { filtered = []; }
-    else {
-      const sessionIds = inscriptions.map(i => i.session_id).filter(id => id != null);
-      filtered = sessionIds.length === 0 ? list : list.filter(s => sessionIds.includes(s.id));
-    }
-    return filtered.map((s, i) => ({ ...s, titre: f.titre, fId: f.id, key: f.id + "-" + s.id + "-" + i }));
-  }).sort((a, b) => a.dates.localeCompare(b.dates));
-
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
       <div style={{ padding: "18px 0 14px" }}>
@@ -302,7 +103,6 @@ export default function ComptePage() {
           <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Nom complet</label>
           <input value={pName} onChange={e => setPName(e.target.value)} style={{ ...inputStyle, maxWidth: 300 }} />
 
-          {/* Newsletter toggle */}
           <div style={{ marginTop: 14, padding: "12px 14px", background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
               <div>
@@ -335,7 +135,7 @@ export default function ComptePage() {
             <input type={showPw ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleChangePw()} style={{ ...inputStyle, paddingRight: 40 }} />
             <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: C.textTer }} tabIndex={-1}>{showPw ? "🙈" : "👁️"}</button>
           </div>
-          {newPw && <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>{pwChecks.map(c => <span key={c.label} style={{ fontSize: 10, color: c.ok ? C.green : C.textTer }}>{c.ok ? "✓" : "○"} {c.label}</span>)}</div>}
+          {newPw && <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>{pwChecks.map(c => <span key={c.label} style={{ fontSize: 10, color: c.ok ? C.green : C.textTer }}>{c.ok ? "✓" : "○"}{c.label}</span>)}</div>}
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
             <button onClick={handleChangePw} disabled={pwSaving || !pwValid} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: pwSaving || !pwValid ? 0.5 : 1 }}>Mettre à jour</button>
             {pwMsg && <span style={{ fontSize: 12, color: pwMsg.startsWith("✓") ? C.green : C.pink }}>{pwMsg}</span>}
@@ -345,12 +145,10 @@ export default function ComptePage() {
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => { setTab("inscriptions"); setSearch(""); }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "inscriptions" ? C.accentBg : "transparent", color: tab === "inscriptions" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "inscriptions" ? 700 : 500, cursor: "pointer" }}>📋 Inscriptions ({inscF.length})</button>
-        <button onClick={() => setTab("calendrier")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "calendrier" ? C.accentBg : "transparent", color: tab === "calendrier" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "calendrier" ? 700 : 500, cursor: "pointer" }}>📅 Calendrier</button>
+        <button onClick={() => setTab("calendrier")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "calendrier" ? "rgba(46,124,230,0.1)" : "transparent", color: tab === "calendrier" ? "#2E7CE6" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "calendrier" ? 700 : 500, cursor: "pointer" }}>📅 Calendrier</button>
         <button onClick={() => setTab("avis")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "avis" ? "rgba(232,123,53,0.1)" : "transparent", color: tab === "avis" ? "#E87B35" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "avis" ? 700 : 500, cursor: "pointer" }}>⭐ Avis ({myAvis.length})</button>
         <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
       </div>
-
-      {tab === "calendrier" && <CalendrierTab inscF={inscF} inscs={inscs} congresInscs={congresInscs} setCongresInscs={setCongresInscs} webInscs={webInscs} setWebInscs={setWebInscs} setInscs={setInscs} setInscriptionIds={setInscriptionIds} user={user} mob={mob} />}
 
       {tab === "favoris" && (
         <div>
@@ -402,20 +200,6 @@ export default function ComptePage() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 12 }} />
             </div>
           </div>
-          {planSessions.length > 0 && (
-            <div style={{ marginBottom: 20, padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>📅 Planning</div>
-              {planSessions.map(s => (
-                <Link key={s.key} href={`/formation/${s.fId}`} style={{ textDecoration: "none", color: "inherit" }}>
-                  <div style={{ display: "flex", gap: mob ? 6 : 10, alignItems: "center", padding: "8px 12px", background: C.gradientBg, borderRadius: 9, cursor: "pointer", border: "1px solid " + C.borderLight, marginBottom: 4, flexWrap: mob ? "wrap" : "nowrap" }}>
-                    <span style={{ padding: "3px 8px", borderRadius: 7, background: C.accentBg, color: C.accent, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>{s.dates}</span>
-                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: C.text }}>{s.titre}</span>
-                    <span style={{ fontSize: 10, color: C.textTer }}>📍 {s.lieu}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
           {(() => {
             const filtered = search ? inscF.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : inscF;
             return filtered.length === 0
@@ -434,6 +218,79 @@ export default function ComptePage() {
                 ))}
               </div>;
           })()}
+        </div>
+      )}
+
+      {tab === "calendrier" && (
+        <div>
+          {inscF.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
+              <p>Aucune inscription à afficher dans le calendrier.</p>
+            </div>
+          ) : (
+            <div style={{ paddingBottom: 40 }}>
+              {(() => {
+                // Regrouper les formations par date
+                const events: { date: string; formations: Formation[] }[] = [];
+                inscF.forEach(f => {
+                  (f.sessions || []).forEach(s => {
+                    if (s.dates) {
+                      const dateKey = s.dates.split(" → ")[0] || s.dates;
+                      const existing = events.find(e => e.date === dateKey);
+                      if (existing) {
+                        if (!existing.formations.find(ff => ff.id === f.id)) {
+                          existing.formations.push(f);
+                        }
+                      } else {
+                        events.push({ date: dateKey, formations: [f] });
+                      }
+                    }
+                  });
+                });
+                events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                
+                const mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+                const jours = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+                
+                return events.map((event, i) => {
+                  const date = new Date(event.date);
+                  const jour = jours[date.getDay()];
+                  const jourNum = date.getDate();
+                  const moisNom = mois[date.getMonth()];
+                  const annee = date.getFullYear();
+                  const isPast = date < new Date();
+                  
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 16, marginBottom: 20, opacity: isPast ? 0.6 : 1 }}>
+                      {/* Date */}
+                      <div style={{ flexShrink: 0, width: 70, textAlign: "center" }}>
+                        <div style={{ fontSize: 11, color: C.textTer, textTransform: "uppercase" }}>{jour}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: isPast ? C.textTer : C.accent, lineHeight: 1 }}>{jourNum}</div>
+                        <div style={{ fontSize: 11, color: C.textTer }}>{moisNom} {annee}</div>
+                      </div>
+                      {/* Formations */}
+                      <div style={{ flex: 1 }}>
+                        {event.formations.map(f => (
+                          <Link key={f.id} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                            <div style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.border, marginBottom: 8, cursor: "pointer", transition: "all 0.2s" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                                <div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{f.titre}</div>
+                                  <div style={{ fontSize: 12, color: C.textSec }}>{f.domaine} · {f.duree}</div>
+                                </div>
+                                <span style={{ fontSize: 18 }}>→</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </div>
       )}
     </div>

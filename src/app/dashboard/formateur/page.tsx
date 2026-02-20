@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
 
-const DOMAINES = ["Langage oral", "Langage écrit", "Neurologie", "OMF", "Cognition mathématique", "Pratique professionnelle", "Autres"];
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
@@ -16,7 +15,7 @@ type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; v
 
 function emptyFormation() {
   return {
-    titre: "", sous_titre: "", description: "", domaine: DOMAINES[0], domaine_custom: "",
+    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
     modalite: MODALITES[0],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
@@ -33,6 +32,7 @@ export default function DashboardFormateurPage() {
   const [formateur, setFormateur] = useState<Formateur | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [organismes, setOrganismes] = useState<Organisme[]>([]);
+  const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
   const [editId, setEditId] = useState<number | null>(null);
@@ -53,6 +53,11 @@ export default function DashboardFormateurPage() {
     (async () => {
       const orgs = await fetchOrganismes();
       setOrganismes(orgs);
+      
+      // Load domaines from admin
+      const domaines = await fetchDomainesAdmin();
+      setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
+      
       const { data: existing } = await supabase.from("formateurs").select("*").eq("user_id", user.id);
       let fmt = existing?.[0] || null;
       if (!fmt) {
@@ -78,11 +83,13 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "" })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false })));
     } else {
       setEditId(null);
-      setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }]);
+      // Set first domaine as default if available
+      const defaultDomaine = domainesList.length > 0 ? domainesList[0].nom : "";
+      setForm({ ...emptyFormation(), domaine: defaultDomaine });
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }]);
     }
     setMsg(null);
     setTab("edit");
@@ -94,10 +101,15 @@ export default function DashboardFormateurPage() {
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
     setSaving(true); setMsg(null);
 
+    // Déterminer la modalité en fonction des sessions
+    const allVisio = sessions.length > 0 && sessions.every(s => s.is_visio);
+    const someVisio = sessions.some(s => s.is_visio) && !allVisio;
+    const computedModalite = allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel");
+
     const payload = {
       titre: form.titre.trim(), sous_titre: form.sous_titre.trim(), description: form.description.trim(),
-      domaine: form.domaine === "Autres" ? (form.domaine_custom.trim() || "Autres") : form.domaine,
-      modalite: form.modalite, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
+      domaine: form.domaine,
+      modalite: computedModalite, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h", prix: form.prix ?? 0, prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null, prix_dpc: form.prix_dpc || null,
       is_new: true, populations: form.populations,
@@ -111,17 +123,20 @@ export default function DashboardFormateurPage() {
     };
 
     let formationId = editId;
+
+    // Upload photo si présente
+    let formPhotoUrl2: string | null = form.photo_url || null;
+    if (formPhotoFile) {
+      const { uploadImage } = await import("@/lib/upload");
+      const url2 = await uploadImage(formPhotoFile, "formations");
+      if (url2) formPhotoUrl2 = url2;
+    }
+    if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
+
     if (editId) {
       const { error } = await supabase.from("formations").update(payload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
     } else {
-      let formPhotoUrl2: string | null = form.photo_url || null;
-      if (formPhotoFile) {
-        const { uploadImage } = await import("@/lib/upload");
-        const url2 = await uploadImage(formPhotoFile, "formations");
-        if (url2) formPhotoUrl2 = url2;
-      }
-      if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
       formationId = data.id;
@@ -129,13 +144,13 @@ export default function DashboardFormateurPage() {
 
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-      const validSessions = sessions.filter(s => s.dates.trim() || s.ville.trim() || s.lien_visio);
+      const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || s.lieu.trim() || s.lien_visio.trim()));
       if (validSessions.length > 0) {
         await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim(),
-          lieu: s.lien_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-          adresse: s.lien_visio ? s.lien_visio : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+          lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
+          adresse: s.is_visio ? (s.lien_visio.trim() || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
           code_postal: s.code_postal || null,
@@ -183,20 +198,19 @@ export default function DashboardFormateurPage() {
           <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🎤 Dashboard {fmtTitle(formateur)}</h1>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          
-      {/* ===== CONTACT ===== */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 16 }}>💬</span>
-        <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
-      </div>
-
-{tab === "list" && (
+          {tab === "list" && (
             <>
               <button onClick={() => setTab("profil")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Mon profil</button>
               <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
             </>
           )}
         </div>
+      </div>
+
+      {/* ===== CONTACT ===== */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 16 }}>💬</span>
+        <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
       </div>
 
       {tab === "list" && (
@@ -285,8 +299,13 @@ export default function DashboardFormateurPage() {
 
             <div>
               <label style={labelStyle}>Domaine</label>
-              <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>{DOMAINES.map(d => <option key={d} value={d}>{d}</option>)}</select>
-              {form.domaine === "Autres" && <input value={form.domaine_custom} onChange={e => setForm({ ...form, domaine_custom: e.target.value })} placeholder="Précisez..." style={{ ...inputStyle, marginTop: 6 }} />}
+              <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
+                {domainesList.length > 0 ? (
+                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.emoji} {d.nom}</option>)
+                ) : (
+                  <option value="">Chargement...</option>
+                )}
+              </select>
             </div>
             <div><label style={labelStyle}>Modalité</label><select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>{MODALITES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label style={labelStyle}>Organisme (optionnel)</label>
@@ -345,9 +364,6 @@ export default function DashboardFormateurPage() {
             <label style={labelStyle}>Sessions</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {sessions.map((s, i) => {
-                const showModaliteSession = form.modalite === "Mixte";
-                const effModalite = showModaliteSession ? (s.modalite_session || "Présentiel") : form.modalite;
-                const isVisio = effModalite === "Visio";
                 return (
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -363,20 +379,30 @@ export default function DashboardFormateurPage() {
                           <input type="date" value={s.date_fin_session || ""} onChange={e => { const n = [...sessions]; n[i] = { ...n[i], date_fin_session: e.target.value }; setSessions(n); }} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
                         </div>
                       </div>
-                      {showModaliteSession && (
-                        <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-                          <label style={labelStyle}>Modalité de cette session</label>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            {["Présentiel", "Visio"].map(m => (
-                              <button key={m} type="button" onClick={() => { const n = [...sessions]; n[i] = { ...n[i], modalite_session: m }; setSessions(n); }}
-                                style={{ flex: 1, padding: "8px 10px", borderRadius: 9, border: "1.5px solid " + ((s.modalite_session || "Présentiel") === m ? C.accent + "55" : C.border), background: (s.modalite_session || "Présentiel") === m ? C.accentBg : C.surface, color: (s.modalite_session || "Présentiel") === m ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: (s.modalite_session || "Présentiel") === m ? 700 : 400 }}>
-                                {m === "Présentiel" ? "🏢 Présentiel" : "💻 Visio"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {!isVisio && (
+                      {/* Checkbox visio par session */}
+                      <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: (s.is_visio || false) ? C.accentBg : C.surface, borderRadius: 10, border: "1.5px solid " + ((s.is_visio || false) ? C.accent + "55" : C.border), cursor: "pointer" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={s.is_visio || false} 
+                            onChange={e => { 
+                              const n = [...sessions]; 
+                              n[i] = { ...n[i], is_visio: e.target.checked }; 
+                              if (e.target.checked) {
+                                n[i].lieu = "Visio";
+                              } else {
+                                n[i].lieu = n[i].ville || "";
+                              }
+                              setSessions(n); 
+                            }} 
+                            style={{ width: 18, height: 18, cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: 13, color: (s.is_visio || false) ? C.accent : C.textSec, fontWeight: (s.is_visio || false) ? 600 : 400 }}>
+                            💻 Cette session est en visio (pas d&apos;adresse physique)
+                          </span>
+                        </label>
+                      </div>
+                      {!(s.is_visio || false) && (
                         <>
                           <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
                             <label style={labelStyle}>Adresse</label>
@@ -385,10 +411,32 @@ export default function DashboardFormateurPage() {
                           <div>
                             <label style={labelStyle}>Ville</label>
                             {adminVilles.length > 0 ? (
-                              <select value={s.ville} onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} style={inputStyle}>
-                                <option value="">— Choisir une ville —</option>
-                                {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
-                              </select>
+                              <>
+                                <select value={s.ville === "" ? "" : adminVilles.includes(s.ville) ? s.ville : "__OTHER__"} onChange={e => { 
+                                  const val = e.target.value;
+                                  const n = [...sessions]; 
+                                  if (val === "__OTHER__") {
+                                    n[i].ville = "";
+                                    n[i].lieu = "";
+                                  } else {
+                                    n[i].ville = val;
+                                    n[i].lieu = val;
+                                  }
+                                  setSessions(n); 
+                                }} style={inputStyle}>
+                                  <option value="">— Choisir une ville —</option>
+                                  {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
+                                  <option value="__OTHER__">✏️ Autre ville...</option>
+                                </select>
+                                {s.ville !== "" && !adminVilles.includes(s.ville) ? (
+                                  <input 
+                                    value={s.ville} 
+                                    onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} 
+                                    placeholder="Entrez le nom de la ville" 
+                                    style={{ ...inputStyle, marginTop: 8 }} 
+                                  />
+                                ) : null}
+                              </>
                             ) : (
                               <input value={s.ville} onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
                             )}
@@ -399,7 +447,7 @@ export default function DashboardFormateurPage() {
                           </div>
                         </>
                       )}
-                      {isVisio && (
+                      {(s.is_visio || false) && (
                         <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
                           <label style={labelStyle}>Lien visioconférence</label>
                           <input value={s.lien_visio || ""} onChange={e => { const n = [...sessions]; n[i].lien_visio = e.target.value; n[i].lieu = "Visio"; setSessions(n); }} placeholder="https://zoom.us/j/..." style={inputStyle} />
@@ -409,7 +457,7 @@ export default function DashboardFormateurPage() {
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "" }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

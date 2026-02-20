@@ -52,10 +52,10 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", height: compact ? (m ? 100 : 130) : (m ? 120 : 160), overflow: "hidden" }}>
+        <div style={{ position: "relative", height: compact ? (m ? 120 : 160) : (m ? 140 : 200), overflow: "hidden" }}>
           {photo
-            ? <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
-            : <div style={{ width: "100%", height: "100%", background: dc.bg.replace("0.1)", "0.3)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+            ? <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+            : <div style={{ width: "100%", height: "100%", background: dc.bg.replace("0.1)", "0.3)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
                 {f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}
               </div>
           }

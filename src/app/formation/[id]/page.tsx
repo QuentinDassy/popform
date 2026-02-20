@@ -17,11 +17,9 @@ function PageSkeleton({ mob }: { mob: boolean }) {
   return (
     <div>
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
-      <Skeleton w="100%" h={mob ? 200 : 380} r={0} />
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: mob ? "16px" : "24px 40px" }}>
-        <Skeleton w="50%" h={28} /><div style={{ height: 12 }} />
-        <div style={{ display: "flex", gap: 16 }}><Skeleton w={80} h={50} r={10} /><Skeleton w={80} h={50} r={10} /><Skeleton w={80} h={50} r={10} /><Skeleton w={80} h={50} r={10} /></div>
-        <div style={{ height: 24 }} /><Skeleton w="100%" h={14} /><Skeleton w="90%" h={14} /><Skeleton w="70%" h={14} />
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: mob ? "16px" : "40px" }}>
+        <Skeleton w="60%" h={32} /><div style={{ height: 16 }} />
+        <Skeleton w="100%" h={mob ? 200 : 400} r={16} />
       </div>
     </div>
   );
@@ -78,7 +76,7 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
 
   return (
     <div id="avis">
-      {/* Summary bar like escapegame.fr */}
+      {/* Summary bar */}
       <div style={{ display: "flex", gap: mob ? 12 : 24, alignItems: "center", padding: mob ? "16px" : "20px 24px", background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ textAlign: "center", minWidth: 80 }}>
           <div style={{ fontSize: 36, fontWeight: 800, color: C.yellow, lineHeight: 1 }}>{pctSat}%</div>
@@ -98,197 +96,116 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
 
       {/* Add avis button */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Avis des participants</h3>
-        {userId && !myAvis && !showForm && <button onClick={() => { setShowForm(true); setEditMode(false); setTexte(""); setNote(5) }} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Donner mon avis</button>}
+        <h3 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text }}>Avis des participants</h3>
+        {!showForm && (myAvis ? (
+          <button onClick={startEdit} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Modifier mon avis</button>
+        ) : (
+          <button onClick={() => setShowForm(true)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Donner mon avis</button>
+        ))}
       </div>
 
+      {/* Avis form */}
       {showForm && (
-        <div style={{ padding: 16, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 8 }}>{editMode ? "Modifier votre avis" : "Votre avis"}</div>
-          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: C.text }}>Note globale</div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} onClick={() => setNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, opacity: note >= i ? 1 : 0.3 }}>⭐</button>))}</div>
+        <div style={{ padding: mob ? 14 : 18, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Note globale</span>
+            <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} type="button" onClick={() => setNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, opacity: note >= i ? 1 : 0.25 }}>⭐</button>))}</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{note}/5</span>
+          </div>
           {!editMode && (
-            <div style={{ marginBottom: 14, padding: 12, background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 8 }}>Notes détaillées</div>
+            <>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 8 }}>Détaillez votre expérience :</div>
               <SubRatingInput label="Contenu pédagogique" value={subContenu} onChange={setSubContenu} />
               <SubRatingInput label="Organisation" value={subOrganisation} onChange={setSubOrganisation} />
               <SubRatingInput label="Supports fournis" value={subSupports} onChange={setSubSupports} />
               <SubRatingInput label="Pertinence pratique" value={subPertinence} onChange={setSubPertinence} />
-            </div>
+            </>
           )}
-          <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Partagez votre expérience..." style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", minHeight: 80, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+          <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Partagez votre expérience..." style={{ width: "100%", minHeight: 80, padding: 10, borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, resize: "vertical", marginTop: 12 }} />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button onClick={handleSubmit} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{editMode ? "Modifier" : "Publier"}</button>
-            <button onClick={() => { setShowForm(false); setEditMode(false) }} style={{ padding: "8px 18px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+            <button onClick={handleSubmit} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{editMode ? "Modifier" : "Publier"}</button>
+            <button onClick={() => { setShowForm(false); setEditMode(false) }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
           </div>
         </div>
       )}
 
+      {/* Avis list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {fAvis.map(a => (
-          <div key={a.id} style={{ padding: mob ? 14 : 18, background: a.user_id === userId ? C.accentBg : C.surface, borderRadius: 14, border: "1px solid " + (a.user_id === userId ? C.accent + "22" : C.borderLight) }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ width: 32, height: 32, borderRadius: 16, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800 }}>{a.user_name?.[0]?.toUpperCase() || "?"}</div>
+        {fAvis.slice(0, 5).map(a => (
+          <div key={a.id} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 16, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700 }}>{a.user_name?.[0]?.toUpperCase() || "?"}</div>
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.user_name}</span>
-                  {a.user_id === userId && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 5, background: C.accentBg, color: C.accent, fontWeight: 700, marginLeft: 6 }}>Vous</span>}
-                  <div style={{ display: "flex", gap: 2, marginTop: 1 }}><StarRow rating={a.note} /></div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{a.user_name}</div>
+                  <div style={{ fontSize: 10, color: C.textTer }}>{a.created_at?.slice(0, 10)}</div>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 10, color: C.textTer }}>{a.created_at?.slice(0, 10)}</span>
-                {a.user_id === userId && !showForm && <button onClick={startEdit} style={{ fontSize: 10, color: C.accent, cursor: "pointer", background: "none", border: "none", fontWeight: 600 }}>✏️</button>}
-              </div>
+              <StarRow rating={a.note} />
             </div>
-            <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.7, margin: "4px 0 0 40px" }}>{a.texte}</p>
+            <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6 }}>{a.texte}</p>
           </div>
         ))}
-        {fAvis.length === 0 && <p style={{ fontSize: 13, color: C.textTer, textAlign: "center", padding: 20 }}>Aucun avis pour le moment.</p>}
       </div>
     </div>
   );
 }
 
-/* ===== MAIN PAGE ===== */
 export default function FormationPage() {
-  const params = useParams();
-  const id = Number(params.id);
-  const mob = useIsMobile();
-  const { user, profile, setShowAuth } = useAuth();
+  const { id } = useParams();
   const [f, setF] = useState<Formation | null>(null);
-  const [allF, setAllF] = useState<Formation[]>([]);
-  const [avis, setAvis] = useState<Avis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [avis, setAvis] = useState<Avis[]>([]);
   const [isFav, setIsFav] = useState(false);
-  const [inscribedSessions, setInscribedSessions] = useState<number[]>([]); // session ids or [-1] for no-session
-  const [inscribing, setInscribing] = useState(false);
-  const [inscMsg, setInscMsg] = useState("");
-  const [selectedSession, setSelectedSession] = useState<number | null>(null);
-  const [showSessionPicker, setShowSessionPicker] = useState(false);
+  const { user } = useAuth();
+  const mob = useIsMobile();
+  const [formations, setFormations] = useState<Formation[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchFormation(id), fetchFormations(), fetchAvis()]).then(([det, all, av]) => {
-      setF(det); setAllF(all); setAvis(av); setLoading(false);
-    });
-  }, [id]);
+    if (!id) return;
+    fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); });
+    fetchAvis().then(setAvis);
+    fetchFormations().then(setFormations);
+    if (user) fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === Number(id))));
+  }, [id, user]);
 
-  // Dynamic page title
-  useEffect(() => {
-    if (f) document.title = `${f.titre} — PopForm 🍿`;
-    return () => { document.title = "PopForm — La formation continue, version blockbuster 🍿" };
-  }, [f]);
-
-  useEffect(() => {
-    if (!user) return;
-    fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === id)));
-    supabase.from("inscriptions").select("id, session_id").eq("user_id", user.id).eq("formation_id", id).then(({ data }: { data: { id: number; session_id: number | null }[] | null }) => {
-      if (data && data.length > 0) setInscribedSessions(data.map(i => i.session_id ?? -1));
-    });
-  }, [user, id]);
-
-  const isInscrit = inscribedSessions.length > 0;
-  const isInscritSession = (sessionId: number) => inscribedSessions.includes(sessionId);
-
-  const handleFav = async () => { if (!user) { setShowAuth?.(true); return } const added = await toggleFavori(user.id, id); setIsFav(added) };
-  const handleInscription = async (sessionIdx?: number) => {
-    if (!user) { setShowAuth?.(true); return }
-    const sessions = f?.sessions || [];
-
-    // Multi-session: clic sur une session
-    if (sessionIdx !== undefined) {
-      const sess = sessions[sessionIdx];
-      const sessId = sess?.id ?? -1;
-
-      // Désinscription si déjà inscrit à cette session précise
-      if (inscribedSessions.includes(sessId)) {
-        if (!confirm("Se désinscrire de cette session ?")) return;
-        setInscribing(true);
-        if (sess?.id) {
-          await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id).eq("session_id", sess.id);
-        } else {
-          await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id).is("session_id", null);
-        }
-        setInscribedSessions(prev => prev.filter(s => s !== sessId));
-        setInscribing(false);
-        return;
-      }
-
-      // Vérif côté client : session déjà inscrite ?
-      setInscribing(true); setInscMsg("");
-      // Check si cette session spécifique est déjà en base
-      const { data: existing } = await supabase.from("inscriptions")
-        .select("id").eq("user_id", user.id).eq("formation_id", id)
-        .eq("session_id", sess?.id ?? null);
-      if (existing && existing.length > 0) {
-        setInscribedSessions(prev => prev.includes(sessId) ? prev : [...prev, sessId]);
-        setInscMsg("Déjà inscrit·e à cette session");
-        setInscribing(false);
-        setTimeout(() => setInscMsg(""), 2000);
-        return;
-      }
-
-      const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: sess?.id ?? null, status: "inscrit" });
-      if (error) {
-        if (error.code === "23505") {
-          // Unique constraint on (user_id, formation_id) - DB needs updating
-          setInscMsg("⚠️ Déjà inscrit·e à une session de cette formation. Exécutez le SQL de correction en base.");
-        } else {
-          setInscMsg("Erreur : " + error.message);
-        }
-      }
-      else {
-        setInscribedSessions(prev => [...prev, sessId]);
-        setInscMsg("✓ Inscrit·e !");
-      }
-      setInscribing(false);
-      setTimeout(() => setInscMsg(""), 3000);
-      return;
-    }
-
-    // Sans session sélectionnée
-    if (isInscrit && sessions.length <= 1) {
-      if (!confirm("Se désinscrire de cette formation ?")) return;
-      setInscribing(true);
-      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", id);
-      setInscribedSessions([]); setInscMsg("Désinscrit·e");
-      setInscribing(false);
-      setTimeout(() => setInscMsg(""), 3000);
-      return;
-    }
-    if (sessions.length > 1) { setShowSessionPicker(true); return; }
-    setShowSessionPicker(false);
-    setInscribing(true); setInscMsg("");
-    const { error } = await supabase.from("inscriptions").insert({ user_id: user.id, formation_id: id, session_id: null, status: "inscrit" });
-    if (error) { setInscMsg(error.code === "23505" ? "Déjà inscrit·e" : "Erreur") } else {
-      setInscribedSessions([-1]); setInscMsg("✓ Inscription confirmée !");
-    }
-    setInscribing(false);
+  const handleFav = async () => {
+    if (!user) { alert("Connectez-vous pour ajouter aux favoris"); return; }
+    const added = await toggleFavori(user.id, Number(id));
+    setIsFav(added);
   };
-  const handleAddAvis = async (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => { if (!user || !profile) return; const n = await addAvisDB(f!.id, user.id, profile.full_name || "Anonyme", note, texte, subs); if (n) setAvis(prev => [n, ...prev]) };
-  const handleEditAvis = async (aId: number, note: number, texte: string) => { const ok = await updateAvisDB(aId, note, texte); if (ok) setAvis(prev => prev.map(a => a.id === aId ? { ...a, note, texte } : a)) };
+
+  const handleAddAvis = async (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => {
+    if (!user) return;
+    const a = await addAvisDB(Number(id), user.id, profile?.full_name || "Anonyme", note, texte, subs);
+    if (a) setAvis(prev => [a, ...prev]);
+  };
+
+  const handleEditAvis = async (aId: number, note: number, texte: string) => {
+    const ok = await updateAvisDB(aId, note, texte);
+    if (ok) setAvis(prev => prev.map(a => a.id === aId ? { ...a, note, texte } : a));
+  };
 
   if (loading) return <PageSkeleton mob={mob} />;
-  if (!f) return (<div style={{ maxWidth: 920, margin: "0 auto", padding: 40, textAlign: "center" }}><p style={{ color: C.textTer }}>Formation introuvable.</p><Link href="/catalogue" style={{ color: C.accent }}>← Retour au catalogue</Link></div>);
+  if (!f) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>Formation non trouvée.</div>;
 
-  const dc = getDC(f.domaine); const photo = (f as any).photo_url || null;
-  const fmt = f.formateur; const org = f.organisme;
+  const dc = getDC(f.domaine);
+  const photo = (f as any).photo_url || null;
   const sessions = f.sessions || [];
+  const org = f.organisme;
+  const formateur = f.formateur;
   const priseEnCharge = f.prise_en_charge || [];
-  const otherFmt = allF.filter(x => x.id !== f.id && x.formateur_id === f.formateur_id);
-  const otherDomain = allF.filter(x => x.id !== f.id && x.domaine === f.domaine && !otherFmt.find(o => o.id === x.id)).slice(0, 4);
+  const fAvis = avis.filter(a => a.formation_id === f.id);
+  const avg = fAvis.length ? (fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length).toFixed(1) : "—";
+
   const getEmbedUrl = (url: string | null | undefined) => {
     if (!url) return null;
     if (url.includes("watch?v=")) return url.replace("watch?v=", "embed/").split("&")[0].replace("youtube.com/watch", "youtube.com/embed");
     if (url.includes("youtu.be/")) return "https://www.youtube.com/embed/" + url.split("youtu.be/")[1].split("?")[0];
     if (url.includes("youtube.com/embed/")) return url;
-    return null; // non-embeddable URL
+    return null;
   };
   const embedUrl = getEmbedUrl(f.video_url);
-  const fAvis = avis.filter(a => a.formation_id === f.id);
-  const avg = fAvis.length ? (fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length).toFixed(1) : "—";
-
-  const favBtn = <button onClick={handleFav} title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"} style={{ width: 44, height: 44, borderRadius: 22, background: isFav ? C.pinkBg : "rgba(255,255,255,0.9)", border: "1.5px solid " + (isFav ? C.pink + "44" : "rgba(255,255,255,0.5)"), color: isFav ? C.pink : C.textTer, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(6px)", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>{isFav ? "❤️" : "🤍"}</button>;
 
   /* JSON-LD for SEO */
   const jsonLd = {
@@ -301,297 +218,243 @@ export default function FormationPage() {
     aggregateRating: fAvis.length ? { "@type": "AggregateRating", ratingValue: avg, reviewCount: fAvis.length } : undefined,
   };
 
+  // Autres formations du même formateur
+  const autresFormations = formations.filter(ff => ff.formateur_id === f.formateur_id && ff.id !== f.id).slice(0, 3);
+
   return (
     <>
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* ===== HERO IMAGE FULL-WIDTH ===== */}
-      <div style={{ position: "relative", width: "100%", height: mob ? 220 : 380, overflow: "hidden" }}>
-        {photo
-          ? <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg.replace("0.1)", "0.4)")}, ${dc.color}22)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 64 }}>
-              {f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}
-            </div>
-        }
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.95) 0%, rgba(45,27,6,0.4) 40%, transparent 70%)" }} />
-        <div style={{ position: "absolute", top: mob ? 12 : 20, right: mob ? 12 : 20 }}>{favBtn}</div>
-        <div style={{ position: "absolute", top: mob ? 12 : 20, left: mob ? 12 : 20, display: "flex", gap: 8, alignItems: "center" }}>
-          {mob ? (
-            <button onClick={() => window.history.back()} style={{ width: 36, height: 36, borderRadius: 18, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>←</button>
-          ) : (
-            <button onClick={() => window.history.back()} style={{ padding: "6px 14px", borderRadius: 20, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: C.text, display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>← Retour</button>
-          )}
-          <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,0.9)", color: C.textSec, textDecoration: "none" }}>Formation</span>
-        </div>
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: mob ? "14px 16px" : "24px 40px", maxWidth: 1040, margin: "0 auto" }}>
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: mob ? 6 : 10, flexWrap: "wrap" }}>
-            <Link href="/" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>PopForm</Link>
-            <span>›</span>
-            {org && <><Link href={`/catalogue`} style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>{org.nom}</Link><span>›</span></>}
-            {sessions[0] && <><Link href={`/catalogue?ville=${sessions[0].lieu}`} style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>{sessions[0].lieu}</Link><span>›</span></>}
+      {/* ===== MODERN HERO: Texte à gauche, Image à droite ===== */}
+      <div style={{ background: `linear-gradient(135deg, ${dc.bg} 0%, #FFFDF7 50%, ${dc.color}15 100%)`, minHeight: mob ? "auto" : "500px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: mob ? "16px" : "40px" }}>
+          {/* Header avec retour */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+            <button onClick={() => window.history.back()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 20, background: C.surface, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              ← Retour
+            </button>
+            <button onClick={handleFav} style={{ width: 44, height: 44, borderRadius: 22, background: isFav ? C.pinkBg : C.surface, border: "1.5px solid " + (isFav ? C.pink + "44" : C.border), color: isFav ? C.pink : C.textTer, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {isFav ? "❤️" : "🤍"}
+            </button>
           </div>
-          <h1 style={{ fontSize: mob ? 22 : 34, fontWeight: 800, color: "#fff", lineHeight: 1.15, letterSpacing: "-0.02em", maxWidth: 700 }}>{f.titre}</h1>
-          {f.sous_titre && <p style={{ fontSize: mob ? 12 : 15, color: "rgba(255,255,255,0.7)", marginTop: 4, fontStyle: "italic" }}>{f.sous_titre}</p>}
+
+          {/* Two columns layout */}
+          <div style={{ display: mob ? "block" : "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "center" }}>
+            {/* LEFT: Text content */}
+            <div>
+              {/* Breadcrumb */}
+              <div style={{ display: "flex", gap: 8, fontSize: 12, color: C.textTer, marginBottom: 16, flexWrap: "wrap" }}>
+                <Link href="/" style={{ color: C.textTer, textDecoration: "none" }}>Accueil</Link>
+                <span>›</span>
+                <Link href="/catalogue" style={{ color: C.textTer, textDecoration: "none" }}>Catalogue</Link>
+                <span>›</span>
+                <span style={{ color: dc.color }}>{f.domaine}</span>
+              </div>
+
+              {/* Badges */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                {f.is_new && <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✨ Nouvelle formation</span>}
+                <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: dc.bg, color: dc.color }}>{f.domaine}</span>
+                <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⭐ {avg} ({fAvis.length} avis)</span>
+              </div>
+
+              {/* Title */}
+              <h1 style={{ fontSize: mob ? 26 : 36, fontWeight: 800, color: C.text, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 12 }}>{f.titre}</h1>
+              {f.sous_titre && <p style={{ fontSize: mob ? 14 : 16, color: C.textSec, marginBottom: 20, fontStyle: "italic" }}>{f.sous_titre}</p>}
+
+              {/* Quick info */}
+              <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 18 }}>⏱️</span>
+                  <span style={{ fontSize: 14, color: C.textSec }}>{f.duree}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 18 }}>👥</span>
+                  <span style={{ fontSize: 14, color: C.textSec }}>{f.effectif} places</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 18 }}>📍</span>
+                  <span style={{ fontSize: 14, color: C.textSec }}>{sessions.length > 0 ? sessions[0].lieu : "—"}</span>
+                </div>
+              </div>
+
+              {/* Price */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 24 }}>
+                <span style={{ fontSize: mob ? 32 : 42, fontWeight: 800, color: C.accent }}>{f.prix}€</span>
+                <span style={{ fontSize: 14, color: C.textTer }}>par personne</span>
+              </div>
+
+              {/* CTA Buttons */}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <a href={f.url_inscription || "#"} style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  S'inscrire →
+                </a>
+                <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.surface, border: "2px solid " + C.border, color: C.text, fontSize: 15, fontWeight: 600, textDecoration: "none" }}>
+                  Voir les sessions
+                </a>
+              </div>
+            </div>
+
+            {/* RIGHT: Image */}
+            <div style={{ marginTop: mob ? 24 : 0 }}>
+              <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "4/3" }}>
+                {photo ? (
+                  <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}30)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 80 }}>{f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ===== INFO BAR (like escapegame.fr) ===== */}
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
-        <div style={{ display: "flex", gap: mob ? 8 : 0, padding: mob ? "12px 0" : "0", marginTop: mob ? 0 : -28, position: "relative", zIndex: 2, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 0, background: C.surface, borderRadius: mob ? 14 : 16, border: "1px solid " + C.borderLight, overflow: "hidden", boxShadow: "0 4px 20px rgba(45,27,6,0.08)", flexWrap: mob ? "wrap" : "nowrap", width: mob ? "100%" : "auto" }}>
-            {[
-              { label: "Domaine", value: f.domaine, color: dc.color },
-              { label: "Durée", value: f.duree || "—" },
-              { label: "Effectif", value: f.effectif ? f.effectif + " places" : "—" },
-              { label: "Prix", value: f.prix + "€/pers." },
-              { label: "Note", value: avg + "/5 (" + fAvis.length + " avis)" },
-            ].map((item, i) => (
-              <div key={i} style={{ padding: mob ? "10px 12px" : "14px 22px", borderRight: mob ? "none" : (i < 4 ? "1px solid " + C.borderLight : "none"), borderBottom: mob && i < 4 ? "1px solid " + C.borderLight : "none", flex: mob ? "1 0 45%" : "none", textAlign: mob ? "center" : "left" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em" }}>{item.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: item.color || C.text, marginTop: 2 }}>{item.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ===== TWO-COLUMN LAYOUT ===== */}
-        <div style={{ display: mob ? "block" : "grid", gridTemplateColumns: "1fr 300px", gap: 28, marginTop: mob ? 16 : 24, paddingBottom: 40 }}>
-
-          {/* === MAIN CONTENT === */}
+      {/* ===== CONTENT SECTIONS ===== */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: mob ? "24px 16px" : "40px" }}>
+        <div style={{ display: mob ? "block" : "grid", gridTemplateColumns: "2fr 1fr", gap: 40 }}>
+          {/* LEFT COLUMN */}
           <div>
-            {/* Tags */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-                            <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: dc.bg, color: dc.color }}>{f.domaine}</span>
-              <span style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{f.modalite}</span>
-              {priseEnCharge.map(p => <PriseTag key={p} label={p} />)}
-            </div>
-
             {/* Description */}
-            <p style={{ fontSize: mob ? 14 : 15, color: C.textSec, lineHeight: 1.85, marginBottom: 24, whiteSpace: "pre-line" }}>{f.description}</p>
-
-            {/* Share */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-              <button onClick={() => {
-                const url = typeof window !== "undefined" ? window.location.href : "";
-                const text = `Regarde cette formation : ${f.titre} — ${url}`;
-                if (navigator.share) { navigator.share({ title: f.titre, text: `Formation ${f.titre}`, url }) }
-                else { navigator.clipboard.writeText(text).then(() => alert("Lien copié !")) }
-              }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                📤 Partager cette formation à un·e collègue
-              </button>
-            </div>
-
-            <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "0 0 24px" }} />
-
-            {/* Keywords */}
-            {f.mots_cles && f.mots_cles.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 }}>Mots-clés</h3>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{f.mots_cles.map(m => <span key={m} style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, background: C.yellowBg, color: C.yellowDark, fontWeight: 600 }}>{m}</span>)}</div>
-              </div>
-            )}
-
-            {/* Populations + Professions */}
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 24 }}>
-              {f.populations && f.populations.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>Population</h3>
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{f.populations.map(p => <span key={p} style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, background: C.blueBg, color: C.blue, fontWeight: 600 }}>{p}</span>)}</div>
-                </div>
-              )}
-              {f.professions && f.professions.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>Professions ciblées</h3>
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>{f.professions.map(p => <span key={p} style={{ padding: "5px 12px", borderRadius: 8, fontSize: 12, background: C.greenBg, color: C.green, fontWeight: 600 }}>{p}</span>)}</div>
-                </div>
-              )}
-            </div>
+            <section style={{ marginBottom: 40 }}>
+              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>À propos de cette formation</h2>
+              <p style={{ fontSize: mob ? 14 : 15, color: C.textSec, lineHeight: 1.8, whiteSpace: "pre-line" }}>{f.description}</p>
+            </section>
 
             {/* Video */}
-            {(embedUrl || f.video_url) && (
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 }}>Bande-annonce</h3>
-                {embedUrl ? (
-                  <div style={{ borderRadius: 14, overflow: "hidden", background: "#000" }}><iframe src={embedUrl} width="100%" height={mob ? 200 : 340} frameBorder="0" allowFullScreen style={{ display: "block" }} /></div>
-                ) : (
-                  <a href={f.video_url!} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, background: C.accentBg, color: C.accent, fontWeight: 600, fontSize: 13, textDecoration: "none", border: "1.5px solid " + C.accent + "33" }}>🔗 Voir la vidéo de présentation ↗</a>
-                )}
+            {embedUrl && (
+              <section style={{ marginBottom: 40 }}>
+                <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>Vidéo de présentation</h2>
+                <div style={{ position: "relative", paddingBottom: "56.25%", borderRadius: 16, overflow: "hidden" }}>
+                  <iframe src={embedUrl} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} allowFullScreen />
+                </div>
+              </section>
+            )}
+
+            {/* Sessions */}
+            <section id="sessions" style={{ marginBottom: 40 }}>
+              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sessions disponibles</h2>
+              {sessions.length === 0 ? (
+                <p style={{ color: C.textTer }}>Aucune session programmée pour le moment.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {sessions.map((s, i) => (
+                    <div key={i} style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {s.dates}</div>
+                        <div style={{ fontSize: 13, color: C.textSec }}>📍 {s.lieu}</div>
+                        {s.adresse && <div style={{ fontSize: 12, color: C.textTer, marginTop: 2 }}>{s.adresse}</div>}
+                      </div>
+                      <a href={f.url_inscription || "#"} style={{ padding: "10px 20px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                        S'inscrire
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Avis */}
+            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} mob={mob} userId={user?.id} />
+          </div>
+
+          {/* RIGHT COLUMN - Sidebar */}
+          <div>
+            {/* Organisme card */}
+            {org && (
+              <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Organisme</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {org.logo ? (
+                    <img src={org.logo} alt={org.nom} style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 48, height: 48, borderRadius: 8, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff" }}>🏢</div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{org.nom}</div>
+                    <Link href={`/catalogue?organisme=${org.id}`} style={{ fontSize: 12, color: C.accent, textDecoration: "none" }}>Voir ses formations →</Link>
+                  </div>
+                </div>
               </div>
             )}
 
-            <hr style={{ border: "none", borderTop: "1px solid " + C.borderLight, margin: "0 0 24px" }} />
-
-            {/* Avis */}
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 16 }}>Avis de la communauté</h2>
-            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} mob={mob} userId={user?.id} />
-
-            {/* Recommendations */}
-            {otherFmt.length > 0 && <div style={{ marginTop: 32, marginBottom: 24 }}><h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 12 }}>{fmtLabel(fmt)}</h3><div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>{otherFmt.slice(0, 4).map(x => <FormationCard key={x.id} f={x} compact mob={mob} />)}</div></div>}
-            {otherDomain.length > 0 && <div style={{ marginTop: 24 }}><h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 12 }}>Autres en {f.domaine}</h3><div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>{otherDomain.map(x => <FormationCard key={x.id} f={x} compact mob={mob} />)}</div></div>}
-          </div>
-
-          {/* === SIDEBAR (sticky) === */}
-          {!mob && (
-            <div>
-              <div style={{ position: "sticky", top: 76, display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Reserve card */}
-                <div style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 16, padding: 22, boxShadow: "0 4px 16px rgba(45,27,6,0.05)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                    <div><span style={{ fontSize: 30, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 14, color: C.textTer }}>€</span></div>
-                    {favBtn}
+            {/* Formateur card */}
+            {formateur && (
+              <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(formateur)}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 24, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 700 }}>
+                    {formateur.nom?.[0]?.toUpperCase()}
                   </div>
-                  {(f.prix_salarie || f.prix_liberal || f.prix_dpc !== null) && <div style={{ fontSize: 11, color: C.textSec, marginBottom: 6 }}>{f.prix_salarie ? `Salarié: ${f.prix_salarie}€` : ""}{f.prix_liberal ? ` · Libéral: ${f.prix_liberal}€` : ""}{f.prix_dpc !== null && f.prix_dpc !== undefined ? ` · DPC: ${f.prix_dpc}€` : ""}</div>}
-                  <p style={{ fontSize: 11, color: C.textTer, marginBottom: 14 }}>par participant</p>
-
-                  {f.url_inscription ? (
-                    <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 14, borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 8px 28px rgba(212,43,43,0.2)", textDecoration: "none", transition: "all 0.2s" }}>
-                      Réserver sur le site 🎬
-                    </a>
-                  ) : (
-                    <div style={{ padding: 10, borderRadius: 10, background: C.bgAlt, textAlign: "center" }}>
-                      <span style={{ fontSize: 12, color: C.textTer }}>Lien d&apos;inscription non disponible</span>
-                    </div>
-                  )}
-
-                  {/* Sessions — multi-inscription */}
-                  {sessions.length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", marginBottom: 6 }}>
-                        {sessions.length > 1 ? "Sessions disponibles — sélectionnez-en une ou plusieurs" : "Session"}
-                      </p>
-                      {sessions.map((s, i) => {
-                        const sessId = s.id ?? -1;
-                        const checked = isInscritSession(sessId);
-                        return (
-                          <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (checked ? C.green + "66" : C.border), background: checked ? C.greenBg : C.surface, color: C.text, fontSize: 12, cursor: "pointer", marginBottom: 5, display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (checked ? C.green : C.border), background: checked ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, color: "#fff" }}>{checked ? "✓" : ""}</span>
-                            <span style={{ flex: 1 }}>
-                              <span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates}<br/>
-                              <span style={{ color: C.textTer }}>📍 {s.lieu}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Inscription interne (suivi) */}
-                  {sessions.length === 0 && (
-                    <button onClick={() => handleInscription()} disabled={inscribing} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: 10, borderRadius: 10, background: isInscrit ? C.greenBg : C.bgAlt, color: isInscrit ? C.green : C.textSec, fontSize: 13, fontWeight: 600, border: "1.5px solid " + (isInscrit ? C.green + "33" : C.border), cursor: "pointer", transition: "all 0.2s", marginTop: 8 }}>
-                      {inscribing ? "⏳..." : isInscrit ? "✓ Inscrit·e — Se désinscrire" : "📋 Ajouter à mes formations"}
-                    </button>
-                  )}
-                  {inscribedSessions.length > 0 && sessions.length > 0 && (
-                    <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 8, background: C.greenBg, fontSize: 11, color: C.green, fontWeight: 600 }}>
-                      ✓ {inscribedSessions.length} session{inscribedSessions.length > 1 ? "s" : ""} sélectionnée{inscribedSessions.length > 1 ? "s" : ""}
-                    </div>
-                  )}
-                  {inscMsg && <p style={{ fontSize: 11, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 6, textAlign: "center" }}>{inscMsg}</p>}
-
-                  {/* Quick info */}
-                  <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-                    {[
-                      { icon: "⏱", l: "Durée", v: f.duree },
-                      { icon: "📍", l: "Modalité", v: f.modalite },
-                      { icon: "🏢", l: "Organisme", v: org?.nom || "Indépendant" },
-                      { icon: "👥", l: "Effectif", v: f.effectif ? f.effectif + " places" : "—" },
-                    ].map((x, i) => (
-                      <div key={i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <span style={{ fontSize: 14 }}>{x.icon}</span>
-                        <div><div style={{ fontSize: 10, color: C.textTer, textTransform: "uppercase", fontWeight: 700 }}>{x.l}</div><div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{x.v}</div></div>
-                      </div>
-                    ))}
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{formateur.nom}</div>
+                    {formateur.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{formateur.bio.slice(0, 80)}...</div>}
                   </div>
-
-                  {priseEnCharge.length > 0 && <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid " + C.borderLight }}><div style={{ fontSize: 10, color: C.textTer, textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>Prise en charge</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div></div>}
                 </div>
+              </div>
+            )}
 
-                {/* Sessions card */}
-                {sessions.length > 0 && (
-                  <div style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 16, padding: 18 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 10 }}>📅 Prochaines sessions</div>
-                    {sessions.map((s, i) => (
-                      <div key={i} style={{ padding: "10px 12px", background: C.gradientBg, borderRadius: 10, marginBottom: 6, border: "1px solid " + C.borderLight }}>
-                        <div style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{s.dates}</div>
-                        <div style={{ fontSize: 11, color: C.textTer }}>📍 {s.lieu}{s.adresse ? " — " + s.adresse : ""}</div>
-                      </div>
-                    ))}
+            {/* Tags */}
+            <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Informations</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: C.textSec }}>Modalité</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.modalite}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: C.textSec }}>Durée</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.duree}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: C.textSec }}>Effectif</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.effectif} places</span>
+                </div>
+                {f.prix_salarie && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: C.textSec }}>Prix salarié</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.prix_salarie}€</span>
                   </div>
                 )}
-
-                {/* Formateur card (like escapegame.fr room card) */}
-                {fmt && (
-                  <div style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 16, padding: 18 }}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      <div style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", fontWeight: 800 }}>{fmt.nom.split(" ").map(n => n[0]).join("")}</div>
-                      <div>
-                        <div style={{ fontSize: 10, color: C.textTer, textTransform: "uppercase", fontWeight: 700 }}>{fmtTitle(fmt)}</div>
-                        <h4 style={{ fontSize: 14, fontWeight: 700, color: C.text, margin: "2px 0" }}>{fmt.nom}</h4>
-                      </div>
-                    </div>
-                    {fmt.bio && <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.6, marginTop: 10 }}>{fmt.bio}</p>}
-                    {otherFmt.length > 0 && <Link href="/catalogue" style={{ display: "block", marginTop: 10, fontSize: 12, color: C.accent, fontWeight: 600, textDecoration: "none" }}>Voir toutes ses formations ›</Link>}
+                {f.prix_liberal && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: C.textSec }}>Prix libéral</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.prix_liberal}€</span>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Mobile: formateur + sessions below content */}
-          {mob && fmt && (
-            <div style={{ marginTop: 20, padding: 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800 }}>{fmt.nom.split(" ").map(n => n[0]).join("")}</div>
-                <div><div style={{ fontSize: 10, color: C.textTer, textTransform: "uppercase", fontWeight: 700 }}>{fmtTitle(fmt)}</div><h4 style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{fmt.nom}</h4></div>
-              </div>
-              {fmt.bio && <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5, marginTop: 8 }}>{fmt.bio}</p>}
-            </div>
-          )}
-
-          {/* Mobile: session picker */}
-          {mob && sessions.length > 0 && (
-            <div style={{ padding: "0 16px 16px" }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", marginBottom: 8 }}>
-                {sessions.length > 1 ? "Sélectionnez vos sessions" : "Session"}
-              </p>
-              {sessions.map((s, i) => {
-                const sessId = s.id ?? -1;
-                const checked = isInscritSession(sessId);
-                return (
-                  <button key={i} onClick={() => handleInscription(i)} style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + (checked ? C.green + "66" : C.border), background: checked ? C.greenBg : C.bgAlt, color: C.text, fontSize: 13, cursor: "pointer", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 6, border: "2px solid " + (checked ? C.green : C.border), background: checked ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, color: "#fff" }}>{checked ? "✓" : ""}</span>
-                    <span><span style={{ fontWeight: 700 }}>Session {i + 1}</span> — {s.dates} · 📍 {s.lieu}</span>
-                  </button>
-                );
-              })}
-              {inscribedSessions.length > 0 && <p style={{ fontSize: 12, color: C.green, fontWeight: 600, marginTop: 4 }}>✓ {inscribedSessions.length} session{inscribedSessions.length > 1 ? "s" : ""} sélectionnée{inscribedSessions.length > 1 ? "s" : ""}</p>}
-              {inscMsg && <p style={{ fontSize: 12, color: inscMsg.startsWith("✓") ? C.green : C.pink, marginTop: 4 }}>{inscMsg}</p>}
-            </div>
-          )}
-
-          {/* Mobile: sticky bottom bar */}
-          {mob && (
-            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, background: "rgba(255,253,247,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid " + C.borderLight, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <span style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{f.prix}€</span>
-                <span style={{ fontSize: 11, color: C.textTer, marginLeft: 4 }}>/pers.</span>
-              </div>
-              {f.url_inscription ? (
-                <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Réserver 🎬</a>
-              ) : (
-              <button onClick={() => handleInscription()} disabled={inscribing} style={{ padding: "10px 24px", borderRadius: 12, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 14, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green + "33" : "none", cursor: "pointer" }}>
-                  {isInscrit ? "✓ Inscrit·e" : "📋 S'inscrire"}
-                </button>
+              {priseEnCharge.length > 0 && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + C.borderLight }}>
+                  <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8 }}>Prise en charge</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {priseEnCharge.map(p => <PriseTag key={p} label={p} />)}
+                  </div>
+                </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Bottom spacer for mobile fixed bar */}
-      {mob && <div style={{ height: 70 }} />}
+            {/* Share */}
+            <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Partager</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => navigator.share?.({ title: f.titre, url: window.location.href })} style={{ flex: 1, padding: "10px", borderRadius: 10, background: C.bgAlt, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 12, cursor: "pointer" }}>🔗 Lien</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Autres formations du même formateur */}
+        {autresFormations.length > 0 && (
+          <section style={{ marginTop: 40 }}>
+            <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 20 }}>{fmtLabel(formateur)}</h2>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+              {autresFormations.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
+            </div>
+          </section>
+        )}
+      </div>
     </>
   );
 }

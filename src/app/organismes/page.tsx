@@ -10,12 +10,22 @@ export default function OrganismesPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { Promise.all([fetchOrganismes(), fetchFormations()]).then(([o, f]) => {
-    // Deduplicate: one organisme per user_id
+    // Deduplicate: one organisme per nom (case-insensitive) or user_id
     const seen = new Set<string>();
     const unique = o.filter(org => {
-      const key = org.user_id || String(org.id);
-      if (seen.has(key)) return false;
-      seen.add(key);
+      // Priorité: nom normalisé pour éviter les doublons "FormationQ" vs "formationq"
+      const nameKey = org.nom?.toLowerCase().trim();
+      const userKey = org.user_id;
+      const idKey = String(org.id);
+      
+      // Si on a déjà vu ce nom, c'est un doublon
+      if (nameKey && seen.has(nameKey)) return false;
+      // Si on a déjà vu ce user_id, c'est un doublon
+      if (userKey && seen.has(userKey)) return false;
+      
+      if (nameKey) seen.add(nameKey);
+      if (userKey) seen.add(userKey);
+      seen.add(idKey); // Toujours ajouter l'ID pour être sûr
       return true;
     });
     setOrgs(unique); setFormations(f); setLoading(false);

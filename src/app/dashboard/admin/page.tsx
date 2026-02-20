@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, type Formation } from "@/lib/data";
+import { C, type Formation, type DomaineAdmin } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
+import { fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin } from "@/lib/supabase-data";
 
 const ADMIN_EMAIL = "quentin.dassy@gmail.com"; // Change to your admin email
 
@@ -19,12 +20,17 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("en_attente");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "webinaires" | "congres">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres">("formations");
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
   const [newVille, setNewVille] = useState("");
   const [newVilleFile, setNewVilleFile] = useState<File | null>(null);
+
+  // Domaines management
+  const [domainesList, setDomainesList] = useState<DomaineAdmin[]>([]);
+  const [newDomaine, setNewDomaine] = useState({ nom: "", emoji: "📚", afficher_sur_accueil: true, afficher_dans_filtres: true });
+  const [editingDomaine, setEditingDomaine] = useState<DomaineAdmin | null>(null);
 
   // Webinaires management
   const [webinaires, setWebinaires] = useState<any[]>([]);
@@ -48,6 +54,11 @@ export default function DashboardAdminPage() {
         try {
           const { data: villes } = await supabase.from("villes_admin").select("*").order("nom");
           setVillesList(villes?.map((v: Record<string, string | number>) => ({ id: v.id as number, nom: v.nom as string, image: (v.image as string) || "" })) || []);
+        } catch { /* table may not exist yet */ }
+        // Load domaines config
+        try {
+          const domaines = await fetchDomainesAdmin();
+          setDomainesList(domaines);
         } catch { /* table may not exist yet */ }
         // Load webinaires
         const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
@@ -140,6 +151,59 @@ export default function DashboardAdminPage() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
   };
 
+  // Domaines management handlers
+  const [domaineError, setDomaineError] = useState<string | null>(null);
+  
+  const handleAddDomaine = async () => {
+    if (!newDomaine.nom.trim()) return;
+    setDomaineError(null);
+    try {
+      const domaine = await createDomaineAdmin({
+        nom: newDomaine.nom.trim(),
+        emoji: newDomaine.emoji || "📚",
+        afficher_sur_accueil: newDomaine.afficher_sur_accueil,
+        afficher_dans_filtres: newDomaine.afficher_dans_filtres,
+        ordre_affichage: domainesList.length + 1,
+      });
+      if (domaine) {
+        setDomainesList(prev => [...prev, domaine]);
+        setNewDomaine({ nom: "", emoji: "📚", afficher_sur_accueil: true, afficher_dans_filtres: true });
+      }
+    } catch (e: any) {
+      setDomaineError(e.message || "Erreur lors de l'ajout du domaine");
+    }
+  };
+
+  const handleDeleteDomaine = async (id: number) => {
+    if (!confirm("Supprimer ce domaine ? Les formations associées ne seront pas supprimées.")) return;
+    const success = await deleteDomaineAdmin(id);
+    if (success) {
+      setDomainesList(prev => prev.filter(d => d.id !== id));
+    }
+  };
+
+  const handleUpdateDomaine = async (id: number, updates: Partial<DomaineAdmin>) => {
+    const success = await updateDomaineAdmin(id, updates);
+    if (success) {
+      setDomainesList(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    }
+  };
+
+  const handleMoveDomaine = async (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === domainesList.length - 1) return;
+    
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    const newList = [...domainesList];
+    [newList[index], newList[newIndex]] = [newList[newIndex], newList[index]];
+    
+    // Update ordre_affichage for all
+    for (let i = 0; i < newList.length; i++) {
+      await updateDomaineAdmin(newList[i].id, { ordre_affichage: i + 1 });
+    }
+    setDomainesList(newList);
+  };
+
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (user.email !== ADMIN_EMAIL) { if (typeof window !== "undefined") window.location.href = "/"; return null }
@@ -188,6 +252,7 @@ export default function DashboardAdminPage() {
       <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
+        <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
       </div>
 
       {/* ===== WEBINAIRES TAB ===== */}
@@ -342,6 +407,108 @@ export default function DashboardAdminPage() {
                 <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setNewVilleFile(e.target.files?.[0] || null)} />
               </label>
               <button onClick={handleAddVille} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DOMAINES TAB ===== */}
+      {adminTab === "domaines" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les domaines de formation. Vous pouvez contrôler quels domaines apparaissent sur la page d&apos;accueil et dans les filtres de recherche.</p>
+          
+          {/* Liste des domaines */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+            {domainesList.map((d, index) => (
+              <div key={d.id} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ fontSize: 24, width: 40, textAlign: "center" }}>{d.emoji}</div>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <input
+                    value={editingDomaine?.id === d.id ? editingDomaine.nom : d.nom}
+                    onChange={e => editingDomaine?.id === d.id && setEditingDomaine({ ...editingDomaine, nom: e.target.value })}
+                    onFocus={() => setEditingDomaine(d)}
+                    onBlur={() => {
+                      if (editingDomaine && editingDomaine.id === d.id && editingDomaine.nom !== d.nom) {
+                        handleUpdateDomaine(d.id, { nom: editingDomaine.nom });
+                      }
+                      setEditingDomaine(null);
+                    }}
+                    style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, fontWeight: 700 }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={d.afficher_sur_accueil}
+                      onChange={e => handleUpdateDomaine(d.id, { afficher_sur_accueil: e.target.checked })}
+                      style={{ cursor: "pointer" }}
+                    />
+                    Accueil
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={d.afficher_dans_filtres}
+                      onChange={e => handleUpdateDomaine(d.id, { afficher_dans_filtres: e.target.checked })}
+                      style={{ cursor: "pointer" }}
+                    />
+                    Filtres
+                  </label>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button onClick={() => handleMoveDomaine(index, "up")} disabled={index === 0} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: index === 0 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: index === 0 ? "not-allowed" : "pointer" }}>↑</button>
+                  <button onClick={() => handleMoveDomaine(index, "down")} disabled={index === domainesList.length - 1} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: index === domainesList.length - 1 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: index === domainesList.length - 1 ? "not-allowed" : "pointer" }}>↓</button>
+                  <button onClick={() => handleDeleteDomaine(d.id)} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️</button>
+                </div>
+              </div>
+            ))}
+            {domainesList.length === 0 && (
+              <div style={{ textAlign: "center", padding: 30, color: C.textTer, fontSize: 13 }}>Aucun domaine configuré. Les domaines seront détectés automatiquement depuis les formations.</div>
+            )}
+          </div>
+
+          {/* Ajouter un domaine */}
+          <div style={{ padding: 16, background: C.bgAlt, borderRadius: 12, border: "1.5px dashed " + C.border }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 10, textTransform: "uppercase" }}>+ Nouveau domaine</div>
+            {domaineError && (
+              <div style={{ padding: "8px 12px", marginBottom: 10, background: C.pinkBg, borderRadius: 8, border: "1px solid " + C.pink, color: C.pink, fontSize: 12 }}>
+                ⚠️ {domaineError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                value={newDomaine.emoji}
+                onChange={e => setNewDomaine({ ...newDomaine, emoji: e.target.value })}
+                placeholder="📚"
+                style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: 60, textAlign: "center" }}
+              />
+              <input
+                value={newDomaine.nom}
+                onChange={e => setNewDomaine({ ...newDomaine, nom: e.target.value })}
+                onKeyDown={e => e.key === "Enter" && handleAddDomaine()}
+                placeholder="Nom du domaine"
+                style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, flex: 1, minWidth: 150 }}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.textSec, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={newDomaine.afficher_sur_accueil}
+                  onChange={e => setNewDomaine({ ...newDomaine, afficher_sur_accueil: e.target.checked })}
+                  style={{ cursor: "pointer" }}
+                />
+                Accueil
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.textSec, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={newDomaine.afficher_dans_filtres}
+                  onChange={e => setNewDomaine({ ...newDomaine, afficher_dans_filtres: e.target.checked })}
+                  style={{ cursor: "pointer" }}
+                />
+                Filtres
+              </label>
+              <button onClick={handleAddDomaine} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
             </div>
           </div>
         </div>
