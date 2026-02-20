@@ -8,7 +8,6 @@ import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
-import { fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin } from "@/lib/supabase-data";
 
 const ADMIN_EMAIL = "quentin.dassy@gmail.com"; // Change to your admin email
 

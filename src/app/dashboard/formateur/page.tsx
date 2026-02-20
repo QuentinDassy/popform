@@ -37,7 +37,7 @@ export default function DashboardFormateurPage() {
   const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -83,13 +83,13 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false, parties: (s as any).parties || [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] })));
+      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || s.lien_visio ? true : false, parties: (s as any).parties || [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] })));
     } else {
       setEditId(null);
       // Set first domaine as default if available
       const defaultDomaine = domainesList.length > 0 ? domainesList[0].nom : "";
       setForm({ ...emptyFormation(), domaine: defaultDomaine });
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -499,7 +499,7 @@ const validSessions = sessions.filter(s => s.dates.trim() && (s.ville.trim() || 
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 
