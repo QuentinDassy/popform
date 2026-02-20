@@ -157,7 +157,7 @@ export default function FormationPage() {
   const [loading, setLoading] = useState(true);
   const [avis, setAvis] = useState<Avis[]>([]);
   const [isFav, setIsFav] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
 
