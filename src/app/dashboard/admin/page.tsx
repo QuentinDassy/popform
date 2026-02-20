@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin, type Formation, type DomaineAdmin } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
