@@ -13,7 +13,7 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
     
     // Find the right bucket
     const { data: buckets } = await supabase.storage.listBuckets();
-    const bucket = buckets?.find(b => b.name.toLowerCase() === "images") || buckets?.[0];
+    const bucket = buckets?.find((b: { name: string }) => b.name.toLowerCase() === "images") || buckets?.[0];
     
     if (bucket) {
       const { error, data } = await supabase.storage

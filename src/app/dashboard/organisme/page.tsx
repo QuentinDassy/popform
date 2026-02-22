@@ -239,7 +239,7 @@ export default function DashboardOrganismePage() {
             const parties = validSessions[si].parties || [];
             if (parties.length > 0 && insertedSessions[si]) {
               await supabase.from("session_parties").insert(
-                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: p.jours?.join(",") || null }))
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
               );
             }
           }
