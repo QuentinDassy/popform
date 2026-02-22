@@ -462,6 +462,9 @@ export default function FormationPage() {
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{org.nom}</div>
                     <Link href={`/catalogue?organisme=${org.id}`} style={{ fontSize: 12, color: C.accent, textDecoration: "none" }}>Voir ses formations →</Link>
+                    {(org as any).site_url && (
+                      <a href={(org as any).site_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -478,6 +481,9 @@ export default function FormationPage() {
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{formateur.nom}</div>
                     {formateur.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{formateur.bio.slice(0, 80)}...</div>}
+                    {(formateur as any).site_url && (
+                      <a href={(formateur as any).site_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -527,7 +533,7 @@ export default function FormationPage() {
             {/* Share */}
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Partager</div>
-              <button onClick={() => navigator.share?.({ title: f.titre, url: window.location.href })} style={{ width: "100%", padding: "10px", borderRadius: 10, background: C.bgAlt, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 12, cursor: "pointer" }}>🔗 Copier le lien</button>
+              <button onClick={() => navigator.share?.({ title: f.titre, url: window.location.href })} style={{ width: "100%", padding: "10px", borderRadius: 10, background: C.bgAlt, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 12, cursor: "pointer" }}>🔗 Partager à un·e collègue</button>
             </div>
           </div>
         </div>

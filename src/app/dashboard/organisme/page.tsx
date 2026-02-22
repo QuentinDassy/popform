@@ -13,8 +13,8 @@ import { useRouter } from "next/navigation";
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type PartieRow = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; lien_visio: string };
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; parties?: PartieRow[] };
+type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; lien_visio: string; date_debut: string; date_fin: string };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[] };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null; photo_url?: string | null };
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
@@ -38,7 +38,7 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [] }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [] }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
@@ -53,6 +53,7 @@ export default function DashboardOrganismePage() {
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
   // Webinaires
   type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
@@ -97,6 +98,7 @@ export default function DashboardOrganismePage() {
         }
       }
       setOrganisme(myOrg);
+      setOrgSiteUrl((myOrg as any)?.site_url || "");
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
@@ -129,11 +131,11 @@ export default function DashboardOrganismePage() {
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
-      setSessions((f.sessions || []).map(s => ({ id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, parties: ((s as any).session_parties || []).map((p: any) => ({ titre: p.titre || "", date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) })));
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours || (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) }; }));
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [] }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -220,7 +222,7 @@ export default function DashboardOrganismePage() {
         const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.parties && s.parties.length > 0 
-            ? s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi+1))}: ${p.date_debut}${p.date_fin ? " → " + p.date_fin : ""}`).join(" | ")
+            ? s.parties.map((p, pi) => { const lbl = p.titre || ("Partie " + (pi+1)); const d = p.jours && p.jours.length > 0 ? (p.jours.length === 1 ? p.jours[0] : p.jours[0] + " → " + p.jours[p.jours.length-1]) : (p.date_debut || ""); return `${lbl}: ${d}`; }).join(" | ")
             : (s.date_debut ? (s.date_debut + (s.date_fin_session ? " → " + s.date_fin_session : "")) : s.dates.trim()),
           lieu: s.parties && s.parties.length > 0
             ? [...new Set(s.parties.map(p => p.modalite === "Visio" ? "Visio" : p.lieu).filter(Boolean))].join(", ")
@@ -237,7 +239,7 @@ export default function DashboardOrganismePage() {
             const parties = validSessions[si].parties || [];
             if (parties.length > 0 && insertedSessions[si]) {
               await supabase.from("session_parties").insert(
-                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.date_debut || null, date_fin: p.date_fin || null }))
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: p.jours?.join(",") || null }))
               );
             }
           }
@@ -343,6 +345,20 @@ export default function DashboardOrganismePage() {
             <div>
               <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text }}>Dashboard {organisme?.nom}</h1>
               <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} · <span style={{ fontSize: 11, color: C.textTer }}>📷 Cliquez sur le logo pour le changer</span></p>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: C.textTer }}>🌐</span>
+                <input
+                  value={orgSiteUrl}
+                  onChange={e => setOrgSiteUrl(e.target.value)}
+                  onBlur={async () => {
+                    if (!organisme) return;
+                    await supabase.from("organismes").update({ site_url: orgSiteUrl || null }).eq("id", organisme.id);
+                    setOrganisme(prev => prev ? { ...prev, site_url: orgSiteUrl } : prev);
+                  }}
+                  placeholder="Site web (ex: https://monorganisme.fr)"
+                  style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid " + C.borderLight, background: "transparent", color: C.textSec, width: 260, outline: "none" }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -650,132 +666,132 @@ export default function DashboardOrganismePage() {
             <label style={labelStyle}>Sessions</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {sessions.map((s, i) => {
-                const isSessionVisio = s.is_visio || false;
+                const today = new Date().toISOString().split("T")[0];
                 return (
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: C.textTer }}>Session {i + 1}</span>
                       <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 8 }}>
-                      {/* Dates avec date picker */}
-                      <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-                        <label style={labelStyle}>Dates</label>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                          <input type="date" value={s.date_debut || ""} onChange={e => { const n = [...sessions]; n[i] = { ...n[i], date_debut: e.target.value }; setSessions(n) }} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
-                          <span style={{ color: C.textTer, fontSize: 12 }}>au</span>
-                          <input type="date" value={s.date_fin_session || ""} onChange={e => { const n = [...sessions]; n[i] = { ...n[i], date_fin_session: e.target.value, dates: (s.date_debut || "") + (e.target.value ? " → " + e.target.value : "") }; setSessions(n) }} style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
-                        </div>
-                      </div>
-                      {/* Checkbox visio par session */}
-                      <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: isSessionVisio ? C.accentBg : C.surface, borderRadius: 10, border: "1.5px solid " + (isSessionVisio ? C.accent + "55" : C.border), cursor: "pointer" }}>
-                          <input 
-                            type="checkbox" 
-                            checked={isSessionVisio} 
-                            onChange={e => { 
-                              const n = [...sessions]; 
-                              n[i] = { ...n[i], is_visio: e.target.checked }; 
-                              if (e.target.checked) {
-                                n[i].lieu = "Visio";
-                              } else {
-                                n[i].lieu = n[i].ville || "";
+
+                    {/* Step 1: Number of parties */}
+                    <div style={{ marginBottom: 14, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                      <label style={{ ...labelStyle, marginBottom: 8 }}>Nombre de parties de cette session</label>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {[1, 2, 3, 4].map(n => (
+                          <button key={n} type="button" onClick={() => {
+                            const nSessions = [...sessions];
+                            nSessions[i].nb_parties = n;
+                            const parts = nSessions[i].parties || [];
+                            if (n > parts.length) {
+                              for (let k = parts.length; k < n; k++) {
+                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" });
                               }
-                              setSessions(n); 
-                            }} 
-                            style={{ width: 18, height: 18, cursor: "pointer" }}
-                          />
-                          <span style={{ fontSize: 13, color: isSessionVisio ? C.accent : C.textSec, fontWeight: isSessionVisio ? 600 : 400 }}>
-                            💻 Cette session est en visio (pas d'adresse physique)
-                          </span>
-                        </label>
+                            } else {
+                              parts.splice(n);
+                            }
+                            nSessions[i].parties = parts;
+                            setSessions(nSessions);
+                          }} style={{ width: 40, height: 40, borderRadius: 10, border: "2px solid " + (s.nb_parties === n ? C.accent : C.border), background: s.nb_parties === n ? C.accentBg : C.surface, color: s.nb_parties === n ? C.accent : C.textSec, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{n}</button>
+                        ))}
                       </div>
-                      {/* Adresse si PAS visio */}
-                      {!isSessionVisio && (
-                        <>
-                          <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-                            <label style={labelStyle}>Adresse</label>
-                            <input value={s.adresse} onChange={e => { const n = [...sessions]; n[i].adresse = e.target.value; setSessions(n) }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Ville</label>
-                            {adminVilles.length > 0 ? (
-                              <>
-                                <select value={s.ville === "" ? "" : adminVilles.includes(s.ville) ? s.ville : "__OTHER__"} onChange={e => { 
-                                  const val = e.target.value;
-                                  const n = [...sessions]; 
-                                  if (val === "__OTHER__") {
-                                    n[i].ville = "";
-                                    n[i].lieu = "";
-                                  } else {
-                                    n[i].ville = val;
-                                    n[i].lieu = val;
-                                  }
-                                  setSessions(n); 
-                                }} style={inputStyle}>
-                                  <option value="">— Choisir une ville —</option>
-                                  {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
-                                  <option value="__OTHER__">✏️ Autre ville...</option>
-                                </select>
-                                {s.ville !== "" && !adminVilles.includes(s.ville) ? (
-                                  <input 
-                                    value={s.ville} 
-                                    onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} 
-                                    placeholder="Entrez le nom de la ville" 
-                                    style={{ ...inputStyle, marginTop: 8 }} 
-                                  />
-                                ) : null}
-                              </>
-                            ) : (
-                              <input value={s.ville} onChange={e => { const n = [...sessions]; n[i].ville = e.target.value; n[i].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
-                            )}
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Code postal</label>
-                            <input value={s.code_postal} onChange={e => { const n = [...sessions]; n[i].code_postal = e.target.value; setSessions(n) }} placeholder="Ex: 75001" style={inputStyle} />
-                          </div>
-                        </>
-                      )}
-                      {/* Lien visio si visio */}
-                      {isSessionVisio && (
-                        <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-                          <label style={labelStyle}>Lien visioconférence</label>
-                          <input value={s.lien_visio || ""} onChange={e => { const n = [...sessions]; n[i].lien_visio = e.target.value; setSessions(n) }} placeholder="https://zoom.us/j/..." style={inputStyle} />
-                        </div>
-                      )}
+                      {s.nb_parties > 1 && <p style={{ fontSize: 11, color: C.textTer, marginTop: 6, fontStyle: "italic" }}>Chaque partie peut avoir sa propre ville, modalité et dates.</p>}
                     </div>
 
-                    {/* ===== PARTIES ===== */}
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed " + C.borderLight }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const }}>Parties de la session</span>
-                        <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = [...(n[i].parties || []), { titre: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" }]; setSessions(n); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
-                      </div>
-                      {(s.parties || []).length === 0 && <p style={{ fontSize: 11, color: C.textTer, fontStyle: "italic" }}>Pas de parties — la session entière est en {isSessionVisio ? "visio" : "présentiel"}.</p>}
-                      {(s.parties || []).map((p, pi) => (
-                        <div key={pi} style={{ padding: "10px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, marginBottom: 8 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent }}>Partie {pi + 1}</span>
-                            <button type="button" onClick={() => { const n = [...sessions]; n[i].parties = (n[i].parties || []).filter((_, pj) => pj !== pi); setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 11, cursor: "pointer" }}>✕</button>
+                    {/* Step 2: Fill each partie */}
+                    {(s.parties || []).slice(0, s.nb_parties).map((p, pi) => (
+                      <div key={pi} style={{ marginBottom: 10, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1.5px solid " + (s.nb_parties > 1 ? C.accent + "33" : C.borderLight) }}>
+                        {s.nb_parties > 1 && <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginBottom: 8, textTransform: "uppercase" as const }}>Partie {pi + 1}</div>}
+                        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 8 }}>
+                          {s.nb_parties > 1 && (
+                            <div style={{ gridColumn: "1 / -1" }}>
+                              <label style={labelStyle}>Titre de la partie</label>
+                              <input value={p.titre} onChange={e => { const n = [...sessions]; n[i].parties![pi].titre = e.target.value; setSessions(n); }} placeholder={"ex: Journée théorique"} style={{ ...inputStyle, fontSize: 12 }} />
+                            </div>
+                          )}
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <label style={labelStyle}>Modalité</label>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {["Présentiel", "Visio", "Mixte"].map(m => (
+                                <button key={m} type="button" onClick={() => {
+                                  const n = [...sessions];
+                                  n[i].parties![pi].modalite = m;
+                                  if (s.nb_parties === 1) { n[i].is_visio = m === "Visio"; n[i].modalite_session = m; }
+                                  setSessions(n);
+                                }} style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: "1.5px solid " + (p.modalite === m ? C.accent + "55" : C.border), background: p.modalite === m ? C.accentBg : C.bgAlt, color: p.modalite === m ? C.accent : C.textSec, fontSize: 11, cursor: "pointer", fontWeight: p.modalite === m ? 700 : 400 }}>{m}</button>
+                              ))}
+                            </div>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 6 }}>
-                            <input value={p.titre} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].titre = e.target.value; setSessions(n); }} placeholder="Titre de la partie (ex: Journée théorique)" style={{ ...inputStyle, fontSize: 12 }} />
-                            <select value={p.modalite} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].modalite = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }}>
-                              {["Présentiel", "Visio", "Mixte"].map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
-                            <input type="date" value={p.date_debut} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_debut = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
-                            <input type="date" value={p.date_fin} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].date_fin = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
-                            {p.modalite !== "Visio" && <input value={p.ville} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].ville = e.target.value; setSessions(n); }} placeholder="Ville" style={{ ...inputStyle, fontSize: 12 }} />}
-                            {p.modalite !== "Visio" && <input value={p.adresse} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].adresse = e.target.value; setSessions(n); }} placeholder="Adresse" style={{ ...inputStyle, fontSize: 12 }} />}
-                            {p.modalite !== "Présentiel" && <input value={p.lien_visio} onChange={e => { const n = [...sessions]; (n[i].parties || [])[pi].lien_visio = e.target.value; setSessions(n); }} placeholder="Lien visio" style={{ ...inputStyle, fontSize: 12, gridColumn: "1 / -1" }} />}
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <label style={labelStyle}>Jours de formation</label>
+                            <p style={{ fontSize: 11, color: C.textTer, marginBottom: 6 }}>Cliquez sur chaque jour (les jours peuvent être discontinus, ex: 4, 7 et 9 mars)</p>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                              {(p.jours || []).map((j, ji) => (
+                                <div key={ji} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44" }}>
+                                  <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{j}</span>
+                                  <button type="button" onClick={() => { const n = [...sessions]; n[i].parties![pi].jours = p.jours.filter((_, jk) => jk !== ji); n[i].parties![pi].date_debut = n[i].parties![pi].jours[0] || ""; n[i].parties![pi].date_fin = n[i].parties![pi].jours[n[i].parties![pi].jours.length - 1] || ""; setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 12, cursor: "pointer", padding: 0 }}>✕</button>
+                                </div>
+                              ))}
+                              <input type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 160 }} value="" onChange={e => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                const n = [...sessions];
+                                const cur = n[i].parties![pi].jours || [];
+                                if (!cur.includes(val)) {
+                                  const sorted = [...cur, val].sort();
+                                  n[i].parties![pi].jours = sorted;
+                                  n[i].parties![pi].date_debut = sorted[0];
+                                  n[i].parties![pi].date_fin = sorted[sorted.length - 1];
+                                }
+                                setSessions(n);
+                                e.target.value = "";
+                              }} />
+                            </div>
                           </div>
+                          {p.modalite !== "Visio" && (
+                            <div>
+                              <label style={labelStyle}>Ville</label>
+                              {adminVilles.length > 0 ? (
+                                <>
+                                  <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
+                                    const val = e.target.value;
+                                    const n = [...sessions];
+                                    if (val !== "__OTHER__") { n[i].parties![pi].ville = val; n[i].parties![pi].lieu = val; }
+                                    else { n[i].parties![pi].ville = ""; n[i].parties![pi].lieu = ""; }
+                                    setSessions(n);
+                                  }} style={inputStyle}>
+                                    <option value="">— Choisir une ville —</option>
+                                    {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
+                                    <option value="__OTHER__">✏️ Autre ville...</option>
+                                  </select>
+                                  {(!adminVilles.includes(p.ville)) && (
+                                    <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder="Entrez la ville" style={{ ...inputStyle, marginTop: 8 }} />
+                                  )}
+                                </>
+                              ) : (
+                                <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
+                              )}
+                            </div>
+                          )}
+                          {p.modalite !== "Visio" && (
+                            <div>
+                              <label style={labelStyle}>Adresse</label>
+                              <input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties![pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
+                            </div>
+                          )}
+                          {p.modalite !== "Présentiel" && (
+                            <div style={{ gridColumn: "1 / -1" }}>
+                              <label style={labelStyle}>Lien visioconférence</label>
+                              <input value={p.lien_visio} onChange={e => { const n = [...sessions]; n[i].parties![pi].lien_visio = e.target.value; setSessions(n); }} placeholder="https://zoom.us/j/..." style={inputStyle} />
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, parties: [{ titre: "Partie 1", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

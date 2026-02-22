@@ -1,11 +1,33 @@
 /**
- * Upload a file via the server-side API route (bypasses Supabase Storage RLS).
- * Returns the public URL of the uploaded file, or throws on error.
+ * Upload a file directly via the authenticated Supabase browser client.
+ * Falls back to /api/upload server route if direct upload fails.
  */
 export async function uploadImage(file: File, folder: string): Promise<string> {
   const ext = file.name.split(".").pop() || "jpg";
   const slug = folder + "/" + Date.now() + "." + ext;
 
+  // First try: direct client upload with user session (bypasses RLS issues)
+  try {
+    const { createClient } = await import("@/lib/supabase");
+    const supabase = createClient();
+    
+    // Find the right bucket
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucket = buckets?.find(b => b.name.toLowerCase() === "images") || buckets?.[0];
+    
+    if (bucket) {
+      const { error, data } = await supabase.storage
+        .from(bucket.name)
+        .upload(slug, file, { contentType: file.type, upsert: true });
+      
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from(bucket.name).getPublicUrl(slug);
+        return urlData.publicUrl;
+      }
+    }
+  } catch (_) {}
+
+  // Fallback: server route
   const fd = new FormData();
   fd.append("file", file);
   fd.append("path", slug);
