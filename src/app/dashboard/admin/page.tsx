@@ -242,7 +242,9 @@ export default function DashboardAdminPage() {
   const filtered = filter === "all" ? formations : formations.filter(f => f.status === filter);
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
   const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
-  const unreadNotifs = notifications.filter(n => !n.is_read).length;
+  const pendingFormationIds = new Set(formations.filter(f => f.status === "en_attente").map(f => f.id));
+  const pendingNotifs = notifications.filter(n => !n.is_read && pendingFormationIds.has(n.formation_id));
+  const unreadNotifs = pendingNotifs.length;
 
   const statusBadge = (status: string) => {
     const styles: Record<string, { bg: string; color: string; label: string }> = {
@@ -594,7 +596,7 @@ export default function DashboardAdminPage() {
       {adminTab === "formations" && unreadNotifs > 0 && (
         <div style={{ marginBottom: 20, padding: mob ? 12 : 16, background: C.yellowBg, borderRadius: 14, border: "1px solid " + C.yellow + "33" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.yellowDark, marginBottom: 8 }}>🔔 Notifications récentes</div>
-          {notifications.filter(n => !n.is_read).slice(0, 5).map(n => (
+          {pendingNotifs.slice(0, 5).map(n => (
             <div key={n.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid " + C.yellow + "22", gap: 8, flexWrap: "wrap" }}>
               <div>
                 <span style={{ fontSize: 12, color: C.text }}>{n.message}</span>

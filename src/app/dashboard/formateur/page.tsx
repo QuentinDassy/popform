@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, fetchDomainesAdmin, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
@@ -40,6 +40,7 @@ export default function DashboardFormateurPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [profilPhotoFile, setProfilPhotoFile] = useState<File | null>(null);
   const [fmtSiteUrl, setFmtSiteUrl] = useState<string>("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -49,6 +50,8 @@ export default function DashboardFormateurPage() {
   const [fmtNom, setFmtNom] = useState("");
   const [fmtBio, setFmtBio] = useState("");
   const [fmtSexe, setFmtSexe] = useState("Non genré");
+  const [orphanFmts, setOrphanFmts] = useState<{ id: number; nom: string; count: number }[]>([]);
+  const [merging, setMerging] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -64,14 +67,42 @@ export default function DashboardFormateurPage() {
       let fmt = existing?.[0] || null;
       if (!fmt) {
         const userName = profile?.full_name || user.email?.split("@")[0] || "Mon nom";
-        const { data: newFmt } = await supabase.from("formateurs").insert({ nom: userName, bio: "", sexe: "Non genré", organisme_id: null, user_id: user.id }).select().single();
-        fmt = newFmt;
+        // Try to find an unlinked formateur with the same name and claim it
+        const { data: unlinked } = await supabase.from("formateurs").select("*").is("user_id", null);
+        const match = unlinked?.find((f: any) => f.nom?.toLowerCase().trim() === userName?.toLowerCase().trim());
+        if (match) {
+          await supabase.from("formateurs").update({ user_id: user.id }).eq("id", match.id);
+          fmt = { ...match, user_id: user.id };
+        } else {
+          const { data: newFmt } = await supabase.from("formateurs").insert({ nom: userName, bio: "", sexe: "Non genré", organisme_id: null, user_id: user.id }).select().single();
+          fmt = newFmt;
+        }
+      }
+      // Merge any unlinked records with the same name → reassign their formations
+      if (fmt) {
+        const { data: orphans } = await supabase.from("formateurs").select("id").is("user_id", null).ilike("nom", fmt.nom);
+        for (const orphan of orphans || []) {
+          if (orphan.id !== fmt.id) {
+            await supabase.from("formations").update({ formateur_id: fmt.id }).eq("formateur_id", orphan.id);
+            await supabase.from("formateurs").delete().eq("id", orphan.id);
+          }
+        }
       }
       setFormateur(fmt);
       if (fmt) {
         setFmtNom(fmt.nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
         const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
+        // Fetch unlinked formateurs with formations (candidates for manual merge)
+        const { data: unlinkedFmts } = await supabase.from("formateurs").select("id, nom").is("user_id", null);
+        if (unlinkedFmts && unlinkedFmts.length > 0) {
+          const orphansWithCounts: { id: number; nom: string; count: number }[] = [];
+          for (const u of unlinkedFmts) {
+            const { count } = await supabase.from("formations").select("id", { count: "exact", head: true }).eq("formateur_id", u.id);
+            if (count && count > 0) orphansWithCounts.push({ id: u.id, nom: u.nom, count });
+          }
+          setOrphanFmts(orphansWithCounts);
+        }
       }
       setLoading(false);
       // Load admin villes
@@ -88,9 +119,7 @@ export default function DashboardFormateurPage() {
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) }; }));
     } else {
       setEditId(null);
-      // Set first domaine as default if available
-      const defaultDomaine = domainesList.length > 0 ? domainesList[0].nom : "";
-      setForm({ ...emptyFormation(), domaine: defaultDomaine });
+      setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
     }
     setMsg(null);
@@ -101,6 +130,9 @@ export default function DashboardFormateurPage() {
     if (!formateur) { setMsg("Erreur: profil formateur non trouvé."); return; }
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
+    if (!form.domaine) { setMsg("Le domaine est obligatoire."); return; }
+    const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
+    if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
     setSaving(true); setMsg(null);
 
     // Déterminer la modalité en fonction des sessions
@@ -136,14 +168,9 @@ export default function DashboardFormateurPage() {
     if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
 
     if (editId) {
-      const { data: currentF } = await supabase.from("formations").select("status").eq("id", editId).single();
-      const wasPublished = currentF?.status === "publiee";
-      const updatePayload = wasPublished
-        ? { pending_update: JSON.stringify({ ...payload, sessions }) }
-        : payload;
-      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
+      // Modification: repasse en attente de validation
+      const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
-      if (wasPublished) { setMsg("✅ Modifications soumises à validation. La formation reste visible en attendant."); setSaving(false); setTab("list"); return; }
     } else {
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
@@ -208,8 +235,22 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
     const { error } = await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe, photo_url: photoUrl, site_url: fmtSiteUrl || null }).eq("id", formateur.id);
     if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
     setFormateur({ ...formateur, nom: fmtNom, bio: fmtBio, sexe: fmtSexe, ...(photoUrl ? { photo_url: photoUrl } : {}) } as any);
+    invalidateCache();
     setSaving(false); setProfilSaved(true); setMsg("✅ Profil enregistré !");
     setTimeout(() => { setMsg(null); setProfilSaved(false); }, 3000);
+  };
+
+  const handleMerge = async (orphanId: number) => {
+    if (!formateur) return;
+    if (!confirm("Fusionner ce profil avec le vôtre ? Toutes ses formations vous seront attribuées et l'ancien profil sera supprimé.")) return;
+    setMerging(true);
+    await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
+    await supabase.from("formateurs").delete().eq("id", orphanId);
+    setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
+    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    setFormations(f || []);
+    invalidateCache();
+    setMerging(false);
   };
 
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null; }
@@ -301,13 +342,16 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
               <label style={labelStyle}>Photo de profil</label>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <label style={{ cursor: "pointer" }}>
-                  <div style={{ width: 64, height: 64, borderRadius: 32, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#fff", fontWeight: 700, overflow: "hidden", position: "relative" }}>
+                  <div style={{ width: 80, height: 80, borderRadius: 40, background: (profilPhotoFile || (formateur as any)?.photo_url) ? "transparent" : C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: C.textTer, fontWeight: 700, overflow: "hidden", border: "2px dashed " + C.border }}>
                     {profilPhotoFile ? (
                       <img src={URL.createObjectURL(profilPhotoFile)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (formateur as any)?.photo_url ? (
                       <img src={(formateur as any).photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
-                      <span>{formateur?.nom?.[0]?.toUpperCase() || "?"}</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 28 }}>📷</span>
+                        <span style={{ fontSize: 9, color: C.textTer, fontWeight: 600 }}>Photo</span>
+                      </div>
                     )}
                   </div>
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setProfilPhotoFile(e.target.files[0]); }} />
@@ -336,6 +380,25 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
               {msg && <span style={{ fontSize: 13, color: C.green }}>{msg}</span>}
             </div>
           </div>
+          {orphanFmts.length > 0 && (
+            <div style={{ marginTop: 28, padding: "16px 18px", background: C.accentBg, borderRadius: 14, border: "1.5px solid " + C.accent + "33" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: C.accent, marginBottom: 4 }}>🔗 Fusionner avec un profil existant</h3>
+              <p style={{ fontSize: 12, color: C.textSec, marginBottom: 12, lineHeight: 1.5 }}>Des formations sont associées à d&apos;anciens profils non liés à un compte. Vous pouvez les fusionner avec votre profil pour les récupérer.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {orphanFmts.map(o => (
+                  <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.nom}</div>
+                      <div style={{ fontSize: 11, color: C.textTer }}>{o.count} formation{o.count > 1 ? "s" : ""}</div>
+                    </div>
+                    <button onClick={() => handleMerge(o.id)} disabled={merging} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: merging ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                      {merging ? "⏳..." : "Fusionner →"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -351,13 +414,10 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Description *</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} /></div>
 
             <div>
-              <label style={labelStyle}>Domaine</label>
+              <label style={labelStyle}>Domaine *</label>
               <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
-                {domainesList.length > 0 ? (
-                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)
-                ) : (
-                  <option value="">Chargement...</option>
-                )}
+                <option value="">— Sélectionner un domaine * —</option>
+                {domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
               </select>
             </div>
             <div><label style={labelStyle}>Modalité</label><select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>{MODALITES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
@@ -476,20 +536,40 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                                   <button type="button" onClick={() => { const n = [...sessions]; const nj = p.jours.filter((_, jk) => jk !== ji); n[i].parties[pi].jours = nj; n[i].parties[pi].date_debut = nj[0] || ""; n[i].parties[pi].date_fin = nj[nj.length - 1] || ""; setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 12, cursor: "pointer", padding: 0 }}>✕</button>
                                 </div>
                               ))}
-                              <input type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 160 }} value="" onChange={e => {
-                                const val = e.target.value;
-                                if (!val) return;
-                                const n = [...sessions];
-                                const cur = n[i].parties[pi].jours || [];
-                                if (!cur.includes(val)) {
-                                  const sorted = [...cur, val].sort();
-                                  n[i].parties[pi].jours = sorted;
-                                  n[i].parties[pi].date_debut = sorted[0];
-                                  n[i].parties[pi].date_fin = sorted[sorted.length - 1];
-                                }
-                                setSessions(n);
-                                e.target.value = "";
-                              }} />
+                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                <input ref={el => { dateInputRefs.current[`${i}-${pi}`] = el; }} type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 140 }}
+                                  onBlur={() => {
+                                    const el = dateInputRefs.current[`${i}-${pi}`];
+                                    const val = el?.value;
+                                    if (!val) return;
+                                    const n = [...sessions];
+                                    const cur = n[i].parties[pi].jours || [];
+                                    if (!cur.includes(val)) {
+                                      const sorted = [...cur, val].sort();
+                                      n[i].parties[pi].jours = sorted;
+                                      n[i].parties[pi].date_debut = sorted[0];
+                                      n[i].parties[pi].date_fin = sorted[sorted.length - 1];
+                                      setSessions(n);
+                                    }
+                                    if (el) el.value = "";
+                                  }}
+                                />
+                                <button type="button" onClick={() => {
+                                  const el = dateInputRefs.current[`${i}-${pi}`];
+                                  const val = el?.value;
+                                  if (!val) return;
+                                  const n = [...sessions];
+                                  const cur = n[i].parties[pi].jours || [];
+                                  if (!cur.includes(val)) {
+                                    const sorted = [...cur, val].sort();
+                                    n[i].parties[pi].jours = sorted;
+                                    n[i].parties[pi].date_debut = sorted[0];
+                                    n[i].parties[pi].date_fin = sorted[sorted.length - 1];
+                                  }
+                                  setSessions(n);
+                                  if (el) el.value = "";
+                                }} style={{ padding: "5px 12px", borderRadius: 8, background: C.gradient, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>+</button>
+                              </div>
                             </div>
                           </div>
                           {p.modalite !== "Visio" && (

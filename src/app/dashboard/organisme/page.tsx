@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, type Formation, type Organisme } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -19,7 +19,7 @@ type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organi
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
   return {
-    titre: "", sous_titre: "", description: "", domaine: domainesList.length > 0 ? domainesList[0].nom : "", domaine_custom: "",
+    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
     modalite: MODALITES[0],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
@@ -38,7 +38,8 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [] }]);
+  const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" });
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
@@ -52,8 +53,10 @@ export default function DashboardOrganismePage() {
   // Domaines from admin
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
+  const [orgNom, setOrgNom] = useState<string>("");
   // Webinaires
   type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
@@ -99,6 +102,7 @@ export default function DashboardOrganismePage() {
       }
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");
+      setOrgNom(myOrg?.nom || "");
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
@@ -131,11 +135,11 @@ export default function DashboardOrganismePage() {
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours || (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) }; }));
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [] }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -145,6 +149,9 @@ export default function DashboardOrganismePage() {
     if (!organisme) return;
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
+    if (!form.domaine) { setMsg("Le domaine est obligatoire."); return }
+    const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
+    if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
 
     // Déterminer la modalité en fonction des sessions
@@ -197,16 +204,9 @@ export default function DashboardOrganismePage() {
     if (formPhotoUrl) payload.photo_url = formPhotoUrl;
 
     if (editId) {
-      // Modification: remet en attente
-      // If formation was published, keep it published but mark as pending update
-      const { data: currentF } = await supabase.from("formations").select("status").eq("id", editId).single();
-      const wasPublished = currentF?.status === "publiee";
-      const updatePayload = wasPublished 
-        ? { pending_update: JSON.stringify({ ...payload, sessions }) } // Keep published, store changes for admin review
-        : { ...payload, status: "en_attente" };
-      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
+      // Modification: repasse en attente de validation
+      const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
-      if (wasPublished) { setMsg("✅ Modifications soumises à validation. La formation reste visible en attendant."); setSaving(false); setTab("list"); return; }
     } else {
       // Création: en attente de validation
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
@@ -322,12 +322,15 @@ export default function DashboardOrganismePage() {
           <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 6 }}>
             {/* Logo organisme */}
-            <label style={{ cursor: "pointer", flexShrink: 0 }} title="Changer le logo">
-              <div style={{ width: 56, height: 56, borderRadius: 14, background: organisme?.logo?.startsWith("http") ? "transparent" : C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 800, overflow: "hidden", border: "2px solid " + C.borderLight }}>
+            <label style={{ cursor: "pointer", flexShrink: 0, position: "relative" }} title="Changer le logo">
+              <div style={{ width: 80, height: 80, borderRadius: 16, background: organisme?.logo?.startsWith("http") ? "transparent" : C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: C.textTer, fontWeight: 800, overflow: "hidden", border: "2px dashed " + C.border }}>
                 {organisme?.logo?.startsWith("http") ? (
                   <img src={organisme.logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <span>{organisme?.logo || "🏢"}</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 28 }}>📷</span>
+                    <span style={{ fontSize: 9, color: C.textTer, fontWeight: 600 }}>Logo</span>
+                  </div>
                 )}
               </div>
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
@@ -337,13 +340,28 @@ export default function DashboardOrganismePage() {
                   const url = await uploadImage(e.target.files[0], "logos");
                   await supabase.from("organismes").update({ logo: url }).eq("id", organisme.id);
                   setOrganisme(prev => prev ? { ...prev, logo: url } : prev);
+                  invalidateCache();
                 } catch (e: any) {
                   setMsg("Erreur upload logo: " + e.message);
                 }
               }} />
             </label>
             <div>
-              <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text }}>Dashboard {organisme?.nom}</h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.textTer }}>Dashboard</span>
+                <input
+                  value={orgNom}
+                  onChange={e => setOrgNom(e.target.value)}
+                  onBlur={async () => {
+                    if (!organisme || !orgNom.trim() || orgNom === organisme.nom) return;
+                    await supabase.from("organismes").update({ nom: orgNom.trim() }).eq("id", organisme.id);
+                    setOrganisme(prev => prev ? { ...prev, nom: orgNom.trim() } : prev);
+                    invalidateCache();
+                  }}
+                  style={{ fontSize: mob ? 20 : 26, fontWeight: 800, color: C.text, background: "transparent", border: "none", borderBottom: "2px solid " + C.borderLight, outline: "none", padding: "2px 4px", minWidth: 80, fontFamily: "inherit" }}
+                  title="Cliquez pour modifier le nom"
+                />
+              </div>
               <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} · <span style={{ fontSize: 11, color: C.textTer }}>📷 Cliquez sur le logo pour le changer</span></p>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                 <span style={{ fontSize: 11, color: C.textTer }}>🌐</span>
@@ -554,11 +572,8 @@ export default function DashboardOrganismePage() {
             <div>
               <label style={labelStyle}>Domaine</label>
               <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
-                {domainesList.length > 0 ? (
-                  domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)
-                ) : (
-                  <option value="">Chargement...</option>
-                )}
+                <option value="">— Sélectionner un domaine * —</option>
+                {domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
               </select>
             </div>
 
@@ -732,20 +747,40 @@ export default function DashboardOrganismePage() {
                                   <button type="button" onClick={() => { const n = [...sessions]; n[i].parties![pi].jours = p.jours.filter((_, jk) => jk !== ji); n[i].parties![pi].date_debut = n[i].parties![pi].jours[0] || ""; n[i].parties![pi].date_fin = n[i].parties![pi].jours[n[i].parties![pi].jours.length - 1] || ""; setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 12, cursor: "pointer", padding: 0 }}>✕</button>
                                 </div>
                               ))}
-                              <input type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 160 }} value="" onChange={e => {
-                                const val = e.target.value;
-                                if (!val) return;
-                                const n = [...sessions];
-                                const cur = n[i].parties![pi].jours || [];
-                                if (!cur.includes(val)) {
-                                  const sorted = [...cur, val].sort();
-                                  n[i].parties![pi].jours = sorted;
-                                  n[i].parties![pi].date_debut = sorted[0];
-                                  n[i].parties![pi].date_fin = sorted[sorted.length - 1];
-                                }
-                                setSessions(n);
-                                e.target.value = "";
-                              }} />
+                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                <input ref={el => { dateInputRefs.current[`${i}-${pi}`] = el; }} type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 140 }}
+                                  onBlur={() => {
+                                    const el = dateInputRefs.current[`${i}-${pi}`];
+                                    const val = el?.value;
+                                    if (!val) return;
+                                    const n = [...sessions];
+                                    const cur = n[i].parties![pi].jours || [];
+                                    if (!cur.includes(val)) {
+                                      const sorted = [...cur, val].sort();
+                                      n[i].parties![pi].jours = sorted;
+                                      n[i].parties![pi].date_debut = sorted[0];
+                                      n[i].parties![pi].date_fin = sorted[sorted.length - 1];
+                                      setSessions(n);
+                                    }
+                                    if (el) el.value = "";
+                                  }}
+                                />
+                                <button type="button" onClick={() => {
+                                  const el = dateInputRefs.current[`${i}-${pi}`];
+                                  const val = el?.value;
+                                  if (!val) return;
+                                  const n = [...sessions];
+                                  const cur = n[i].parties![pi].jours || [];
+                                  if (!cur.includes(val)) {
+                                    const sorted = [...cur, val].sort();
+                                    n[i].parties![pi].jours = sorted;
+                                    n[i].parties![pi].date_debut = sorted[0];
+                                    n[i].parties![pi].date_fin = sorted[sorted.length - 1];
+                                  }
+                                  setSessions(n);
+                                  if (el) el.value = "";
+                                }} style={{ padding: "5px 12px", borderRadius: 8, background: C.gradient, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>+</button>
+                              </div>
                             </div>
                           </div>
                           {p.modalite !== "Visio" && (

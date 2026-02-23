@@ -55,9 +55,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
         <div style={{ position: "relative", height: compact ? (m ? 120 : 160) : (m ? 140 : 200), overflow: "hidden" }}>
           {photo
             ? <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
-            : <div style={{ width: "100%", height: "100%", background: dc.bg.replace("0.1)", "0.3)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
-                {f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}
-              </div>
+            : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
           }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
           {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, right: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}

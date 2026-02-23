@@ -64,14 +64,10 @@ export async function fetchFormations(): Promise<Formation[]> {
 export function invalidateCache() { _formationsCache = null; _cacheTime = 0; }
 
 export async function fetchFormation(id: number): Promise<Formation | null> {
-  // Try cache first
-  if (_formationsCache) {
-    const cached = _formationsCache.find(f => f.id === id);
-    if (cached) return cached;
-  }
+  // Always fetch fresh — cache from fetchFormations() lacks session_parties
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio), organisme:organismes(id,nom,logo)")
+    .select("*, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
     .eq("id", id)
     .single();
   if (error) { console.error("fetchFormation error:", error); return null; }

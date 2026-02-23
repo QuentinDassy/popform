@@ -253,7 +253,7 @@ export default function HomePage() {
             </select>
             <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
               <option value="">Ville</option>
-              {formationCities.map(([c]) => <option key={c} value={c}>{c}</option>)}
+              {adminVilles.map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
             </select>
             {hasFilters && (
               <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelVille("") }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>

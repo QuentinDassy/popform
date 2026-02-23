@@ -39,6 +39,7 @@ function CatalogueContent() {
   const qParam = searchParams.get("q") || "";
   const modaliteParam = searchParams.get("modalite") || "";
   const priseParam = searchParams.get("prise") || "";
+  const organismeParam = searchParams.get("organisme") || "";
   const [search, setSearch] = useState(qParam);
   const [sort, setSort] = useState("pertinence");
   const [selDomaine, setSelDomaine] = useState(domaineParam);
@@ -89,6 +90,11 @@ function CatalogueContent() {
     if (selModalite && f.modalite !== selModalite) return false;
     if (selPrise && !(f.prise_en_charge || []).includes(selPrise)) return false;
     if (selPop && !(f.populations || []).includes(selPop)) return false;
+    if (organismeParam) {
+      const orgId = Number(organismeParam);
+      const matchesOrg = f.organisme_id === orgId || (f.formateur && (f.formateur as any).organisme_id === orgId);
+      if (!matchesOrg) return false;
+    }
     return true;
   });
 
@@ -107,8 +113,9 @@ function CatalogueContent() {
       <div style={{ padding: "18px 0 10px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>
-          {selVille ? `Formations à ${selVille}` : selDomaine || "Toutes les formations"} 🎬
+          {organismeParam ? `Formations de cet organisme` : selVille ? `Formations à ${selVille}` : selDomaine || "Toutes les formations"} 🎬
         </h1>
+        {organismeParam && <Link href="/organismes" style={{ fontSize: 12, color: C.textTer, textDecoration: "none" }}>← Retour aux organismes</Link>}
       </div>
 
       {/* Search bar */}

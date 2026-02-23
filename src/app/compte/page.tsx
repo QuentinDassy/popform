@@ -236,7 +236,8 @@ export default function ComptePage() {
                 inscF.forEach(f => {
                   (f.sessions || []).forEach(s => {
                     if (s.dates) {
-                      const dateKey = s.dates.split(" → ")[0] || s.dates;
+                      const firstIso = s.dates?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+                      const dateKey = firstIso || s.dates.split(" → ")[0] || s.dates;
                       const existing = events.find(e => e.date === dateKey);
                       if (existing) {
                         if (!existing.formations.find(ff => ff.id === f.id)) {

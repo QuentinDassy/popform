@@ -1,13 +1,20 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Head from "next/head";
-import { C, getDC, fmtLabel, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, fetchInscriptions, type Formation, type Avis, type Inscription } from "@/lib/data";
+import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, fetchInscriptions, type Formation, type Avis, type Inscription } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
+
+/* ===== DATE HELPER ===== */
+const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+function fmtDateFr(iso: string) {
+  const d = new Date(iso + "T12:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return `${d.getDate()} ${MOIS_FR[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 /* ===== SKELETON ===== */
 function Skeleton({ w = "100%", h = 16, r = 8 }: { w?: string | number; h?: number; r?: number }) {
@@ -79,8 +86,6 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
   const avgOrga = notedOrga.length ? Math.round(notedOrga.reduce((s, a) => s + a.note_organisation!, 0) / notedOrga.length * 10) / 10 : 0;
   const avgSupports = notedSupports.length ? Math.round(notedSupports.reduce((s, a) => s + a.note_supports!, 0) / notedSupports.length * 10) / 10 : 0;
   const avgPertinence = notedPertinence.length ? Math.round(notedPertinence.reduce((s, a) => s + a.note_pertinence!, 0) / notedPertinence.length * 10) / 10 : 0;
-  const subCount = [notedContenu.length, notedOrga.length, notedSupports.length, notedPertinence.length].filter(n => n > 0).length;
-  const avgAll = subCount > 0 ? (avgContenu + avgOrga + avgSupports + avgPertinence) / subCount : avg;
   // Satisfaction based on note globale only (sub-criteria are indicative)
   const pctSat = fAvis.length ? Math.round(avg * 20) : 0;
 
@@ -172,6 +177,7 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
 
 export default function FormationPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [f, setF] = useState<Formation | null>(null);
   const [loading, setLoading] = useState(true);
   const [avis, setAvis] = useState<Avis[]>([]);
@@ -181,7 +187,6 @@ export default function FormationPage() {
   const { user, profile, setShowAuth } = useAuth();
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
-
   useEffect(() => {
     if (!id) return;
     fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); });
@@ -260,15 +265,6 @@ export default function FormationPage() {
     aggregateRating: fAvis.length ? { "@type": "AggregateRating", ratingValue: avg, reviewCount: fAvis.length } : undefined,
   };
 
-  // Autres formations du même formateur
-  const autresFormations = formations.filter(ff => 
-    ff.id !== f.id && 
-    ff.titre?.trim() &&
-    (
-      (f.formateur_id && ff.formateur_id === f.formateur_id) || 
-      (f.organisme_id && ff.organisme_id === f.organisme_id)
-    )
-  ).slice(0, 3);
 
   return (
     <>
@@ -336,17 +332,8 @@ export default function FormationPage() {
 
               {/* CTA Buttons */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                {f.url_inscription ? (
-                  <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    Voir la formation →
-                  </a>
-                ) : (
-                  <button onClick={() => handleInscription()} disabled={inscribing} style={{ padding: "14px 32px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, opacity: inscribing ? 0.7 : 1 }}>
-                    {inscriptions.some(i => i.formation_id === f.id) ? "✓ Inscrit·e" : "S'inscrire →"}
-                  </button>
-                )}
-                <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.surface, border: "2px solid " + C.border, color: C.text, fontSize: 15, fontWeight: 600, textDecoration: "none" }}>
-                  Voir les sessions
+                <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+                  Voir les sessions →
                 </a>
               </div>
             </div>
@@ -357,9 +344,7 @@ export default function FormationPage() {
                 {photo ? (
                   <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}30)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 80 }}>{f.domaine === "Langage oral" ? "🗣️" : f.domaine === "Langage écrit" ? "📝" : f.domaine === "Neurologie" ? "🧠" : f.domaine === "Cognition mathématique" ? "🔢" : f.domaine === "OMF" ? "👄" : "📚"}</span>
-                  </div>
+                  <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}30)` }} />
                 )}
               </div>
             </div>
@@ -396,21 +381,24 @@ export default function FormationPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {sessions.map((s, si) => {
-                    const parts = (s as any).parties as Array<{titre:string;date_debut:string;date_fin:string;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
+                    const parts = (s as any).session_parties as Array<{titre:string;date_debut:string;date_fin:string;jours:string|null;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
                     const isInscrit = inscriptions.some(ins => ins.formation_id === f.id && ins.session_id === s.id);
                     return (
                     <div key={si} style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
+                      {sessions.length > 1 && (
+                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Session {si + 1}</div>
+                      )}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                         <div style={{ flex: 1 }}>
                           {parts && parts.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                               {parts.map((p, pi) => (
                                 <div key={pi} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                                  <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre}</div>
+                                  {parts.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
                                       {p.modalite === "Visio" ? "💻" : "📍"} {p.modalite === "Visio" ? "En visio" : p.lieu}
-                                      {p.date_debut && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.date_debut}{p.date_fin ? " → " + p.date_fin : ""}</span>}
+                                      {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
                                     </div>
                                     {p.modalite !== "Visio" && p.adresse && <div style={{ fontSize: 11, color: C.textTer }}>{p.adresse}</div>}
                                   </div>
@@ -425,11 +413,7 @@ export default function FormationPage() {
                             </>
                           )}
                         </div>
-                        {f.url_inscription ? (
-                          <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                            Voir la formation →
-                          </a>
-                        ) : (
+                        {!f.url_inscription && (
                           <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
                             {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
                           </button>
@@ -455,9 +439,9 @@ export default function FormationPage() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Organisme</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   {org.logo?.startsWith("http") ? (
-                    <img src={org.logo} alt={org.nom} style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover" }} />
+                    <img src={org.logo} alt={org.nom} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover" }} />
                   ) : (
-                    <div style={{ width: 48, height: 48, borderRadius: 8, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", fontWeight: 800 }}>{org.logo || "🏢"}</div>
+                    <div style={{ width: 64, height: 64, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: 800 }}>{org.logo || org.nom?.slice(0, 2)}</div>
                   )}
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{org.nom}</div>
@@ -472,17 +456,23 @@ export default function FormationPage() {
 
             {/* Formateur card */}
             {formateur && (
-              <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(formateur)}</div>
+              <div onClick={() => router.push(`/formateurs?id=${f.formateur_id}`)} style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, cursor: "pointer", marginBottom: 20, transition: "border-color 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = C.accent + "66")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(formateur)} · <span style={{ color: C.accent }}>Voir ses formations →</span></div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 24, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 700 }}>
-                    {formateur.nom?.[0]?.toUpperCase()}
+                  <div style={{ width: 72, height: 72, borderRadius: 36, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", fontWeight: 700, overflow: "hidden", flexShrink: 0 }}>
+                    {(formateur as any).photo_url ? (
+                      <img src={(formateur as any).photo_url} alt={formateur.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <span>{formateur.nom?.[0]?.toUpperCase()}</span>
+                    )}
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{formateur.nom}</div>
                     {formateur.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{formateur.bio.slice(0, 80)}...</div>}
                     {(formateur as any).site_url && (
-                      <a href={(formateur as any).site_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                      <a href={(formateur as any).site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
                     )}
                   </div>
                 </div>
@@ -492,6 +482,11 @@ export default function FormationPage() {
             {/* Infos */}
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Informations</div>
+              {f.url_inscription && (
+                <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "12px 16px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center", marginBottom: 16 }}>
+                  Voir la formation →
+                </a>
+              )}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: 13, color: C.textSec }}>Modalité</span>
@@ -538,16 +533,37 @@ export default function FormationPage() {
           </div>
         </div>
 
-        {/* Autres formations */}
-        {autresFormations.length > 0 && (
-          <section style={{ marginTop: 40 }}>
-            <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 20 }}>{fmtLabel(formateur)}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
-              {autresFormations.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
-            </div>
-          </section>
-        )}
       </div>
+
+      {/* ===== FORMATIONS SUGGÉRÉES ===== */}
+      {(() => {
+        const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
+        const autresFmt = f.formateur_id ? shuffle(formations.filter(ff => ff.id !== f.id && ff.formateur_id === f.formateur_id && ff.titre?.trim())).slice(0, 3) : [];
+        const autresOrg = f.organisme_id ? shuffle(formations.filter(ff => ff.id !== f.id && ff.organisme_id === f.organisme_id && ff.formateur_id !== f.formateur_id && ff.titre?.trim())).slice(0, 3) : [];
+        if (autresFmt.length === 0 && autresOrg.length === 0) return null;
+        return (
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: mob ? "0 16px 40px" : "0 40px 60px" }}>
+            {autresFmt.length > 0 && (
+              <section style={{ marginBottom: autresOrg.length > 0 ? 40 : 0 }}>
+                <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>
+                  {formateur?.sexe === "Femme" ? "D'autres formations de cette formatrice" : formateur?.sexe === "Homme" ? "D'autres formations de ce formateur" : "D'autres formations de ce·tte formateur·rice"}
+                </h2>
+                <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+                  {autresFmt.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
+                </div>
+              </section>
+            )}
+            {autresOrg.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>D&apos;autres formations de cet organisme</h2>
+                <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+                  {autresOrg.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
+                </div>
+              </section>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
 }

@@ -1,40 +1,65 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { C, fetchFormateurs, fetchFormations, fmtTitle, type Formation } from "@/lib/data";
+import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 
-export default function FormateursPage() {
+function FormateursContent() {
   const mob = useIsMobile();
+  const searchParams = useSearchParams();
+  const idParam = searchParams.get("id");
   const [fmts, setFmts] = useState<any[]>([]);
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [fmtCounts, setFmtCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(idParam ? Number(idParam) : null);
   const [search, setSearch] = useState("");
+  const loadingRef = useRef(false);
 
-  useEffect(() => { Promise.all([fetchFormateurs(), fetchFormations()]).then(([f, fo]) => {
-    // Deduplicate: one formateur per nom (case-insensitive) or user_id
-    const seen = new Set<string>();
-    const unique = f.filter((fmt: any) => {
-      const nameKey = fmt.nom?.toLowerCase().trim();
-      const userKey = fmt.user_id;
-      const idKey = String(fmt.id);
-      
-      // Si on a déjà vu ce nom, c'est un doublon
-      if (nameKey && seen.has(nameKey)) return false;
-      // Si on a déjà vu ce user_id, c'est un doublon
-      if (userKey && seen.has(userKey)) return false;
-      
-      if (nameKey) seen.add(nameKey);
-      if (userKey) seen.add(userKey);
-      seen.add(idKey);
-      return true;
-    });
-    setFmts(unique);
-    setFormations(fo);
-    setLoading(false);
-  }); }, []);
+  const load = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    try {
+      const [f, fo] = await Promise.all([fetchFormateurs(), fetchFormations()]);
+
+      // Deduplicate by name only (same name = same person)
+      const seen = new Set<string>();
+      const unique = f.filter((fmt: any) => {
+        const nameKey = fmt.nom?.toLowerCase().trim();
+        if (nameKey && seen.has(nameKey)) return false;
+        if (nameKey) seen.add(nameKey);
+        return true;
+      });
+
+      // Fetch total formation count per formateur (all non-refused)
+      const { data: allFmtFormations } = await supabase
+        .from("formations")
+        .select("formateur_id, status")
+        .neq("status", "refusee");
+      const counts: Record<number, number> = {};
+      for (const row of allFmtFormations || []) {
+        if (row.formateur_id != null) {
+          counts[row.formateur_id] = (counts[row.formateur_id] || 0) + 1;
+        }
+      }
+
+      setFmts(unique);
+      setFormations(fo);
+      setFmtCounts(counts);
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -72,14 +97,14 @@ export default function FormateursPage() {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: selectedId ? "1fr" : mob ? "1fr" : "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
             {filtered.map(f => {
-              const count = formations.filter(x => x.formateur_id === f.id).length;
+              const count = fmtCounts[f.id] || 0;
               const isSelected = selectedId === f.id;
               return (
                 <div key={f.id} onClick={() => setSelectedId(isSelected ? null : f.id)}
                   style={{ padding: mob ? 12 : 14, background: isSelected ? C.accentBg : C.surface, borderRadius: 12, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.2s", display: "flex", gap: 10, alignItems: "center" }}>
                   {/* Avatar */}
-                  <div style={{ width: 40, height: 40, borderRadius: 20, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff", fontWeight: 800, flexShrink: 0 }}>
-                    {f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                  <div style={{ width: 40, height: 40, borderRadius: 20, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                    {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -101,8 +126,8 @@ export default function FormateursPage() {
           <div style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start" }}>
             <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 28, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800, flexShrink: 0 }}>
-                  {selected.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                <div style={{ width: 56, height: 56, borderRadius: 28, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                  {selected.photo_url ? <img src={selected.photo_url} alt={selected.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : selected.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                 </div>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{selected.nom}</div>
@@ -123,5 +148,13 @@ export default function FormateursPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function FormateursPage() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: "center", padding: 80 }}>🍿 Chargement...</div>}>
+      <FormateursContent />
+    </Suspense>
   );
 }
