@@ -44,7 +44,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (user?.email === "quentin.dassy@gmail.com") {
-      supabase.from("formations").select("id", { count: "exact", head: true }).eq("status", "en_attente").then(({ count }) => {
+      supabase.from("formations").select("id", { count: "exact", head: true }).eq("status", "en_attente").then(({ count }: { count: number | null }) => {
         setUnreadCount(count || 0);
       });
     }
