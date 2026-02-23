@@ -29,7 +29,7 @@ const sel = (mob: boolean): React.CSSProperties => ({
   outline: "none", cursor: "pointer", appearance: "none" as const,
   backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23A48C6A'/%3E%3C/svg%3E\")",
   backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
-  flex: 1, minWidth: mob ? 0 : 100,
+  flex: 1, minWidth: mob ? 0 : 100, boxSizing: "border-box" as const,
 });
 
 function CatalogueContent() {
@@ -120,12 +120,12 @@ function CatalogueContent() {
 
       {/* Search bar */}
       <div style={{ display: "flex", gap: mob ? 6 : 10, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: mob ? "100%" : 280, display: "flex", alignItems: "center", gap: 8, padding: mob ? "0 12px" : "0 16px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, height: mob ? 44 : 50, boxShadow: "0 2px 10px rgba(212,43,43,0.04)" }}>
+        <div style={{ flex: 1, minWidth: mob ? "100%" : 280, display: "flex", alignItems: "center", gap: 8, padding: mob ? "0 12px" : "0 16px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, height: mob ? 44 : 50, boxShadow: "0 2px 10px rgba(212,43,43,0.04)", boxSizing: "border-box" }}>
           {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14, order: 1 }}>✕</button>}
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une formation, un mot-clé, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit", order: 2 }} />
           <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
         </div>
-        <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...sel(mob), flex: "none", width: mob ? "100%" : "auto", minWidth: 140 }}>
+        <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...sel(mob), flex: "none", width: mob ? "100%" : "auto", minWidth: 140, boxSizing: "border-box" }}>
           <option value="pertinence">Pertinence</option>
           <option value="recent">Plus récentes</option>
           <option value="note">Mieux notées</option>
