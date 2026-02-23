@@ -89,7 +89,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
 
   const inputStyle: React.CSSProperties = {
     padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`,
-    background: C.bgAlt, color: C.text, fontSize: 14, outline: "none",
+    background: C.bgAlt, color: C.text, fontSize: 16, outline: "none",
     width: "100%", boxSizing: "border-box", fontFamily: "inherit",
   };
 

@@ -52,7 +52,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: mob ? "8px 16px" : "10px 40px", borderBottom: "1px solid " + C.borderLight, position: "sticky", top: 0, zIndex: 50, background: "rgba(255,253,247,0.9)", backdropFilter: "blur(16px)" }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: mob ? "8px 16px" : "10px 40px", borderBottom: "1px solid " + C.borderLight, position: "sticky", top: 0, zIndex: 50, background: "rgba(255,253,247,0.9)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", overflow: "hidden" } as React.CSSProperties}>
         <div style={{ display: "flex", alignItems: "center", gap: mob ? 10 : 20 }}>
           <Link href="/" style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
             <PopcornLogo size={mob ? 24 : 28} />
