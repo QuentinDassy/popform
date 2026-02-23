@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; lien_visio: string; date_debut: string; date_fin: string };
+type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[] };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null; photo_url?: string | null };
 
@@ -38,13 +38,13 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" });
+  const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
   const [formateurs, setFormateurs] = useState<FormateurRow[]>([]);
-  const [fmtForm, setFmtForm] = useState({ nom: "", bio: "", sexe: "Non genré", photo_url: "" });
+  const [fmtForm, setFmtForm] = useState({ prenom: "", nom: "", bio: "", sexe: "Non genré", photo_url: "" });
   const [fmtPhotoFile, setFmtPhotoFile] = useState<File | null>(null);
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
@@ -135,7 +135,7 @@ export default function DashboardOrganismePage() {
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
     } else {
       setEditId(null);
       setForm(emptyFormation());
@@ -150,6 +150,7 @@ export default function DashboardOrganismePage() {
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
     if (!form.domaine) { setMsg("Le domaine est obligatoire."); return }
+    if (!selFormateurId) { setMsg("Veuillez sélectionner un·e formateur·rice."); return }
     const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
     if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
@@ -195,10 +196,8 @@ export default function DashboardOrganismePage() {
       try {
         const { uploadImage } = await import("@/lib/upload");
         formPhotoUrl = await uploadImage(formPhotoFile, "formations");
-      } catch (e: any) {
-        setMsg("⚠️ Erreur photo: " + e.message);
-        setSaving(false);
-        return;
+      } catch (_) {
+        setMsg("⚠️ Photo non uploadée (créez un bucket \"images\" dans Supabase Storage) — formation soumise sans photo.");
       }
     }
     if (formPhotoUrl) payload.photo_url = formPhotoUrl;
@@ -239,7 +238,7 @@ export default function DashboardOrganismePage() {
             const parties = validSessions[si].parties || [];
             if (parties.length > 0 && insertedSessions[si]) {
               await supabase.from("session_parties").insert(
-                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: [p.adresse, p.code_postal].filter(Boolean).join(", ") || null, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
               );
             }
           }
@@ -258,7 +257,8 @@ export default function DashboardOrganismePage() {
   // === FORMATEURS MANAGEMENT ===
   const handleSaveFormateur = async () => {
     if (!organisme) return;
-    if (!fmtForm.nom.trim()) { setMsg("Le nom du formateur est obligatoire."); return }
+    const fullName = [fmtForm.prenom.trim(), fmtForm.nom.trim()].filter(Boolean).join(" ");
+    if (!fullName) { setMsg("Le nom du formateur est obligatoire."); return }
     setSaving(true); setMsg(null);
     let photoUrl: string | null = fmtForm.photo_url || null;
     if (fmtPhotoFile) {
@@ -269,16 +269,16 @@ export default function DashboardOrganismePage() {
       } catch (e: any) { setMsg("Erreur photo: " + e.message); setSaving(false); return; }
     }
     if (editFmtId) {
-      const { error } = await supabase.from("formateurs").update({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, photo_url: photoUrl }).eq("id", editFmtId);
+      const { error } = await supabase.from("formateurs").update({ nom: fullName, bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, photo_url: photoUrl }).eq("id", editFmtId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     } else {
-      const { error } = await supabase.from("formateurs").insert({ nom: fmtForm.nom.trim(), bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, organisme_id: organisme.id, photo_url: photoUrl }).select().single();
+      const { error } = await supabase.from("formateurs").insert({ nom: fullName, bio: fmtForm.bio.trim(), sexe: fmtForm.sexe, organisme_id: organisme.id, photo_url: photoUrl }).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     }
     // Reload formateurs
     const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", organisme.id);
     setFormateurs(fmts || []);
-    setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" });
+    setFmtForm({ prenom: "", nom: "", bio: "", sexe: "Non genré", photo_url: "" });
     setFmtPhotoFile(null);
     setEditFmtId(null);
     setSaving(false);
@@ -295,7 +295,10 @@ export default function DashboardOrganismePage() {
 
   const openEditFormateur = (f: FormateurRow) => {
     setEditFmtId(f.id);
-    setFmtForm({ nom: f.nom, bio: f.bio || "", sexe: f.sexe || "Non genré", photo_url: f.photo_url || "" });
+    const parts = (f.nom || "").trim().split(" ");
+    const nom = parts.pop() || "";
+    const prenom = parts.join(" ");
+    setFmtForm({ prenom, nom, bio: f.bio || "", sexe: f.sexe || "Non genré", photo_url: f.photo_url || "" });
     setFmtPhotoFile(null);
     setMsg(null);
   };
@@ -458,7 +461,7 @@ export default function DashboardOrganismePage() {
       {/* ===== FORMATEURS TAB ===== */}
       {tab === "formateurs" && (
         <div style={{ paddingBottom: 40 }}>
-          <button onClick={() => { setTab("list"); setMsg(null); setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" }) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <button onClick={() => { setTab("list"); setMsg(null); setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ prenom: "", nom: "", bio: "", sexe: "Non genré", photo_url: "" }) }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>🎤 Formateur·rice·s de {organisme?.nom}</h2>
 
           {/* Liste des formateurs existants */}
@@ -493,7 +496,7 @@ export default function DashboardOrganismePage() {
                       ) : fmtForm.photo_url ? (
                         <img src={fmtForm.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       ) : (
-                        <span>{fmtForm.nom?.[0]?.toUpperCase() || "?"}</span>
+                        <span>{(fmtForm.prenom || fmtForm.nom)?.[0]?.toUpperCase() || "?"}</span>
                       )}
                     </div>
                     <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFmtPhotoFile(e.target.files[0]); }} />
@@ -502,8 +505,12 @@ export default function DashboardOrganismePage() {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Nom complet *</label>
-                <input value={fmtForm.nom} onChange={e => setFmtForm({ ...fmtForm, nom: e.target.value })} placeholder="Ex: Dr. Marie Lefort" style={inputStyle} />
+                <label style={labelStyle}>Prénom</label>
+                <input value={fmtForm.prenom} onChange={e => setFmtForm({ ...fmtForm, prenom: e.target.value })} placeholder="Ex: Marie" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Nom *</label>
+                <input value={fmtForm.nom} onChange={e => setFmtForm({ ...fmtForm, nom: e.target.value })} placeholder="Ex: Lefort" style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Genre (affichage formateur/formatrice)</label>
@@ -526,7 +533,7 @@ export default function DashboardOrganismePage() {
                 {saving ? "⏳ ..." : editFmtId ? "Enregistrer" : "Ajouter 🎤"}
               </button>
               {editFmtId && (
-                <button onClick={() => { setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ nom: "", bio: "", sexe: "Non genré", photo_url: "" }); setMsg(null) }} style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+                <button onClick={() => { setEditFmtId(null); setFmtPhotoFile(null); setFmtForm({ prenom: "", nom: "", bio: "", sexe: "Non genré", photo_url: "" }); setMsg(null) }} style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
               )}
             </div>
           </div>
@@ -607,10 +614,6 @@ export default function DashboardOrganismePage() {
               <input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Prix DPC (€)</label>
-              <input type="number" value={form.prix_dpc ?? ""} onChange={e => setForm({ ...form, prix_dpc: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
-            </div>
-            <div>
               <label style={labelStyle}>Effectif max</label>
               <input type="number" value={form.effectif ?? ""} onChange={e => setForm({ ...form, effectif: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 20" style={inputStyle} />
             </div>
@@ -635,7 +638,7 @@ export default function DashboardOrganismePage() {
             {/* Mots-clés */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Mots-clés (séparés par des virgules)</label>
-              <input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: TDL, évaluation, rééducation" style={inputStyle} />
+              <input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: aphasie, dyslexie, tdl" style={inputStyle} />
             </div>
 
             {/* Populations */}
@@ -659,7 +662,15 @@ export default function DashboardOrganismePage() {
                   📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : form.photo_url ? "Changer la photo" : "Ajouter une photo"}
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
                 </label>
-                {form.photo_url && !formPhotoFile && <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />}
+                {formPhotoFile && (
+                  <button type="button" onClick={() => setFormPhotoFile(null)} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Annuler</button>
+                )}
+                {form.photo_url && !formPhotoFile && (
+                  <>
+                    <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />
+                    <button type="button" onClick={() => { setForm({ ...form, photo_url: "" }); setFormPhotoFile(null); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -686,7 +697,10 @@ export default function DashboardOrganismePage() {
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: C.textTer }}>Session {i + 1}</span>
-                      <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { const copy = JSON.parse(JSON.stringify(s)); delete copy.id; setSessions([...sessions, copy]); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>⧉ Dupliquer</button>
+                        <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
+                      </div>
                     </div>
 
                     {/* Step 1: Number of parties */}
@@ -700,7 +714,7 @@ export default function DashboardOrganismePage() {
                             const parts = nSessions[i].parties || [];
                             if (n > parts.length) {
                               for (let k = parts.length; k < n; k++) {
-                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" });
+                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
                               }
                             } else {
                               parts.splice(n);
@@ -814,6 +828,12 @@ export default function DashboardOrganismePage() {
                               <input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties![pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
                             </div>
                           )}
+                          {p.modalite !== "Visio" && (
+                            <div>
+                              <label style={labelStyle}>Code postal</label>
+                              <input value={p.code_postal} onChange={e => { const n = [...sessions]; n[i].parties![pi].code_postal = e.target.value; setSessions(n); }} placeholder="Ex: 75001" style={inputStyle} />
+                            </div>
+                          )}
                           {p.modalite !== "Présentiel" && (
                             <div style={{ gridColumn: "1 / -1" }}>
                               <label style={labelStyle}>Lien visioconférence</label>
@@ -826,7 +846,7 @@ export default function DashboardOrganismePage() {
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

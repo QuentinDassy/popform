@@ -16,18 +16,23 @@ export default function VillesPage() {
       const adminMap: Record<string, string> = {};
       (villes || []).forEach((v: Record<string, string>) => { adminMap[v.nom] = v.image || "" });
       setAdminVilles(adminMap);
-      // Count formations per ville
+      // Count formations per ville (unique formations, not sessions)
       fetchFormations().then(formations => {
-        const cityCount: Record<string, number> = {};
+        const formationsByCity: Record<string, Set<number>> = {};
         formations.forEach(f => {
           (f.sessions || []).forEach((s: any) => {
-            // Use 'lieu' field from sessions table (not 'ville')
-            const cityName = s.lieu || s.ville;
-            if (cityName && cityName !== "Visio" && cityName !== "En ligne") {
-              cityCount[cityName] = (cityCount[cityName] || 0) + 1;
-            }
+            // Split lieu by ", " to handle multi-party sessions (e.g. "Paris, Lyon")
+            const raw = s.lieu || s.ville || "";
+            raw.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => {
+              if (cityName !== "Visio" && cityName !== "En ligne") {
+                if (!formationsByCity[cityName]) formationsByCity[cityName] = new Set();
+                formationsByCity[cityName].add(f.id);
+              }
+            });
           });
         });
+        const cityCount: Record<string, number> = {};
+        Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
         // Only show admin-defined villes
         const adminNames = Object.keys(adminMap);
         if (adminNames.length > 0) {

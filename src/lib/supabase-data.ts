@@ -69,7 +69,7 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
     .from("formations")
     .select("*, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (error) { console.error("fetchFormation error:", error); return null; }
   return data;
 }

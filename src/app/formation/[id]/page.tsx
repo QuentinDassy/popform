@@ -184,7 +184,13 @@ export default function FormationPage() {
   const [isFav, setIsFav] = useState(false);
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [inscribing, setInscribing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const { user, profile, setShowAuth } = useAuth();
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
   useEffect(() => {
@@ -202,6 +208,7 @@ export default function FormationPage() {
     if (!user) { setShowAuth(true); return; }
     const added = await toggleFavori(user.id, Number(id));
     setIsFav(added);
+    if (added) showToast("Retrouvez vos favoris dans votre espace PopForm !");
   };
 
   const handleInscription = async (sessionId?: number) => {
@@ -214,9 +221,9 @@ export default function FormationPage() {
       if (!error) {
         const updated = await fetchInscriptions(user.id);
         setInscriptions(updated);
+        showToast("Retrouvez votre inscription dans votre espace PopForm !");
       }
     }
-    if (f.url_inscription) window.open(f.url_inscription, "_blank");
     setInscribing(false);
   };
 
@@ -268,7 +275,12 @@ export default function FormationPage() {
 
   return (
     <>
-      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } } @keyframes slideUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }`}</style>
+      {toast && (
+        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#2D1B06", color: "#fff", padding: "13px 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", whiteSpace: "nowrap", animation: "slideUp 0.25s ease", pointerEvents: "none" }}>
+          🍿 {toast}
+        </div>
+      )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ===== MODERN HERO: Texte à gauche, Image à droite ===== */}
@@ -413,11 +425,9 @@ export default function FormationPage() {
                             </>
                           )}
                         </div>
-                        {!f.url_inscription && (
-                          <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
-                            {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
-                          </button>
-                        )}
+                        <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                          {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
+                        </button>
                       </div>
                     </div>
                     );

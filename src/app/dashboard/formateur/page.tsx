@@ -11,7 +11,7 @@ import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/su
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; lien_visio: string };
+type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties: SessionPartieRow[] };
 function emptyFormation() {
   return {
@@ -21,7 +21,7 @@ function emptyFormation() {
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null,
     is_new: false, populations: [] as string[], mots_cles: "",
-    professions: ["Orthophonie"], effectif: 0, video_url: "", url_inscription: "", photo_url: "" as string,
+    professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
     organisme_id: null as number | null,
   };
 }
@@ -37,7 +37,7 @@ export default function DashboardFormateurPage() {
   const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -47,9 +47,11 @@ export default function DashboardFormateurPage() {
   const [profilSaved, setProfilSaved] = useState(false);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
 
+  const [fmtPrenom, setFmtPrenom] = useState("");
   const [fmtNom, setFmtNom] = useState("");
   const [fmtBio, setFmtBio] = useState("");
   const [fmtSexe, setFmtSexe] = useState("Non genré");
+  const [profilPhotoRemoved, setProfilPhotoRemoved] = useState(false);
   const [orphanFmts, setOrphanFmts] = useState<{ id: number; nom: string; count: number }[]>([]);
   const [merging, setMerging] = useState(false);
 
@@ -90,7 +92,10 @@ export default function DashboardFormateurPage() {
       }
       setFormateur(fmt);
       if (fmt) {
-        setFmtNom(fmt.nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
+        const parts = (fmt.nom || "").trim().split(" ");
+        const nom = parts.pop() || "";
+        const prenom = parts.join(" ");
+        setFmtPrenom(prenom); setFmtNom(nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
         const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
         // Fetch unlinked formateurs with formations (candidates for manual merge)
@@ -116,11 +121,11 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", lien_visio: p.lien_visio || "" })) }; }));
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })) }; }));
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
     }
     setMsg(null);
     setTab("edit");
@@ -161,9 +166,13 @@ export default function DashboardFormateurPage() {
     // Upload photo si présente
     let formPhotoUrl2: string | null = form.photo_url || null;
     if (formPhotoFile) {
-      const { uploadImage } = await import("@/lib/upload");
-      const url2 = await uploadImage(formPhotoFile, "formations");
-      if (url2) formPhotoUrl2 = url2;
+      try {
+        const { uploadImage } = await import("@/lib/upload");
+        const url2 = await uploadImage(formPhotoFile, "formations");
+        if (url2) formPhotoUrl2 = url2;
+      } catch (_) {
+        setMsg("⚠️ Photo non uploadée (créez un bucket \"images\" dans Supabase Storage) — formation soumise sans photo.");
+      }
     }
     if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
 
@@ -189,7 +198,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             ? [...new Set(s.parties.map(p => p.modalite === "Visio" ? "Visio" : p.ville).filter(Boolean))].join(", ")
             : (s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim())),
           adresse: s.parties && s.parties.length > 0
-            ? s.parties.map(p => p.modalite === "Visio" ? (p.lien_visio || "Visio") : [p.adresse, p.ville].filter(Boolean).join(", ")).join(" | ")
+            ? s.parties.map(p => p.modalite === "Visio" ? (p.lien_visio || "Visio") : [p.adresse, p.ville, p.code_postal].filter(Boolean).join(", ")).join(" | ")
             : (s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", ")),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
@@ -200,7 +209,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             const parties = validSessions[si].parties || [];
             if (parties.length > 0 && insertedSessions[si]) {
               await supabase.from("session_parties").insert(
-                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: p.adresse, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
+                parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: [p.adresse, p.code_postal].filter(Boolean).join(", ") || null, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
               );
             }
           }
@@ -224,7 +233,8 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
   const handleSaveProfil = async () => {
     if (!formateur) return;
     setSaving(true); setMsg(null);
-    let photoUrl = (formateur as any).photo_url || null;
+    const fullName = [fmtPrenom.trim(), fmtNom.trim()].filter(Boolean).join(" ") || fmtNom.trim();
+    let photoUrl: string | null = profilPhotoRemoved ? null : ((formateur as any).photo_url || null);
     if (profilPhotoFile) {
       try {
         const { uploadImage } = await import("@/lib/upload");
@@ -232,9 +242,10 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
         setProfilPhotoFile(null);
       } catch (e: any) { setMsg("Erreur photo: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("formateurs").update({ nom: fmtNom, bio: fmtBio, sexe: fmtSexe, photo_url: photoUrl, site_url: fmtSiteUrl || null }).eq("id", formateur.id);
+    const { error } = await supabase.from("formateurs").update({ nom: fullName, bio: fmtBio, sexe: fmtSexe, photo_url: photoUrl, site_url: fmtSiteUrl || null }).eq("id", formateur.id);
     if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
-    setFormateur({ ...formateur, nom: fmtNom, bio: fmtBio, sexe: fmtSexe, ...(photoUrl ? { photo_url: photoUrl } : {}) } as any);
+    setFormateur({ ...formateur, nom: fullName, bio: fmtBio, sexe: fmtSexe, photo_url: photoUrl } as any);
+    setProfilPhotoRemoved(false);
     invalidateCache();
     setSaving(false); setProfilSaved(true); setMsg("✅ Profil enregistré !");
     setTimeout(() => { setMsg(null); setProfilSaved(false); }, 3000);
@@ -342,24 +353,29 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
               <label style={labelStyle}>Photo de profil</label>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <label style={{ cursor: "pointer" }}>
-                  <div style={{ width: 80, height: 80, borderRadius: 40, background: (profilPhotoFile || (formateur as any)?.photo_url) ? "transparent" : C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: C.textTer, fontWeight: 700, overflow: "hidden", border: "2px dashed " + C.border }}>
-                    {profilPhotoFile ? (
+                  <div style={{ width: 80, height: 80, borderRadius: 40, background: (!profilPhotoRemoved && (profilPhotoFile || (formateur as any)?.photo_url)) ? "transparent" : C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: C.textTer, fontWeight: 700, overflow: "hidden", border: "2px dashed " + C.border }}>
+                    {profilPhotoFile && !profilPhotoRemoved ? (
                       <img src={URL.createObjectURL(profilPhotoFile)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (formateur as any)?.photo_url ? (
+                    ) : (!profilPhotoRemoved && (formateur as any)?.photo_url) ? (
                       <img src={(formateur as any).photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <span style={{ fontSize: 28 }}>📷</span>
-                        <span style={{ fontSize: 9, color: C.textTer, fontWeight: 600 }}>Photo</span>
-                      </div>
+                      <span style={{ fontSize: 26, fontWeight: 800, color: C.textSec }}>{(fmtPrenom || fmtNom)?.[0]?.toUpperCase() || "?"}</span>
                     )}
                   </div>
-                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setProfilPhotoFile(e.target.files[0]); }} />
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) { setProfilPhotoFile(e.target.files[0]); setProfilPhotoRemoved(false); } }} />
                 </label>
-                <span style={{ fontSize: 12, color: C.textTer }}>Cliquez sur l&apos;avatar pour changer la photo</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: C.textTer }}>Cliquez sur l&apos;avatar pour changer la photo</span>
+                  {(!profilPhotoRemoved && ((formateur as any)?.photo_url || profilPhotoFile)) && (
+                    <button type="button" onClick={() => { setProfilPhotoRemoved(true); setProfilPhotoFile(null); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer", alignSelf: "flex-start" }}>✕ Supprimer la photo</button>
+                  )}
+                </div>
               </div>
             </div>
-            <div><label style={labelStyle}>Nom complet</label><input value={fmtNom} onChange={e => setFmtNom(e.target.value)} style={inputStyle} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={labelStyle}>Prénom</label><input value={fmtPrenom} onChange={e => setFmtPrenom(e.target.value)} placeholder="Ex: Marie" style={inputStyle} /></div>
+              <div><label style={labelStyle}>Nom *</label><input value={fmtNom} onChange={e => setFmtNom(e.target.value)} placeholder="Ex: Lefort" style={inputStyle} /></div>
+            </div>
             <div><label style={labelStyle}>Biographie</label><textarea value={fmtBio} onChange={e => setFmtBio(e.target.value)} style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} /></div>
             <div>
               <label style={labelStyle}>Genre</label>
@@ -429,7 +445,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             </div>
             <div><label style={labelStyle}>Prix (€)</label><input type="number" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} style={inputStyle} /></div>
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
-            <div><label style={labelStyle}>Effectif max</label><input type="number" value={form.effectif} onChange={e => setForm({ ...form, effectif: Number(e.target.value) })} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Effectif max</label><input type="number" value={form.effectif ?? ""} onChange={e => setForm({ ...form, effectif: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 20" style={inputStyle} /></div>
             <div><label style={labelStyle}>Prix salarié (€)</label><input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
             <div><label style={labelStyle}>Prix libéral (€)</label><input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
 
@@ -445,7 +461,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
               </div>
             </div>
 
-            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Mots-clés (virgules)</label><input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} style={inputStyle} /></div>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Mots-clés (virgules)</label><input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: aphasie, dyslexie, tdl" style={inputStyle} /></div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Populations</label>
@@ -465,6 +481,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
                 </label>
                 {form.photo_url && !formPhotoFile && <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />}
+                {(form.photo_url || formPhotoFile) && <button type="button" onClick={() => { setForm({ ...form, photo_url: "" }); setFormPhotoFile(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>✕ Supprimer</button>}
               </div>
             </div>
 
@@ -482,7 +499,10 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                   <div key={i} style={{ padding: mob ? 12 : 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: C.textTer }}>Session {i + 1}</span>
-                      {sessions.length > 1 && <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { const copy = JSON.parse(JSON.stringify(sessions[i])); delete (copy as any).id; setSessions([...sessions.slice(0, i + 1), copy, ...sessions.slice(i + 1)]); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>⧉ Dupliquer</button>
+                        {sessions.length > 1 && <button onClick={() => setSessions(sessions.filter((_, j) => j !== i))} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>}
+                      </div>
                     </div>
                     <div style={{ marginBottom: 14, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
                       <label style={{ ...labelStyle, marginBottom: 8 }}>Nombre de parties de cette session</label>
@@ -494,7 +514,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                             const parts = nSessions[i].parties || [];
                             if (n > parts.length) {
                               for (let k = parts.length; k < n; k++) {
-                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" });
+                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" });
                               }
                             } else { parts.splice(n); }
                             nSessions[i].parties = parts;
@@ -584,6 +604,12 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                               <input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties[pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
                             </div>
                           )}
+                          {p.modalite !== "Visio" && (
+                            <div>
+                              <label style={labelStyle}>Code postal</label>
+                              <input value={p.code_postal || ""} onChange={e => { const n = [...sessions]; n[i].parties[pi].code_postal = e.target.value; setSessions(n); }} placeholder="Ex: 75001" style={inputStyle} />
+                            </div>
+                          )}
                           {p.modalite !== "Présentiel" && (
                             <div style={{ gridColumn: "1 / -1" }}>
                               <label style={labelStyle}>Lien visio</label>
@@ -596,7 +622,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
 

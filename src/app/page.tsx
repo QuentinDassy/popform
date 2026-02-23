@@ -200,7 +200,7 @@ export default function HomePage() {
   return (
     <>
       {/* ===== HERO ===== */}
-      <section style={{ position: "relative", padding: mob ? "36px 16px 32px" : "70px 40px 56px", overflow: "visible", background: C.gradientHero }}>
+      <section style={{ position: "relative", padding: mob ? "36px 16px 32px" : "70px 40px 56px", overflow: "hidden", background: C.gradientHero }}>
         <div style={{ position: "absolute", top: -100, left: -60, width: 400, height: 400, background: "radial-gradient(circle, rgba(212,43,43,0.08), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -80, right: -40, width: 350, height: 350, background: "radial-gradient(circle, rgba(245,183,49,0.06), transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "relative", textAlign: "center", maxWidth: 740, margin: "0 auto" }}>
