@@ -140,6 +140,7 @@ export default function DashboardOrganismePage() {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
+      setFormPhotoFile(null);
     }
     setMsg(null);
     setTab("edit");
@@ -250,6 +251,7 @@ export default function DashboardOrganismePage() {
     const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
+    setFormPhotoFile(null);
     setTab("list");
     setMsg(null);
   };
@@ -403,12 +405,11 @@ export default function DashboardOrganismePage() {
       {/* ===== STATS ===== */}
       {tab === "list" && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
               { label: "Formations", value: formations.length, icon: "🎬" },
               { label: "Sessions", value: formations.reduce((s, f) => s + (f.sessions?.length || 0), 0), icon: "📅" },
               { label: "Note moyenne", value: (() => { const rated = formations.filter(f => f.nb_avis > 0); return rated.length ? (rated.reduce((s, f) => s + f.note, 0) / rated.length).toFixed(1) : "—"; })(), icon: "⭐" },
-              { label: "Places totales", value: formations.reduce((s, f) => s + f.effectif, 0), icon: "👥" },
             ].map(s => (
               <div key={s.label} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, textAlign: "center" }}>
                 <div style={{ fontSize: 20 }}>{s.icon}</div>
@@ -613,11 +614,6 @@ export default function DashboardOrganismePage() {
               <label style={labelStyle}>Prix libéral (€)</label>
               <input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
             </div>
-            <div>
-              <label style={labelStyle}>Effectif max</label>
-              <input type="number" value={form.effectif ?? ""} onChange={e => setForm({ ...form, effectif: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 20" style={inputStyle} />
-            </div>
-
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>
@@ -663,7 +659,10 @@ export default function DashboardOrganismePage() {
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
                 </label>
                 {formPhotoFile && (
-                  <button type="button" onClick={() => setFormPhotoFile(null)} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Annuler</button>
+                  <>
+                    <img src={URL.createObjectURL(formPhotoFile)} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />
+                    <button type="button" onClick={() => setFormPhotoFile(null)} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Annuler</button>
+                  </>
                 )}
                 {form.photo_url && !formPhotoFile && (
                   <>

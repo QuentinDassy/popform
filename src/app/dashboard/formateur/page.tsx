@@ -126,6 +126,7 @@ export default function DashboardFormateurPage() {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
+      setFormPhotoFile(null);
     }
     setMsg(null);
     setTab("edit");
@@ -220,6 +221,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
     const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
+    setFormPhotoFile(null);
     setTab("list");
   };
 
@@ -445,7 +447,6 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             </div>
             <div><label style={labelStyle}>Prix (€)</label><input type="number" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} style={inputStyle} /></div>
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
-            <div><label style={labelStyle}>Effectif max</label><input type="number" value={form.effectif ?? ""} onChange={e => setForm({ ...form, effectif: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 20" style={inputStyle} /></div>
             <div><label style={labelStyle}>Prix salarié (€)</label><input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
             <div><label style={labelStyle}>Prix libéral (€)</label><input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
 
@@ -480,7 +481,9 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                   📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : form.photo_url ? "Changer la photo" : "Ajouter une photo"}
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
                 </label>
-                {form.photo_url && !formPhotoFile && <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />}
+                {formPhotoFile
+                  ? <img src={URL.createObjectURL(formPhotoFile)} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />
+                  : form.photo_url ? <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : null}
                 {(form.photo_url || formPhotoFile) && <button type="button" onClick={() => { setForm({ ...form, photo_url: "" }); setFormPhotoFile(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>✕ Supprimer</button>}
               </div>
             </div>

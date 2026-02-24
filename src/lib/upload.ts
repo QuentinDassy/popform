@@ -3,7 +3,6 @@
  * Falls back to /api/upload server route if direct upload fails.
  */
 export async function uploadImage(file: File, folder: string): Promise<string> {
-  // Normalize: iOS HEIC photos arrive with empty type or heic extension
   const contentType = file.type || "image/jpeg";
   const rawExt = file.name.split(".").pop()?.toLowerCase() || "";
   const ext = (rawExt === "heic" || rawExt === "heif" || !rawExt)
@@ -11,28 +10,23 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
     : rawExt;
   const slug = folder + "/" + Date.now() + "." + ext;
 
-  // First try: direct client upload with user session (bypasses RLS issues)
+  // First try: direct client upload with user session
   try {
     const { createClient } = await import("@/lib/supabase");
     const supabase = createClient();
-    
-    // Find the right bucket
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucket = buckets?.find((b: { name: string }) => b.name.toLowerCase() === "images") || buckets?.[0];
-    
-    if (bucket) {
-      const { error, data } = await supabase.storage
-        .from(bucket.name)
-        .upload(slug, file, { contentType, upsert: true });
-      
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from(bucket.name).getPublicUrl(slug);
-        return urlData.publicUrl;
-      }
+
+    const { error, data } = await supabase.storage
+      .from("images")
+      .upload(slug, file, { contentType, upsert: true });
+
+    if (!error && data) {
+      const { data: urlData } = supabase.storage.from("images").getPublicUrl(slug);
+      return urlData.publicUrl;
     }
+    console.warn("Direct upload failed:", error?.message);
   } catch (_) {}
 
-  // Fallback: server route
+  // Fallback: server route (uses service role key)
   const fd = new FormData();
   fd.append("file", file);
   fd.append("path", slug);

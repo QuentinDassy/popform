@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
     if (!url) return NextResponse.json({ error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, { status: 500 });
+    if (!serviceKey) {
+      console.warn("SUPABASE_SERVICE_ROLE_KEY not set — falling back to anon key");
+    }
 
     const client = createClient(url, serviceKey || anonKey, {
       auth: { persistSession: false },
@@ -24,29 +27,17 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // List buckets to find the right one
-    const { data: buckets } = await client.storage.listBuckets();
-    const bucketNames = buckets?.map(b => b.name) || [];
-    console.log("Available buckets:", bucketNames);
+    const { error } = await client.storage
+      .from("images")
+      .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: true });
 
-    // Try all possible bucket names
-    const toTry = [...bucketNames, "images", "Images", "public"].filter((v, i, a) => a.indexOf(v) === i);
-    
-    for (const bucket of toTry) {
-      const { error } = await client.storage
-        .from(bucket)
-        .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: true });
-
-      if (!error) {
-        const { data: urlData } = client.storage.from(bucket).getPublicUrl(path);
-        return NextResponse.json({ url: urlData.publicUrl });
-      }
-      console.log(`Bucket ${bucket} failed:`, error.message);
+    if (error) {
+      console.error("Upload error:", error.message);
+      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
     }
 
-    return NextResponse.json({
-      error: `Upload failed. Available buckets: ${bucketNames.join(", ") || "none"}. Create a public bucket named "images" in Supabase Storage.`
-    }, { status: 500 });
+    const { data: urlData } = client.storage.from("images").getPublicUrl(path);
+    return NextResponse.json({ url: urlData.publicUrl });
 
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
