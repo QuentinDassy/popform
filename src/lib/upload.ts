@@ -3,7 +3,12 @@
  * Falls back to /api/upload server route if direct upload fails.
  */
 export async function uploadImage(file: File, folder: string): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
+  // Normalize: iOS HEIC photos arrive with empty type or heic extension
+  const contentType = file.type || "image/jpeg";
+  const rawExt = file.name.split(".").pop()?.toLowerCase() || "";
+  const ext = (rawExt === "heic" || rawExt === "heif" || !rawExt)
+    ? (contentType.includes("png") ? "png" : contentType.includes("gif") ? "gif" : contentType.includes("webp") ? "webp" : "jpg")
+    : rawExt;
   const slug = folder + "/" + Date.now() + "." + ext;
 
   // First try: direct client upload with user session (bypasses RLS issues)
@@ -18,7 +23,7 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
     if (bucket) {
       const { error, data } = await supabase.storage
         .from(bucket.name)
-        .upload(slug, file, { contentType: file.type, upsert: true });
+        .upload(slug, file, { contentType, upsert: true });
       
       if (!error && data) {
         const { data: urlData } = supabase.storage.from(bucket.name).getPublicUrl(slug);

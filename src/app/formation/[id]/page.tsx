@@ -277,7 +277,7 @@ export default function FormationPage() {
     <>
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } } @keyframes slideUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }`}</style>
       {toast && (
-        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#2D1B06", color: "#fff", padding: "13px 22px", borderRadius: 14, fontSize: 14, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", whiteSpace: "nowrap", animation: "slideUp 0.25s ease", pointerEvents: "none" }}>
+        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#2D1B06", color: "#fff", padding: "13px 20px", borderRadius: 14, fontSize: 13, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease", pointerEvents: "none", maxWidth: "calc(100vw - 32px)", width: "max-content", textAlign: "center" }}>
           🍿 {toast}
         </div>
       )}

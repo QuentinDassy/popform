@@ -30,6 +30,7 @@ export default function ComptePage() {
   const [showPw, setShowPw] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
+  const [sessionParties, setSessionParties] = useState<{ session_id: number; jours: string | null }[]>([]);
 
   const pwChecks = useMemo(() => [
     { label: "8 caractères", ok: newPw.length >= 8 },
@@ -44,12 +45,24 @@ export default function ComptePage() {
     if (!user) { setLoading(false); return; }
     setPName(profile?.full_name || "");
     setNewsletterOpt(profile?.newsletter_opt ?? false);
-    Promise.all([fetchFormations(), fetchAvis(), fetchInscriptions(user.id), fetchFavoris(user.id)]).then(([f, a, ins, favs]) => {
+    Promise.all([fetchFormations(), fetchAvis(), fetchInscriptions(user.id), fetchFavoris(user.id)]).then(async ([f, a, ins, favs]) => {
       setFormations(f); setAvis(a);
       const active = ins.filter(i => i.status === "inscrit");
-      setInscs(active.map(i => ({ formation_id: i.formation_id, session_id: (i as any).session_id ?? null })));
+      const inscRows = active.map(i => ({ formation_id: i.formation_id, session_id: (i as any).session_id ?? null }));
+      setInscs(inscRows);
       setInscriptionIds(active.map(i => i.formation_id));
       setFavoriIds(favs.map(fv => fv.formation_id));
+
+      // Fetch session_parties to get ALL dates (incl. middle dates lost in the denormalized `dates` string)
+      const sessionIds = inscRows.filter(i => i.session_id != null).map(i => i.session_id as number);
+      if (sessionIds.length > 0) {
+        const { data: parties } = await supabase
+          .from("session_parties")
+          .select("session_id, jours")
+          .in("session_id", sessionIds);
+        setSessionParties(parties || []);
+      }
+
       setLoading(false);
     });
   }, [user, profile]);
@@ -202,20 +215,52 @@ export default function ComptePage() {
           </div>
           {(() => {
             const filtered = search ? inscF.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : inscF;
+            const fmtD = (iso: string) => {
+              const d = new Date(iso + "T12:00:00");
+              const m = ["jan.","fév.","mars","avr.","mai","juin","juil.","août","sep.","oct.","nov.","déc."];
+              return d.getDate() + " " + m[d.getMonth()] + " " + d.getFullYear();
+            };
             return filtered.length === 0
               ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div>
               : <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
-                {filtered.map(f => (
-                  <div key={f.id} style={{ position: "relative" }}>
-                    <FormationCard f={f} mob={mob} />
-                    <button onClick={async () => {
-                      if (!confirm("Se désinscrire de cette formation ?")) return;
-                      await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", f.id);
-                      setInscriptionIds(prev => prev.filter(id => id !== f.id));
-                      setInscs(prev => prev.filter(i => i.formation_id !== f.id));
-                    }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.border, color: C.pink, fontSize: 10, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✕ Se désinscrire</button>
-                  </div>
-                ))}
+                {filtered.map(f => {
+                  const inscRows = inscs.filter(i => i.formation_id === f.id);
+                  // Une bande par session inscrite (gère 2 sessions de la même formation)
+                  const strips = inscRows.map((inscRow, idx) => {
+                    const session = inscRow.session_id != null ? (f.sessions || []).find(s => s.id === inscRow.session_id) : null;
+                    const partyRows = session ? sessionParties.filter(p => p.session_id === session.id) : [];
+                    const allDates: string[] = [];
+                    partyRows.forEach(p => {
+                      if (p.jours) p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                    });
+                    if (allDates.length === 0 && session?.dates) {
+                      (session.dates.match(/\d{4}-\d{2}-\d{2}/g) || []).forEach(d => allDates.push(d));
+                    }
+                    const dateStr = allDates.length === 0 ? null : allDates.length === 1 ? fmtD(allDates[0]) : fmtD(allDates[0]) + " → " + fmtD(allDates[allDates.length - 1]);
+                    const lieu = session?.lieu;
+                    const sessionIdx = session ? (f.sessions || []).findIndex(s => s.id === session.id) : -1;
+                    if (!dateStr && !lieu) return null;
+                    return (
+                      <div key={idx} style={{ padding: "7px 12px", background: C.bgAlt, borderRadius: idx === inscRows.length - 1 ? "0 0 12px 12px" : 0, border: "1px solid " + C.borderLight, borderTop: "none", fontSize: 11, color: C.textSec, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        {inscRows.length > 1 && sessionIdx >= 0 && <span style={{ fontWeight: 700, color: C.textTer, minWidth: 60 }}>Session {sessionIdx + 1}</span>}
+                        {dateStr && <span>📅 {dateStr}</span>}
+                        {lieu && <span>📍 {lieu}</span>}
+                      </div>
+                    );
+                  }).filter(Boolean);
+                  return (
+                    <div key={f.id} style={{ position: "relative" }}>
+                      <FormationCard f={f} mob={mob} />
+                      {strips}
+                      <button onClick={async () => {
+                        if (!confirm("Se désinscrire de cette formation ?")) return;
+                        await supabase.from("inscriptions").delete().eq("user_id", user.id).eq("formation_id", f.id);
+                        setInscriptionIds(prev => prev.filter(id => id !== f.id));
+                        setInscs(prev => prev.filter(i => i.formation_id !== f.id));
+                      }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.border, color: C.pink, fontSize: 10, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✕ Se désinscrire</button>
+                    </div>
+                  );
+                })}
               </div>;
           })()}
         </div>
@@ -231,60 +276,76 @@ export default function ComptePage() {
           ) : (
             <div style={{ paddingBottom: 40 }}>
               {(() => {
-                // Regrouper les formations par date
-                const events: { date: string; formations: Formation[] }[] = [];
-                inscF.forEach(f => {
-                  (f.sessions || []).forEach(s => {
-                    if (s.dates) {
-                      const firstIso = s.dates?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-                      const dateKey = firstIso || s.dates.split(" → ")[0] || s.dates;
-                      const existing = events.find(e => e.date === dateKey);
-                      if (existing) {
-                        if (!existing.formations.find(ff => ff.id === f.id)) {
-                          existing.formations.push(f);
-                        }
-                      } else {
-                        events.push({ date: dateKey, formations: [f] });
-                      }
+                // Groupe par date — une entrée par session inscrite (pas par formation)
+                // → permet d'afficher 2 sessions de la même formation le même jour
+                type CalEvt = { date: string; entries: { formation: Formation; sessionId: number }[] };
+                const events: CalEvt[] = [];
+                inscs.forEach(({ formation_id, session_id }) => {
+                  const f = inscF.find(ff => ff.id === formation_id);
+                  if (!f) return;
+                  const allDates: string[] = [];
+                  if (session_id != null) {
+                    const partyRows = sessionParties.filter(p => p.session_id === session_id);
+                    if (partyRows.length > 0) {
+                      partyRows.forEach(p => {
+                        if (p.jours) p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                      });
                     }
+                    if (allDates.length === 0) {
+                      const s = (f.sessions || []).find(ss => ss.id === session_id);
+                      if (s?.dates) (s.dates.match(/\d{4}-\d{2}-\d{2}/g) || []).forEach(d => allDates.push(d));
+                    }
+                  } else {
+                    (f.sessions || []).forEach(s => {
+                      if (s.dates) (s.dates.match(/\d{4}-\d{2}-\d{2}/g) || []).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                    });
+                  }
+                  // Clé de déduplication = session_id (pas formation_id) pour gérer 2 sessions même formation
+                  const sid = session_id ?? -formation_id;
+                  allDates.forEach(dateKey => {
+                    let ev = events.find(e => e.date === dateKey);
+                    if (!ev) { ev = { date: dateKey, entries: [] }; events.push(ev); }
+                    if (!ev.entries.find(e => e.sessionId === sid)) ev.entries.push({ formation: f, sessionId: sid });
                   });
                 });
                 events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                
+
                 const mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
                 const jours = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-                
+
                 return events.map((event, i) => {
-                  const date = new Date(event.date);
+                  const date = new Date(event.date + "T12:00:00");
                   const jour = jours[date.getDay()];
                   const jourNum = date.getDate();
                   const moisNom = mois[date.getMonth()];
                   const annee = date.getFullYear();
                   const isPast = date < new Date();
-                  
+
                   return (
                     <div key={i} style={{ display: "flex", gap: 16, marginBottom: 20, opacity: isPast ? 0.6 : 1 }}>
-                      {/* Date */}
                       <div style={{ flexShrink: 0, width: 70, textAlign: "center" }}>
                         <div style={{ fontSize: 11, color: C.textTer, textTransform: "uppercase" }}>{jour}</div>
                         <div style={{ fontSize: 28, fontWeight: 800, color: isPast ? C.textTer : C.accent, lineHeight: 1 }}>{jourNum}</div>
                         <div style={{ fontSize: 11, color: C.textTer }}>{moisNom} {annee}</div>
                       </div>
-                      {/* Formations */}
                       <div style={{ flex: 1 }}>
-                        {event.formations.map(f => (
-                          <Link key={f.id} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-                            <div style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.border, marginBottom: 8, cursor: "pointer", transition: "all 0.2s" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                                <div>
-                                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{f.titre}</div>
-                                  <div style={{ fontSize: 12, color: C.textSec }}>{f.domaine} · {f.duree}</div>
+                        {event.entries.map(({ formation: f, sessionId }) => {
+                          const sessionIdx = (f.sessions || []).findIndex(s => s.id === sessionId);
+                          return (
+                            <Link key={sessionId} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                              <div style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.border, marginBottom: 8, cursor: "pointer" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                                  <div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{f.titre}</div>
+                                    {sessionIdx >= 0 && <div style={{ fontSize: 11, color: C.textTer, marginBottom: 2 }}>Session {sessionIdx + 1}</div>}
+                                    <div style={{ fontSize: 12, color: C.textSec }}>{f.domaine} · {f.duree}</div>
+                                  </div>
+                                  <span style={{ fontSize: 18 }}>→</span>
                                 </div>
-                                <span style={{ fontSize: 18 }}>→</span>
                               </div>
-                            </div>
-                          </Link>
-                        ))}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   );

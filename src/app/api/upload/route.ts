@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     for (const bucket of toTry) {
       const { error } = await client.storage
         .from(bucket)
-        .upload(path, buffer, { contentType: file.type, upsert: true });
+        .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: true });
 
       if (!error) {
         const { data: urlData } = client.storage.from(bucket).getPublicUrl(path);
