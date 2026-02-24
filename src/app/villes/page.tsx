@@ -36,7 +36,7 @@ export default function VillesPage() {
         // Only show admin-defined villes
         const adminNames = Object.keys(adminMap);
         if (adminNames.length > 0) {
-          setCities(adminNames.map(n => [n, cityCount[n] || 0]));
+          setCities(adminNames.map(n => [n, cityCount[n] || 0]).sort((a, b) => (b[1] as number) - (a[1] as number)));
         } else {
           // No admin villes defined: show nothing (admin hasn't set up villes yet)
           setCities([]);
