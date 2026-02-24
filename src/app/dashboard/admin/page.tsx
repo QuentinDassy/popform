@@ -406,7 +406,11 @@ export default function DashboardAdminPage() {
         <div style={{ paddingBottom: 40 }}>
           <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les villes disponibles sur PopForm. Dès qu&apos;au moins une ville est ajoutée, <strong>seules ces villes</strong> apparaissent dans les filtres et formulaires — fini les doublons et fautes de frappe.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-            {villesList.map(v => (
+            {[...villesList].sort((a, b) => {
+              const cA = formations.filter(f => (f.sessions || []).some((s: any) => (s.lieu || "").includes(a.nom))).length;
+              const cB = formations.filter(f => (f.sessions || []).some((s: any) => (s.lieu || "").includes(b.nom))).length;
+              return cB - cA;
+            }).map(v => (
               <div key={v.nom} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 {v.image
                   ? <img src={v.image} alt={v.nom} style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
