@@ -49,7 +49,7 @@ export default function DashboardOrganismePage() {
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
   const [inlineNewFmt, setInlineNewFmt] = useState(false);
-  const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "" });
+  const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "Non genré" });
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
@@ -594,17 +594,16 @@ export default function DashboardOrganismePage() {
                     <input value={inlineFmt.nom} onChange={e => setInlineFmt({ ...inlineFmt, nom: e.target.value })} placeholder="Nom" style={{ ...inputStyle, flex: 1 }} />
                   </div>
                   <select value={inlineFmt.sexe} onChange={e => setInlineFmt({ ...inlineFmt, sexe: e.target.value })} style={inputStyle}>
-                    <option value="">Genre</option>
+                    <option value="Non genré">Formateur·rice</option>
                     <option value="Homme">Formateur</option>
                     <option value="Femme">Formatrice</option>
-                    <option value="Autre">Formateur·rice</option>
                   </select>
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                    <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                    <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
                     <button type="button" onClick={async () => {
                       const fullName = [inlineFmt.prenom.trim(), inlineFmt.nom.trim()].filter(Boolean).join(" ");
                       if (!fullName || !organisme) return;
-                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe, user_id: user?.id || null }).select().single();
+                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe }).select().single();
                       if (error) { setMsg("Erreur création formateur : " + error.message); return; }
                       if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
                       setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });

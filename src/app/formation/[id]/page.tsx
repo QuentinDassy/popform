@@ -339,7 +339,6 @@ export default function FormationPage() {
               {/* Price */}
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 24 }}>
                 <span style={{ fontSize: mob ? 32 : 42, fontWeight: 800, color: C.accent }}>{f.prix}€</span>
-                <span style={{ fontSize: 14, color: C.textTer }}>par personne</span>
               </div>
 
               {/* CTA Buttons */}
