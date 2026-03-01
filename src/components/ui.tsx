@@ -66,7 +66,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
         </div>
         <div style={{ padding: m ? "10px 12px" : "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
           <h3 style={{ fontSize: m ? 13 : compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
-          {(f as any).formateur?.nom && <div style={{ fontSize: 10.5, color: C.textTer, marginBottom: 4 }}>👤 {(f as any).formateur.nom}</div>}
+          {(f as any).formateur?.nom && <div style={{ fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 5, display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 16, height: 16, borderRadius: 8, background: C.gradientSoft, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#fff", fontWeight: 800, flexShrink: 0 }}>{(f as any).formateur.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</span>{(f as any).formateur.nom}</div>}
           {f.mots_cles && f.mots_cles.length > 0 && <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginBottom: 6 }}>{f.mots_cles.slice(0, 3).map(m2 => <span key={m2} style={{ padding: "2px 6px", borderRadius: 5, fontSize: 9, background: C.yellowBg, color: C.yellowDark }}>{m2}</span>)}</div>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
             <span>⏱ {f.duree}</span><span>📍 {sessions[0]?.lieu || "—"}</span>{f.effectif > 0 && <span>👥 {f.effectif}</span>}

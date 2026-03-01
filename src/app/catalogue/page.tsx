@@ -39,13 +39,14 @@ function CatalogueContent() {
   const qParam = searchParams.get("q") || "";
   const modaliteParam = searchParams.get("modalite") || "";
   const priseParam = searchParams.get("prise") || "";
+  const popParam = searchParams.get("pop") || "";
   const organismeParam = searchParams.get("organisme") || "";
   const [search, setSearch] = useState(qParam);
   const [sort, setSort] = useState("pertinence");
   const [selDomaines, setSelDomaines] = useState<string[]>(domaineParam ? [domaineParam] : []);
   const [selModalites, setSelModalites] = useState<string[]>(modaliteParam ? [modaliteParam] : []);
   const [selPrises, setSelPrises] = useState<string[]>(priseParam ? [priseParam] : []);
-  const [selPops, setSelPops] = useState<string[]>([]);
+  const [selPops, setSelPops] = useState<string[]>(popParam ? [popParam] : []);
   const [selVilles, setSelVilles] = useState<string[]>(villeParam ? [villeParam] : []);
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));

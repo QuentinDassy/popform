@@ -49,13 +49,15 @@ export default function DashboardOrganismePage() {
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
   const [inlineNewFmt, setInlineNewFmt] = useState(false);
-  const [inlineNewFmtNom, setInlineNewFmtNom] = useState("");
+  const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "" });
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
-  const [showExtraPrix, setShowExtraPrix] = useState(false);
+  const [extraPrix, setExtraPrix] = useState<{label: string; value: string}[]>([]);
+  const [newPrixLabel, setNewPrixLabel] = useState("");
+  const [newPrixValue, setNewPrixValue] = useState("");
   const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
@@ -139,14 +141,15 @@ export default function DashboardOrganismePage() {
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
-      setShowExtraPrix(!!(f.prix_salarie || f.prix_liberal));
+      setExtraPrix((f as any).prix_extras || []);
     } else {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
       setFormPhotoFile(null);
-      setShowExtraPrix(false);
+      setExtraPrix([]);
     }
+    setNewPrixLabel(""); setNewPrixValue("");
     setMsg(null);
     setTab("edit");
   };
@@ -177,6 +180,7 @@ export default function DashboardOrganismePage() {
       prix: form.prix ?? 0,
       prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null,
+      prix_extras: extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })),
       prix_dpc: form.prix_dpc || null,
       is_new: true,
       populations: form.populations,
@@ -579,30 +583,30 @@ export default function DashboardOrganismePage() {
                   <option value="">— Aucun —</option>
                   {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
                 </select>
-                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineNewFmtNom(""); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer</button>
+                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer</button>
               </div>
               {inlineNewFmt && (
-                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <input
-                    value={inlineNewFmtNom}
-                    onChange={e => setInlineNewFmtNom(e.target.value)}
-                    placeholder="Nom complet du formateur·rice"
-                    style={{ ...inputStyle, flex: 1, marginTop: 0 }}
-                    onKeyDown={async e => {
-                      if (e.key === "Enter" && inlineNewFmtNom.trim() && organisme) {
-                        const { data } = await supabase.from("formateurs").insert({ nom: inlineNewFmtNom.trim(), organisme_id: organisme.id, bio: "", sexe: "" }).select().single();
-                        if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
-                        setInlineNewFmt(false); setInlineNewFmtNom("");
-                      }
-                    }}
-                  />
-                  <button type="button" onClick={async () => {
-                    if (!inlineNewFmtNom.trim() || !organisme) return;
-                    const { data } = await supabase.from("formateurs").insert({ nom: inlineNewFmtNom.trim(), organisme_id: organisme.id, bio: "", sexe: "" }).select().single();
-                    if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
-                    setInlineNewFmt(false); setInlineNewFmtNom("");
-                  }} style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓</button>
-                  <button type="button" onClick={() => { setInlineNewFmt(false); setInlineNewFmtNom(""); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>✕</button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, padding: 12, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input value={inlineFmt.prenom} onChange={e => setInlineFmt({ ...inlineFmt, prenom: e.target.value })} placeholder="Prénom" style={{ ...inputStyle, flex: 1 }} />
+                    <input value={inlineFmt.nom} onChange={e => setInlineFmt({ ...inlineFmt, nom: e.target.value })} placeholder="Nom" style={{ ...inputStyle, flex: 1 }} />
+                  </div>
+                  <select value={inlineFmt.sexe} onChange={e => setInlineFmt({ ...inlineFmt, sexe: e.target.value })} style={inputStyle}>
+                    <option value="">Formateur·rice (genre)</option>
+                    <option value="Homme">Formateur (homme)</option>
+                    <option value="Femme">Formatrice (femme)</option>
+                    <option value="Autre">Formateur·rice (neutre)</option>
+                  </select>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                    <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                    <button type="button" onClick={async () => {
+                      const fullName = [inlineFmt.prenom.trim(), inlineFmt.nom.trim()].filter(Boolean).join(" ");
+                      if (!fullName || !organisme) return;
+                      const { data } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe }).select().single();
+                      if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
+                      setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });
+                    }} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Créer et sélectionner</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -636,23 +640,24 @@ export default function DashboardOrganismePage() {
               <input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} />
             </div>
 
-            {/* Prix variantes */}
-            {!showExtraPrix ? (
-              <div style={{ display: "flex", alignItems: "flex-end" }}>
-                <button type="button" onClick={() => setShowExtraPrix(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>+ Ajouter types de prix</button>
+            {/* Prix variantes dynamiques */}
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Types de prix supplémentaires</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {extraPrix.map((e, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input value={e.label} onChange={ev => setExtraPrix(extraPrix.map((x, j) => j === i ? { ...x, label: ev.target.value } : x))} placeholder="Ex: Libéral" style={{ ...inputStyle, flex: 2 }} />
+                    <input type="number" value={e.value} onChange={ev => setExtraPrix(extraPrix.map((x, j) => j === i ? { ...x, value: ev.target.value } : x))} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
+                    <button type="button" onClick={() => setExtraPrix(extraPrix.filter((_, j) => j !== i))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.pink, fontSize: 13, cursor: "pointer" }}>✕</button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Intitulé (ex: Libéral)" style={{ ...inputStyle, flex: 2 }} />
+                  <input type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
+                  <button type="button" onClick={() => { if (newPrixLabel.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
+                </div>
               </div>
-            ) : (
-              <>
-                <div>
-                  <label style={labelStyle}>Prix salarié (€)</label>
-                  <input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Prix libéral (€)</label>
-                  <input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
-                </div>
-              </>
-            )}
+            </div>
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>

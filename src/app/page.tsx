@@ -25,6 +25,7 @@ function useTyping(words: string[]) {
 
 const MODALITES = ["Présentiel", "Visio", "Mixte"];
 const PRISES = ["DPC", "FIF-PL"];
+const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
 
 // Domaine emoji mapping (fallback if emoji not set in admin)
 const DOMAINE_EMOJIS: Record<string, string> = {
@@ -83,6 +84,7 @@ export default function HomePage() {
   const [selDomaine, setSelDomaine] = useState("");
   const [selModalite, setSelModalite] = useState("");
   const [selPrise, setSelPrise] = useState("");
+  const [selPop, setSelPop] = useState("");
   const [selVille, setSelVille] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -96,6 +98,7 @@ export default function HomePage() {
     if (selDomaine) p.set("domaine", selDomaine);
     if (selModalite) p.set("modalite", selModalite);
     if (selPrise) p.set("prise", selPrise);
+    if (selPop) p.set("pop", selPop);
     if (selVille) p.set("ville", selVille);
     router.push("/catalogue?" + p.toString());
   };
@@ -193,7 +196,7 @@ export default function HomePage() {
     .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
-  const hasFilters = selDomaine || selModalite || selPrise || selVille;
+  const hasFilters = selDomaine || selModalite || selPrise || selPop || selVille;
 
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -251,12 +254,16 @@ export default function HomePage() {
               <option value="">Prise en charge</option>
               {PRISES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+            <select value={selPop} onChange={e => setSelPop(e.target.value)} style={sel(mob)}>
+              <option value="">Population</option>
+              {POPULATIONS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
             <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
               <option value="">Ville</option>
               {adminVilles.map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
             </select>
             {hasFilters && (
-              <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelVille("") }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+              <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelPop(""); setSelVille(""); }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
             )}
             {/* Bouton loupe pour lancer la recherche avec filtres seuls */}
             <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: mob ? "9px 12px" : "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>

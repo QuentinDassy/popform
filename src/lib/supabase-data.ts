@@ -13,6 +13,7 @@ export type Formation = {
   domaine: string; modalite: string; prise_en_charge: string[];
   duree: string; formateur_id: number | null; organisme_id: number | null;
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
+  prix_extras?: { label: string; value: number }[];
   note: number; nb_avis: number; is_new: boolean; date_ajout: string;
   populations: string[]; mots_cles: string[]; professions: string[];
   effectif: number; video_url: string; url_inscription: string;

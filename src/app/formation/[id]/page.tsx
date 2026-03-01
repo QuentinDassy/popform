@@ -524,6 +524,12 @@ export default function FormationPage() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.prix_liberal}€</span>
                   </div>
                 )}
+                {(f.prix_extras || []).map((e, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: C.textSec }}>{e.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{e.value}€</span>
+                  </div>
+                ))}
               </div>
               {priseEnCharge.length > 0 && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + C.borderLight }}>
