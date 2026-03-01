@@ -97,11 +97,11 @@ export default function HomePage() {
     setShowSuggestions(false);
     const p = new URLSearchParams();
     if (heroSearch) p.set("q", heroSearch);
-    selDomaines.forEach(d => p.append("domaine", d));
-    selModalites.forEach(m => p.append("modalite", m));
-    selPrises.forEach(pr => p.append("prise", pr));
-    selPops.forEach(po => p.append("pop", po));
-    selVilles.forEach(v => p.append("ville", v));
+    if (selDomaines.length > 0) p.set("domaines", selDomaines.join(","));
+    if (selModalites.length > 0) p.set("modalites", selModalites.join(","));
+    if (selPrises.length > 0) p.set("prises", selPrises.join(","));
+    if (selPops.length > 0) p.set("pops", selPops.join(","));
+    if (selVilles.length > 0) p.set("villes", selVilles.join(","));
     router.push("/catalogue?" + p.toString());
   };
 
@@ -200,19 +200,6 @@ export default function HomePage() {
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
 
-  const filteredFormations = hasFilters ? formations.filter(f => {
-    if (selDomaines.length > 0 && !selDomaines.includes(f.domaine)) return false;
-    if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
-    if (selPrises.length > 0 && !selPrises.some(p => (f.prise_en_charge || []).includes(p))) return false;
-    if (selPops.length > 0 && !selPops.some(p => (f.populations || []).includes(p))) return false;
-    if (selVilles.length > 0) {
-      const matchesVille = (f.sessions || []).some(s => selVilles.some(v => v !== "Visio" && s.lieu.toLowerCase().includes(v.toLowerCase())));
-      const matchesVisio = selVilles.includes("Visio") && (f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu.toLowerCase().includes("visio")));
-      if (!matchesVille && !matchesVisio) return false;
-    }
-    return true;
-  }) : [];
-
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   return (
@@ -296,42 +283,31 @@ export default function HomePage() {
       </section>
 
       {/* ===== SECTIONS ===== */}
-      {hasFilters ? (
-        <SectionGrid
-          title={`${filteredFormations.length} formation${filteredFormations.length > 1 ? "s" : ""} trouvée${filteredFormations.length > 1 ? "s" : ""}`}
-          formations={filteredFormations}
-          mob={mob}
-          link={"/catalogue?" + (() => { const p = new URLSearchParams(); selDomaines.forEach(d => p.append("domaine", d)); selModalites.forEach(m => p.append("modalite", m)); selPrises.forEach(pr => p.append("prise", pr)); selPops.forEach(po => p.append("pop", po)); selVilles.forEach(v => p.append("ville", v)); return p.toString(); })()}
-        />
+      {domainesAccueil.length > 0 ? (
+        domainesAccueil.map(domaine => {
+          const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
+          return (
+            <SectionGrid
+              key={domaine.id}
+              title={domaine.nom}
+              formations={domaineFormations}
+              mob={mob}
+              max={4}
+              link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
+            />
+          );
+        })
       ) : (
         <>
-          {domainesAccueil.length > 0 ? (
-            domainesAccueil.map(domaine => {
-              const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
-              return (
-                <SectionGrid
-                  key={domaine.id}
-                  title={domaine.nom}
-                  formations={domaineFormations}
-                  mob={mob}
-                  max={4}
-                  link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
-                />
-              );
-            })
-          ) : (
-            <>
-              {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
-                <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
-              )}
-              {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
-                <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
-              )}
-            </>
+          {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
+            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
           )}
-          {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
+          {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
+            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
+          )}
         </>
       )}
+      {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
 
       {/* Section webinaires */}
 {/* ===== CTA ===== */}

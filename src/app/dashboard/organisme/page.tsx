@@ -219,10 +219,15 @@ export default function DashboardOrganismePage() {
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
     }
-    // Save extra prix separately (requires prix_extras column — run: ALTER TABLE formations ADD COLUMN IF NOT EXISTS prix_extras JSONB DEFAULT '[]')
-    if (formationId && extraPrix.length > 0) {
-      const extras = extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
-      await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId).then(() => {});
+    // Save extra prix separately (requires prix_extras column)
+    if (formationId) {
+      const allExtras = [...extraPrix];
+      if (newPrixLabel.trim() && newPrixValue) allExtras.push({ label: newPrixLabel.trim(), value: newPrixValue });
+      if (allExtras.length > 0) {
+        const extras = allExtras.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
+        const { error: extErr } = await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId);
+        if (extErr) console.warn("prix_extras save error:", extErr.message);
+      }
     }
 
     // Sessions: delete old, insert new
@@ -603,7 +608,8 @@ export default function DashboardOrganismePage() {
                     <button type="button" onClick={async () => {
                       const fullName = [inlineFmt.prenom.trim(), inlineFmt.nom.trim()].filter(Boolean).join(" ");
                       if (!fullName || !organisme) return;
-                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe }).select().single();
+                      const sexeVal = inlineFmt.sexe === "Non genré" ? null : inlineFmt.sexe || null;
+                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: sexeVal }).select().single();
                       if (error) { setMsg("Erreur création formateur : " + error.message); return; }
                       if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
                       setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });

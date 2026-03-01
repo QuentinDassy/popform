@@ -224,10 +224,15 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
       }
     }
 
-    // Save prix_extras separately (column may not exist yet)
-    if (formationId && extraPrix.length > 0) {
-      const extras = extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
-      await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId).then(() => {});
+    // Save prix_extras separately
+    if (formationId) {
+      const allExtras = [...extraPrix];
+      if (newPrixLabel.trim() && newPrixValue) allExtras.push({ label: newPrixLabel.trim(), value: newPrixValue });
+      if (allExtras.length > 0) {
+        const extras = allExtras.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
+        const { error: extErr } = await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId);
+        if (extErr) console.warn("prix_extras save error:", extErr.message);
+      }
     }
 
     const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });

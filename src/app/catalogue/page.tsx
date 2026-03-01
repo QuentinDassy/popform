@@ -34,16 +34,22 @@ const sel = (mob: boolean): React.CSSProperties => ({
 
 function CatalogueContent() {
   const searchParams = useSearchParams();
-  const getAll = (key: string) => { const all = searchParams.getAll(key); return all.length > 0 ? all : (searchParams.get(key) ? [searchParams.get(key)!] : []); };
+  // Supports both new comma-separated params (domaines=A,B) and legacy single params (domaine=X)
+  const readParam = (plural: string, singular: string) => {
+    const multi = searchParams.get(plural);
+    if (multi) return multi.split(",").filter(Boolean);
+    const single = searchParams.get(singular);
+    return single ? [single] : [];
+  };
   const qParam = searchParams.get("q") || "";
   const organismeParam = searchParams.get("organisme") || "";
   const [search, setSearch] = useState(qParam);
   const [sort, setSort] = useState("pertinence");
-  const [selDomaines, setSelDomaines] = useState<string[]>(() => getAll("domaine"));
-  const [selModalites, setSelModalites] = useState<string[]>(() => getAll("modalite"));
-  const [selPrises, setSelPrises] = useState<string[]>(() => getAll("prise"));
-  const [selPops, setSelPops] = useState<string[]>(() => getAll("pop"));
-  const [selVilles, setSelVilles] = useState<string[]>(() => getAll("ville"));
+  const [selDomaines, setSelDomaines] = useState<string[]>(() => readParam("domaines", "domaine"));
+  const [selModalites, setSelModalites] = useState<string[]>(() => readParam("modalites", "modalite"));
+  const [selPrises, setSelPrises] = useState<string[]>(() => readParam("prises", "prise"));
+  const [selPops, setSelPops] = useState<string[]>(() => readParam("pops", "pop"));
+  const [selVilles, setSelVilles] = useState<string[]>(() => readParam("villes", "ville"));
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const mob = useIsMobile();
