@@ -110,6 +110,7 @@ function FormateursContent() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? C.accent : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.nom}</div>
                     <div style={{ fontSize: 11, color: C.textTer }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
+                    {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 2, overflow: "hidden", maxHeight: "2.6em", lineHeight: "1.3em" }}>{f.bio}</div>}
                   </div>
                   <span style={{ fontSize: 11, color: isSelected ? C.accent : C.textTer, flexShrink: 0 }}>{isSelected ? "▲" : "▶"}</span>
                 </div>

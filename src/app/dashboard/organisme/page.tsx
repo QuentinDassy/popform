@@ -48,11 +48,14 @@ export default function DashboardOrganismePage() {
   const [fmtPhotoFile, setFmtPhotoFile] = useState<File | null>(null);
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
   const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
+  const [inlineNewFmt, setInlineNewFmt] = useState(false);
+  const [inlineNewFmtNom, setInlineNewFmtNom] = useState("");
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const [showExtraPrix, setShowExtraPrix] = useState(false);
   const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
@@ -136,11 +139,13 @@ export default function DashboardOrganismePage() {
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
+      setShowExtraPrix(!!(f.prix_salarie || f.prix_liberal));
     } else {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
       setFormPhotoFile(null);
+      setShowExtraPrix(false);
     }
     setMsg(null);
     setTab("edit");
@@ -569,11 +574,37 @@ export default function DashboardOrganismePage() {
             {/* Formateur */}
             <div>
               <label style={labelStyle}>Formateur·rice</label>
-              <select value={selFormateurId ?? ""} onChange={e => setSelFormateurId(e.target.value ? Number(e.target.value) : null)} style={inputStyle}>
-                <option value="">— Aucun —</option>
-                {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
-              </select>
-              {formateurs.length === 0 && <p style={{ fontSize: 11, color: C.textTer, marginTop: 4 }}>Ajoutez d&apos;abord un formateur dans l&apos;onglet &quot;Formateur·rice·s&quot;</p>}
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={selFormateurId ?? ""} onChange={e => setSelFormateurId(e.target.value ? Number(e.target.value) : null)} style={{ ...inputStyle, flex: 1 }}>
+                  <option value="">— Aucun —</option>
+                  {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
+                </select>
+                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineNewFmtNom(""); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer</button>
+              </div>
+              {inlineNewFmt && (
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <input
+                    value={inlineNewFmtNom}
+                    onChange={e => setInlineNewFmtNom(e.target.value)}
+                    placeholder="Nom complet du formateur·rice"
+                    style={{ ...inputStyle, flex: 1, marginTop: 0 }}
+                    onKeyDown={async e => {
+                      if (e.key === "Enter" && inlineNewFmtNom.trim() && organisme) {
+                        const { data } = await supabase.from("formateurs").insert({ nom: inlineNewFmtNom.trim(), organisme_id: organisme.id, bio: "", sexe: "" }).select().single();
+                        if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
+                        setInlineNewFmt(false); setInlineNewFmtNom("");
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={async () => {
+                    if (!inlineNewFmtNom.trim() || !organisme) return;
+                    const { data } = await supabase.from("formateurs").insert({ nom: inlineNewFmtNom.trim(), organisme_id: organisme.id, bio: "", sexe: "" }).select().single();
+                    if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
+                    setInlineNewFmt(false); setInlineNewFmtNom("");
+                  }} style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓</button>
+                  <button type="button" onClick={() => { setInlineNewFmt(false); setInlineNewFmtNom(""); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>✕</button>
+                </div>
+              )}
             </div>
 
             {/* Domaine */}
@@ -606,14 +637,22 @@ export default function DashboardOrganismePage() {
             </div>
 
             {/* Prix variantes */}
-            <div>
-              <label style={labelStyle}>Prix salarié (€)</label>
-              <input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Prix libéral (€)</label>
-              <input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
-            </div>
+            {!showExtraPrix ? (
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <button type="button" onClick={() => setShowExtraPrix(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>+ Ajouter types de prix</button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label style={labelStyle}>Prix salarié (€)</label>
+                  <input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Prix libéral (€)</label>
+                  <input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} />
+                </div>
+              </>
+            )}
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>

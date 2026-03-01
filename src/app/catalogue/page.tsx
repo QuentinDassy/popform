@@ -42,11 +42,13 @@ function CatalogueContent() {
   const organismeParam = searchParams.get("organisme") || "";
   const [search, setSearch] = useState(qParam);
   const [sort, setSort] = useState("pertinence");
-  const [selDomaine, setSelDomaine] = useState(domaineParam);
-  const [selModalite, setSelModalite] = useState(modaliteParam);
-  const [selPrise, setSelPrise] = useState(priseParam);
-  const [selPop, setSelPop] = useState("");
-  const [selVille, setSelVille] = useState(villeParam);
+  const [selDomaines, setSelDomaines] = useState<string[]>(domaineParam ? [domaineParam] : []);
+  const [selModalites, setSelModalites] = useState<string[]>(modaliteParam ? [modaliteParam] : []);
+  const [selPrises, setSelPrises] = useState<string[]>(priseParam ? [priseParam] : []);
+  const [selPops, setSelPops] = useState<string[]>([]);
+  const [selVilles, setSelVilles] = useState<string[]>(villeParam ? [villeParam] : []);
+  const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
+  const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,31 +67,29 @@ function CatalogueContent() {
   }, []);
 
   const formationCities = useMemo(() => getAllCitiesFromFormations(formations).map(([c]) => c), [formations]);
-  const cities = adminVilles; // Only show admin-defined villes
-  const hasActiveFilters = selDomaine || selModalite || selPrise || selPop || selVille;
+  const cities = adminVilles;
+  const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
 
   let filtered = formations.filter(f => {
     if (search) {
       const q = search.toLowerCase();
       if (![f.titre, f.sous_titre || "", f.domaine, ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
     }
-    if (selVille) {
-      const isVisioFilter = selVille.toLowerCase() === "visio";
-      const matchesVille = (f.sessions || []).some(s => {
-        // Check session lieu
-        if (s.lieu.toLowerCase().includes(selVille.toLowerCase())) return true;
-        // Check parties cities
-        const parties = (s as any).parties as Array<{lieu:string;modalite:string}> | null;
-        if (parties) return parties.some(p => p.lieu?.toLowerCase().includes(selVille.toLowerCase()));
-        return false;
-      });
-      const matchesVisioModalite = isVisioFilter && f.modalite === "Visio";
-      if (!matchesVille && !matchesVisioModalite) return false;
+    if (selVilles.length > 0) {
+      const hasVisio = selVilles.includes("Visio");
+      const matchesVille = (f.sessions || []).some(s => selVilles.some(v => {
+        if (v === "Visio") return false;
+        if (s.lieu.toLowerCase().includes(v.toLowerCase())) return true;
+        const parties = (s as any).parties as Array<{lieu:string}> | null;
+        return parties ? parties.some(p => p.lieu?.toLowerCase().includes(v.toLowerCase())) : false;
+      }));
+      const matchesVisio = hasVisio && (f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu.toLowerCase().includes("visio")));
+      if (!matchesVille && !matchesVisio) return false;
     }
-    if (selDomaine && f.domaine !== selDomaine) return false;
-    if (selModalite && f.modalite !== selModalite) return false;
-    if (selPrise && !(f.prise_en_charge || []).includes(selPrise)) return false;
-    if (selPop && !(f.populations || []).includes(selPop)) return false;
+    if (selDomaines.length > 0 && !selDomaines.includes(f.domaine)) return false;
+    if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
+    if (selPrises.length > 0 && !selPrises.some(p => (f.prise_en_charge || []).includes(p))) return false;
+    if (selPops.length > 0 && !selPops.some(p => (f.populations || []).includes(p))) return false;
     if (organismeParam) {
       const orgId = Number(organismeParam);
       const matchesOrg = f.organisme_id === orgId || (f.formateur && (f.formateur as any).organisme_id === orgId);
@@ -103,7 +103,7 @@ function CatalogueContent() {
   else if (sort === "note") filtered = [...filtered].sort((a, b) => b.note - a.note);
   else if (sort === "recent") filtered = [...filtered].sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
 
-  const clearAll = () => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelPop(""); setSelVille(""); };
+  const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); };
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -134,31 +134,30 @@ function CatalogueContent() {
         </select>
       </div>
 
-      {/* Filters — same select system as homepage */}
-      <div style={{ display: "flex", gap: mob ? 6 : 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <select value={selDomaine} onChange={e => setSelDomaine(e.target.value)} style={sel(mob)}>
+      {/* Filters */}
+      <div style={{ display: "flex", gap: mob ? 6 : 8, marginBottom: hasActiveFilters ? 8 : 16, flexWrap: "wrap" }}>
+        <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(mob)}>
           <option value="">Domaine</option>
-          {/* Use domaines from admin if available, fallback to formations domaines */}
-          {(domainesFiltres.length > 0 ? domainesFiltres : 
+          {(domainesFiltres.length > 0 ? domainesFiltres :
             [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
-          ).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
+          ).filter(d => !selDomaines.includes(d.nom)).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
         </select>
-        <select value={selModalite} onChange={e => setSelModalite(e.target.value)} style={sel(mob)}>
+        <select value="" onChange={e => addF(selModalites, e.target.value, setSelModalites)} style={sel(mob)}>
           <option value="">Modalité</option>
-          {MODALITES.map(m => <option key={m} value={m}>{m}</option>)}
+          {MODALITES.filter(m => !selModalites.includes(m)).map(m => <option key={m} value={m}>{m}</option>)}
         </select>
-        <select value={selPrise} onChange={e => setSelPrise(e.target.value)} style={sel(mob)}>
+        <select value="" onChange={e => addF(selPrises, e.target.value, setSelPrises)} style={sel(mob)}>
           <option value="">Prise en charge</option>
-          {PRISES.map(p => <option key={p} value={p}>{p}</option>)}
+          {PRISES.filter(p => !selPrises.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select value={selPop} onChange={e => setSelPop(e.target.value)} style={sel(mob)}>
+        <select value="" onChange={e => addF(selPops, e.target.value, setSelPops)} style={sel(mob)}>
           <option value="">Population</option>
-          {POPULATIONS.map(p => <option key={p} value={p}>{p}</option>)}
+          {POPULATIONS.filter(p => !selPops.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
+        <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(mob)}>
           <option value="">Ville</option>
-          <option value="Visio">💻 En visio</option>
-          {cities.map(v => <option key={v} value={v}>{v}</option>)}
+          {!selVilles.includes("Visio") && <option value="Visio">💻 En visio</option>}
+          {cities.filter(v => !selVilles.includes(v)).map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         {hasActiveFilters && (
           <button onClick={clearAll} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Effacer</button>
@@ -168,11 +167,11 @@ function CatalogueContent() {
       {/* Active filter tags */}
       {hasActiveFilters && (
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
-          {selDomaine && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(selDomaine).bg, color: getDC(selDomaine).color }}>{selDomaine} <span onClick={() => setSelDomaine("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-          {selModalite && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{selModalite} <span onClick={() => setSelModalite("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-          {selPrise && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{selPrise} <span onClick={() => setSelPrise("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-          {selPop && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{selPop} <span onClick={() => setSelPop("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-          {selVille && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {selVille} <span onClick={() => setSelVille("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+          {selDomaines.map(d => <span key={d} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(d).bg, color: getDC(d).color }}>{d} <span onClick={() => remF(selDomaines, d, setSelDomaines)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+          {selModalites.map(m => <span key={m} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{m} <span onClick={() => remF(selModalites, m, setSelModalites)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+          {selPrises.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{p} <span onClick={() => remF(selPrises, p, setSelPrises)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+          {selPops.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{p} <span onClick={() => remF(selPops, p, setSelPops)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+          {selVilles.map(v => <span key={v} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {v} <span onClick={() => remF(selVilles, v, setSelVilles)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
         </div>
       )}
 

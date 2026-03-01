@@ -40,6 +40,7 @@ export default function DashboardFormateurPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
+  const [showExtraPrix, setShowExtraPrix] = useState(false);
   const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [profilPhotoFile, setProfilPhotoFile] = useState<File | null>(null);
   const [fmtSiteUrl, setFmtSiteUrl] = useState<string>("");
@@ -122,11 +123,13 @@ export default function DashboardFormateurPage() {
       setEditId(f.id);
       setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })) }; }));
+      setShowExtraPrix(!!(f.prix_salarie || f.prix_liberal));
     } else {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
       setFormPhotoFile(null);
+      setShowExtraPrix(false);
     }
     setMsg(null);
     setTab("edit");
@@ -447,8 +450,16 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             </div>
             <div><label style={labelStyle}>Prix (€)</label><input type="number" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} style={inputStyle} /></div>
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
-            <div><label style={labelStyle}>Prix salarié (€)</label><input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Prix libéral (€)</label><input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
+            {!showExtraPrix ? (
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <button type="button" onClick={() => setShowExtraPrix(true)} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>+ Ajouter types de prix</button>
+              </div>
+            ) : (
+              <>
+                <div><label style={labelStyle}>Prix salarié (€)</label><input type="number" value={form.prix_salarie ?? ""} onChange={e => setForm({ ...form, prix_salarie: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Prix libéral (€)</label><input type="number" value={form.prix_liberal ?? ""} onChange={e => setForm({ ...form, prix_liberal: e.target.value ? Number(e.target.value) : null })} style={inputStyle} /></div>
+              </>
+            )}
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>
