@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -268,6 +268,16 @@ export default function HomePage() {
             {/* Bouton loupe pour lancer la recherche avec filtres seuls */}
             <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: mob ? "9px 12px" : "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
           </div>
+          {/* Tags filtres actifs */}
+          {hasFilters && (
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10, justifyContent: "center" }}>
+              {selDomaine && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(selDomaine).bg, color: getDC(selDomaine).color }}>{selDomaine} <span onClick={() => setSelDomaine("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+              {selModalite && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{selModalite} <span onClick={() => setSelModalite("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+              {selPrise && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{selPrise} <span onClick={() => setSelPrise("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+              {selPop && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{selPop} <span onClick={() => setSelPop("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+              {selVille && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {selVille} <span onClick={() => setSelVille("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+            </div>
+          )}
         </div>
       </section>
 

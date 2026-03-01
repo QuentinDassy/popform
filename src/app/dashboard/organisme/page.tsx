@@ -180,7 +180,6 @@ export default function DashboardOrganismePage() {
       prix: form.prix ?? 0,
       prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null,
-      prix_extras: extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })),
       prix_dpc: form.prix_dpc || null,
       is_new: true,
       populations: form.populations,
@@ -213,14 +212,17 @@ export default function DashboardOrganismePage() {
     if (formPhotoUrl) payload.photo_url = formPhotoUrl;
 
     if (editId) {
-      // Modification: repasse en attente de validation
       const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     } else {
-      // Création: en attente de validation
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
+    }
+    // Save extra prix separately (requires prix_extras column — run: ALTER TABLE formations ADD COLUMN IF NOT EXISTS prix_extras JSONB DEFAULT '[]')
+    if (formationId && extraPrix.length > 0) {
+      const extras = extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
+      await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId).then(() => {});
     }
 
     // Sessions: delete old, insert new
@@ -592,10 +594,10 @@ export default function DashboardOrganismePage() {
                     <input value={inlineFmt.nom} onChange={e => setInlineFmt({ ...inlineFmt, nom: e.target.value })} placeholder="Nom" style={{ ...inputStyle, flex: 1 }} />
                   </div>
                   <select value={inlineFmt.sexe} onChange={e => setInlineFmt({ ...inlineFmt, sexe: e.target.value })} style={inputStyle}>
-                    <option value="">Formateur·rice (genre)</option>
-                    <option value="Homme">Formateur (homme)</option>
-                    <option value="Femme">Formatrice (femme)</option>
-                    <option value="Autre">Formateur·rice (neutre)</option>
+                    <option value="">Genre</option>
+                    <option value="Homme">Formateur</option>
+                    <option value="Femme">Formatrice</option>
+                    <option value="Autre">Formateur·rice</option>
                   </select>
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                     <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>

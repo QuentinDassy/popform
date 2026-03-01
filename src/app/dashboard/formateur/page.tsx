@@ -158,7 +158,6 @@ export default function DashboardFormateurPage() {
       modalite: computedModalite, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h", prix: form.prix ?? 0, prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null, prix_dpc: form.prix_dpc || null,
-      prix_extras: extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })),
       is_new: true, populations: form.populations,
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
@@ -225,10 +224,17 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
       }
     }
 
+    // Save prix_extras separately (column may not exist yet)
+    if (formationId && extraPrix.length > 0) {
+      const extras = extraPrix.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
+      await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId).then(() => {});
+    }
+
     const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     setFormPhotoFile(null);
+    setExtraPrix([]);
     setTab("list");
   };
 
