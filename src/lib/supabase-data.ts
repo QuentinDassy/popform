@@ -52,7 +52,7 @@ export async function fetchFormations(): Promise<Formation[]> {
   if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
+    .select("*, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
     .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
   if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
@@ -68,7 +68,7 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
   // Always fetch fresh — cache from fetchFormations() lacks session_parties
   const { data, error } = await supabase
     .from("formations")
-    .select("*, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
+    .select("*, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
     .eq("id", id)
     .maybeSingle();
   if (error) { console.error("fetchFormation error:", error); return null; }

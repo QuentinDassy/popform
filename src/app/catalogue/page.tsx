@@ -90,8 +90,8 @@ function CatalogueContent() {
     }
     if (selDomaines.length > 0 && !selDomaines.includes(f.domaine)) return false;
     if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
-    if (selPrises.length > 0 && !selPrises.some(p => (f.prise_en_charge || []).includes(p))) return false;
-    if (selPops.length > 0 && !selPops.some(p => (f.populations || []).includes(p))) return false;
+    if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
+    if (selPops.length > 0 && !selPops.every(p => (f.populations || []).includes(p))) return false;
     if (organismeParam) {
       const orgId = Number(organismeParam);
       const matchesOrg = f.organisme_id === orgId || (f.formateur && (f.formateur as any).organisme_id === orgId);
