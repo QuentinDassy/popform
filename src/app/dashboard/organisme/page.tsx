@@ -604,7 +604,8 @@ export default function DashboardOrganismePage() {
                     <button type="button" onClick={async () => {
                       const fullName = [inlineFmt.prenom.trim(), inlineFmt.nom.trim()].filter(Boolean).join(" ");
                       if (!fullName || !organisme) return;
-                      const { data } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe }).select().single();
+                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: inlineFmt.sexe, user_id: user?.id || null }).select().single();
+                      if (error) { setMsg("Erreur création formateur : " + error.message); return; }
                       if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
                       setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });
                     }} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Créer et sélectionner</button>

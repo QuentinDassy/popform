@@ -81,11 +81,13 @@ export default function HomePage() {
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [selDomaine, setSelDomaine] = useState("");
-  const [selModalite, setSelModalite] = useState("");
-  const [selPrise, setSelPrise] = useState("");
-  const [selPop, setSelPop] = useState("");
-  const [selVille, setSelVille] = useState("");
+  const [selDomaines, setSelDomaines] = useState<string[]>([]);
+  const [selModalites, setSelModalites] = useState<string[]>([]);
+  const [selPrises, setSelPrises] = useState<string[]>([]);
+  const [selPops, setSelPops] = useState<string[]>([]);
+  const [selVilles, setSelVilles] = useState<string[]>([]);
+  const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
+  const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -95,11 +97,11 @@ export default function HomePage() {
     setShowSuggestions(false);
     const p = new URLSearchParams();
     if (heroSearch) p.set("q", heroSearch);
-    if (selDomaine) p.set("domaine", selDomaine);
-    if (selModalite) p.set("modalite", selModalite);
-    if (selPrise) p.set("prise", selPrise);
-    if (selPop) p.set("pop", selPop);
-    if (selVille) p.set("ville", selVille);
+    selDomaines.forEach(d => p.append("domaine", d));
+    selModalites.forEach(m => p.append("modalite", m));
+    selPrises.forEach(pr => p.append("prise", pr));
+    selPops.forEach(po => p.append("pop", po));
+    selVilles.forEach(v => p.append("ville", v));
     router.push("/catalogue?" + p.toString());
   };
 
@@ -196,7 +198,7 @@ export default function HomePage() {
     .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
-  const hasFilters = selDomaine || selModalite || selPrise || selPop || selVille;
+  const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
 
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -237,33 +239,32 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Filter selects — 4 filters including Ville */}
+          {/* Filter selects — multi-select cumulative */}
           <div style={{ display: "flex", gap: mob ? 6 : 8, marginTop: mob ? 14 : 18, maxWidth: 600, marginLeft: "auto", marginRight: "auto", flexWrap: "wrap" }}>
-            <select value={selDomaine} onChange={e => setSelDomaine(e.target.value)} style={sel(mob)}>
+            <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(mob)}>
               <option value="">Domaine</option>
-              {/* Use domaines from admin if available, fallback to formations domaines */}
-              {(domainesFiltres.length > 0 ? domainesFiltres : 
+              {(domainesFiltres.length > 0 ? domainesFiltres :
                 [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
-              ).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
+              ).filter(d => !selDomaines.includes(d.nom)).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
             </select>
-            <select value={selModalite} onChange={e => setSelModalite(e.target.value)} style={sel(mob)}>
+            <select value="" onChange={e => addF(selModalites, e.target.value, setSelModalites)} style={sel(mob)}>
               <option value="">Modalité</option>
-              {MODALITES.map(m => <option key={m} value={m}>{m}</option>)}
+              {MODALITES.filter(m => !selModalites.includes(m)).map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <select value={selPrise} onChange={e => setSelPrise(e.target.value)} style={sel(mob)}>
+            <select value="" onChange={e => addF(selPrises, e.target.value, setSelPrises)} style={sel(mob)}>
               <option value="">Prise en charge</option>
-              {PRISES.map(p => <option key={p} value={p}>{p}</option>)}
+              {PRISES.filter(p => !selPrises.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <select value={selPop} onChange={e => setSelPop(e.target.value)} style={sel(mob)}>
+            <select value="" onChange={e => addF(selPops, e.target.value, setSelPops)} style={sel(mob)}>
               <option value="">Population</option>
-              {POPULATIONS.map(p => <option key={p} value={p}>{p}</option>)}
+              {POPULATIONS.filter(p => !selPops.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-            <select value={selVille} onChange={e => setSelVille(e.target.value)} style={sel(mob)}>
+            <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(mob)}>
               <option value="">Ville</option>
-              {adminVilles.map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
+              {adminVilles.filter(v => !selVilles.includes(v.nom)).map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
             </select>
             {hasFilters && (
-              <button onClick={() => { setSelDomaine(""); setSelModalite(""); setSelPrise(""); setSelPop(""); setSelVille(""); }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+              <button onClick={() => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); }} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
             )}
             {/* Bouton loupe pour lancer la recherche avec filtres seuls */}
             <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: mob ? "9px 12px" : "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
@@ -271,11 +272,11 @@ export default function HomePage() {
           {/* Tags filtres actifs */}
           {hasFilters && (
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10, justifyContent: "center" }}>
-              {selDomaine && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(selDomaine).bg, color: getDC(selDomaine).color }}>{selDomaine} <span onClick={() => setSelDomaine("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-              {selModalite && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{selModalite} <span onClick={() => setSelModalite("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-              {selPrise && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{selPrise} <span onClick={() => setSelPrise("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-              {selPop && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{selPop} <span onClick={() => setSelPop("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
-              {selVille && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {selVille} <span onClick={() => setSelVille("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
+              {selDomaines.map(d => <span key={d} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(d).bg, color: getDC(d).color }}>{d} <span onClick={() => remF(selDomaines, d, setSelDomaines)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+              {selModalites.map(m => <span key={m} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{m} <span onClick={() => remF(selModalites, m, setSelModalites)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+              {selPrises.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{p} <span onClick={() => remF(selPrises, p, setSelPrises)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+              {selPops.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{p} <span onClick={() => remF(selPops, p, setSelPops)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+              {selVilles.map(v => <span key={v} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {v} <span onClick={() => remF(selVilles, v, setSelVilles)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
             </div>
           )}
         </div>

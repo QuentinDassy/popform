@@ -48,7 +48,6 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
   const photo = (f as any).photo_url || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
-  const priseEnCharge = f.prise_en_charge || [];
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
@@ -74,7 +73,6 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
             <div><span style={{ fontSize: m ? 16 : 19, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
           </div>
-          {priseEnCharge.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 6, flexWrap: "wrap" }}>{priseEnCharge.map(p => <PriseTag key={p} label={p} />)}</div>}
         </div>
       </div>
     </Link>

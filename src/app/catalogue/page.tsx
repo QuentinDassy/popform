@@ -34,20 +34,16 @@ const sel = (mob: boolean): React.CSSProperties => ({
 
 function CatalogueContent() {
   const searchParams = useSearchParams();
-  const villeParam = searchParams.get("ville") || "";
-  const domaineParam = searchParams.get("domaine") || "";
+  const getAll = (key: string) => { const all = searchParams.getAll(key); return all.length > 0 ? all : (searchParams.get(key) ? [searchParams.get(key)!] : []); };
   const qParam = searchParams.get("q") || "";
-  const modaliteParam = searchParams.get("modalite") || "";
-  const priseParam = searchParams.get("prise") || "";
-  const popParam = searchParams.get("pop") || "";
   const organismeParam = searchParams.get("organisme") || "";
   const [search, setSearch] = useState(qParam);
   const [sort, setSort] = useState("pertinence");
-  const [selDomaines, setSelDomaines] = useState<string[]>(domaineParam ? [domaineParam] : []);
-  const [selModalites, setSelModalites] = useState<string[]>(modaliteParam ? [modaliteParam] : []);
-  const [selPrises, setSelPrises] = useState<string[]>(priseParam ? [priseParam] : []);
-  const [selPops, setSelPops] = useState<string[]>(popParam ? [popParam] : []);
-  const [selVilles, setSelVilles] = useState<string[]>(villeParam ? [villeParam] : []);
+  const [selDomaines, setSelDomaines] = useState<string[]>(() => getAll("domaine"));
+  const [selModalites, setSelModalites] = useState<string[]>(() => getAll("modalite"));
+  const [selPrises, setSelPrises] = useState<string[]>(() => getAll("prise"));
+  const [selPops, setSelPops] = useState<string[]>(() => getAll("pop"));
+  const [selVilles, setSelVilles] = useState<string[]>(() => getAll("ville"));
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const mob = useIsMobile();
