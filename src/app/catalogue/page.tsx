@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, getAllCitiesFromFormations, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -66,7 +66,6 @@ function CatalogueContent() {
     }).catch(() => {});
   }, []);
 
-  const formationCities = useMemo(() => getAllCitiesFromFormations(formations).map(([c]) => c), [formations]);
   const cities = adminVilles;
   const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
 
@@ -113,7 +112,7 @@ function CatalogueContent() {
       <div style={{ padding: "18px 0 10px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>
-          {organismeParam ? `Formations de cet organisme` : selVille ? `Formations à ${selVille}` : selDomaine || "Toutes les formations"} 🎬
+          {organismeParam ? `Formations de cet organisme` : selVilles.length === 1 ? `Formations à ${selVilles[0]}` : selDomaines.length === 1 ? selDomaines[0] : "Toutes les formations"} 🎬
         </h1>
         {organismeParam && <Link href="/organismes" style={{ fontSize: 12, color: C.textTer, textDecoration: "none" }}>← Retour aux organismes</Link>}
       </div>
