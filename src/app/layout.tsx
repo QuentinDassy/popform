@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "PopForm — La formation continue, version blockbuster 🍿",
     description: "Consultez le programme et trouvez la formation qui fera décoller votre pratique.",
-    url: "https://popform-k2t5.vercel.app",
+    url: "https://popform.fr",
     siteName: "PopForm",
     locale: "fr_FR",
     type: "website",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     description: "La formation continue en orthophonie, version blockbuster.",
   },
   robots: { index: true, follow: true },
-  metadataBase: new URL("https://popform-k2t5.vercel.app"),
+  metadataBase: new URL("https://popform.fr"),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
