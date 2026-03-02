@@ -1,10 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Routes nécessitant une connexion
 const PROTECTED_PREFIXES = ["/dashboard", "/compte"];
-// Route réservée aux admins
-const ADMIN_PREFIX = "/dashboard/admin";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -33,24 +30,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
-  // Redirige les utilisateurs non connectés qui tentent d'accéder aux routes protégées
-  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  // Redirige les non-connectés vers l'accueil avec signal pour ouvrir la modale
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   if (isProtected && !user) {
-    const redirectUrl = new URL("/", request.url);
-    redirectUrl.searchParams.set("auth", "1"); // Signal pour ouvrir la modale auth
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Redirige les non-admins qui tentent d'accéder au dashboard admin
-  if (pathname.startsWith(ADMIN_PREFIX) && user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
+    const url = new URL("/", request.url);
+    url.searchParams.set("auth", "1");
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
