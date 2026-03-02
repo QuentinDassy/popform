@@ -109,7 +109,7 @@ export default function DashboardOrganismePage() {
       setOrgSiteUrl((myOrg as any)?.site_url || "");
       setOrgNom(myOrg?.nom || "");
       if (myOrg) {
-        const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
         const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
         setFormateurs(fmts || []);
@@ -169,6 +169,15 @@ export default function DashboardOrganismePage() {
     const someVisio = sessions.some(s => s.is_visio) && !allVisio;
     const computedModalite = allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel");
 
+    // Calculer les prix supplémentaires
+    const prixExtrasAll = [...extraPrix];
+    if (newPrixLabel.trim() && newPrixValue.trim()) {
+      prixExtrasAll.push({ label: newPrixLabel.trim(), value: newPrixValue.trim() });
+    }
+    const prixExtrasFinal = prixExtrasAll
+      .filter(e => e.label.trim() && String(e.value).trim())
+      .map(e => ({ label: e.label.trim(), value: Number(e.value) }));
+
     const payload = {
       titre: form.titre.trim(),
       sous_titre: form.sous_titre.trim(),
@@ -191,7 +200,6 @@ export default function DashboardOrganismePage() {
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
       formateur_id: selFormateurId || null as number | null,
-      prix_extras: (() => { const all = [...extraPrix]; if (newPrixLabel.trim() && newPrixValue) all.push({ label: newPrixLabel.trim(), value: newPrixValue }); return all.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })); })() as any,
       note: 0,
       nb_avis: 0,
       sans_limite: false,
@@ -254,8 +262,17 @@ export default function DashboardOrganismePage() {
       }
     }
 
+    // Sauvegarder les prix supplémentaires séparément (garantit la sauvegarde JSONB)
+    if (formationId) {
+      const { error: prixError } = await supabase
+        .from("formations")
+        .update({ prix_extras: prixExtrasFinal } as any)
+        .eq("id", formationId);
+      if (prixError) { setMsg("Formation soumise mais erreur sur les prix supplémentaires : " + prixError.message); setSaving(false); return; }
+    }
+
     // Reload
-    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     setFormPhotoFile(null);
@@ -659,7 +676,7 @@ export default function DashboardOrganismePage() {
                 <div style={{ display: "flex", gap: 6 }}>
                   <input value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Intitulé (ex: Libéral)" style={{ ...inputStyle, flex: 2 }} />
                   <input type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" onClick={() => { if (newPrixLabel.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
+                  <button type="button" onClick={() => { if (newPrixLabel.trim() && newPrixValue.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue.trim() }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
                 </div>
               </div>
             </div>

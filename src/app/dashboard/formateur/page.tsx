@@ -99,7 +99,7 @@ export default function DashboardFormateurPage() {
         const nom = parts.pop() || "";
         const prenom = parts.join(" ");
         setFmtPrenom(prenom); setFmtNom(nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
-        const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
         setFormations(f || []);
         // Fetch unlinked formateurs with formations (candidates for manual merge)
         const { data: unlinkedFmts } = await supabase.from("formateurs").select("id, nom").is("user_id", null);
@@ -152,6 +152,15 @@ export default function DashboardFormateurPage() {
     const someVisio = sessions.some(s => s.is_visio) && !allVisio;
     const computedModalite = allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel");
 
+    // Calculer les prix supplémentaires
+    const prixExtrasAll = [...extraPrix];
+    if (newPrixLabel.trim() && newPrixValue.trim()) {
+      prixExtrasAll.push({ label: newPrixLabel.trim(), value: newPrixValue.trim() });
+    }
+    const prixExtrasFinal = prixExtrasAll
+      .filter(e => e.label.trim() && String(e.value).trim())
+      .map(e => ({ label: e.label.trim(), value: Number(e.value) }));
+
     const payload = {
       titre: form.titre.trim(), sous_titre: form.sous_titre.trim(), description: form.description.trim(),
       domaine: form.domaines[0] || form.domaine,
@@ -165,7 +174,6 @@ export default function DashboardFormateurPage() {
       effectif: form.effectif || 20, video_url: form.video_url, photo_url: form.photo_url || null,
       url_inscription: form.url_inscription || "",
       formateur_id: formateur.id, organisme_id: form.organisme_id || null,
-      prix_extras: (() => { const all = [...extraPrix]; if (newPrixLabel.trim() && newPrixValue) all.push({ label: newPrixLabel.trim(), value: newPrixValue }); return all.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })); })() as any,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
     };
@@ -226,11 +234,21 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
       }
     }
 
-    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    // Sauvegarder les prix supplémentaires séparément (garantit la sauvegarde JSONB)
+    if (formationId) {
+      const { error: prixError } = await supabase
+        .from("formations")
+        .update({ prix_extras: prixExtrasFinal } as any)
+        .eq("id", formationId);
+      if (prixError) { setMsg("Formation soumise mais erreur sur les prix supplémentaires : " + prixError.message); setSaving(false); return; }
+    }
+
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     setFormPhotoFile(null);
     setExtraPrix([]);
+    setNewPrixLabel(""); setNewPrixValue("");
     setTab("list");
   };
 
@@ -269,7 +287,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
     await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
     await supabase.from("formateurs").delete().eq("id", orphanId);
     setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
-    const { data: f } = await supabase.from("formations").select("*, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     invalidateCache();
     setMerging(false);
@@ -475,7 +493,7 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
                 <div style={{ display: "flex", gap: 6 }}>
                   <input value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Intitulé (ex: Libéral)" style={{ ...inputStyle, flex: 2 }} />
                   <input type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" onClick={() => { if (newPrixLabel.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
+                  <button type="button" onClick={() => { if (newPrixLabel.trim() && newPrixValue.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue.trim() }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
                 </div>
               </div>
             </div>
