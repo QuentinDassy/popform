@@ -88,7 +88,10 @@ function CatalogueContent() {
       const matchesVisio = hasVisio && (f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu.toLowerCase().includes("visio")));
       if (!matchesVille && !matchesVisio) return false;
     }
-    if (selDomaines.length > 0 && !selDomaines.includes(f.domaine)) return false;
+    if (selDomaines.length > 0) {
+      const fDomaines: string[] = (f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine];
+      if (!selDomaines.some(d => fDomaines.includes(d))) return false;
+    }
     if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
     if (selPops.length > 0 && !selPops.every(p => (f.populations || []).includes(p))) return false;

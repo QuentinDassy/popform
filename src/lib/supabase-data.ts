@@ -10,7 +10,7 @@ export type Organisme = { id: number; nom: string; logo: string; description: st
 export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string; site_url?: string | null; photo_url?: string | null };
 export type Formation = {
   id: number; titre: string; sous_titre: string; description: string;
-  domaine: string; modalite: string; prise_en_charge: string[];
+  domaine: string; domaines?: string[]; modalite: string; prise_en_charge: string[];
   duree: string; formateur_id: number | null; organisme_id: number | null;
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   prix_extras?: { label: string; value: number }[];
@@ -52,7 +52,7 @@ export async function fetchFormations(): Promise<Formation[]> {
   if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
   const { data, error } = await supabase
     .from("formations")
-    .select("*, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
+    .select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
     .eq("status", "publiee")
     .order("date_ajout", { ascending: false });
   if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
@@ -68,7 +68,7 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
   // Always fetch fresh — cache from fetchFormations() lacks session_parties
   const { data, error } = await supabase
     .from("formations")
-    .select("*, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
+    .select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
     .eq("id", id)
     .maybeSingle();
   if (error) { console.error("fetchFormation error:", error); return null; }

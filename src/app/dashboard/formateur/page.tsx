@@ -15,7 +15,7 @@ type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; da
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties: SessionPartieRow[] };
 function emptyFormation() {
   return {
-    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
+    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "", domaines: [] as string[],
     modalite: MODALITES[0],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
@@ -123,7 +123,7 @@ export default function DashboardFormateurPage() {
   const openEdit = (f?: Formation) => {
     if (f) {
       setEditId(f.id);
-      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
+      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })) }; }));
       setExtraPrix((f as any).prix_extras || []);
     } else {
@@ -142,7 +142,7 @@ export default function DashboardFormateurPage() {
     if (!formateur) { setMsg("Erreur: profil formateur non trouvé."); return; }
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
-    if (!form.domaine) { setMsg("Le domaine est obligatoire."); return; }
+    if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return; }
     const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
     if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
     setSaving(true); setMsg(null);
@@ -154,7 +154,8 @@ export default function DashboardFormateurPage() {
 
     const payload = {
       titre: form.titre.trim(), sous_titre: form.sous_titre.trim(), description: form.description.trim(),
-      domaine: form.domaine,
+      domaine: form.domaines[0] || form.domaine,
+      domaines: form.domaines,
       modalite: computedModalite, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h", prix: form.prix ?? 0, prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null, prix_dpc: form.prix_dpc || null,
@@ -164,6 +165,7 @@ export default function DashboardFormateurPage() {
       effectif: form.effectif || 20, video_url: form.video_url, photo_url: form.photo_url || null,
       url_inscription: form.url_inscription || "",
       formateur_id: formateur.id, organisme_id: form.organisme_id || null,
+      prix_extras: (() => { const all = [...extraPrix]; if (newPrixLabel.trim() && newPrixValue) all.push({ label: newPrixLabel.trim(), value: newPrixValue }); return all.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })); })() as any,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
     };
@@ -221,17 +223,6 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             }
           }
         }
-      }
-    }
-
-    // Save prix_extras separately
-    if (formationId) {
-      const allExtras = [...extraPrix];
-      if (newPrixLabel.trim() && newPrixValue) allExtras.push({ label: newPrixLabel.trim(), value: newPrixValue });
-      if (allExtras.length > 0) {
-        const extras = allExtras.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
-        const { error: extErr } = await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId);
-        if (extErr) console.warn("prix_extras save error:", extErr.message);
       }
     }
 
@@ -449,12 +440,18 @@ const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) |
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Sous-titre</label><input value={form.sous_titre} onChange={e => setForm({ ...form, sous_titre: e.target.value })} style={inputStyle} /></div>
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Description *</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} /></div>
 
-            <div>
-              <label style={labelStyle}>Domaine *</label>
-              <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
-                <option value="">— Sélectionner un domaine * —</option>
-                {domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
-              </select>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Domaine(s) *</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {domainesList.map(d => (
+                  <button key={d.nom} type="button" onClick={() => {
+                    const sel = form.domaines.includes(d.nom) ? form.domaines.filter(x => x !== d.nom) : [...form.domaines, d.nom];
+                    setForm({ ...form, domaines: sel, domaine: sel[0] || "" });
+                  }} style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.domaines.includes(d.nom) ? C.accent + "55" : C.border), background: form.domaines.includes(d.nom) ? C.accentBg : C.bgAlt, color: form.domaines.includes(d.nom) ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.domaines.includes(d.nom) ? 700 : 400 }}>
+                    {d.nom}
+                  </button>
+                ))}
+              </div>
             </div>
             <div><label style={labelStyle}>Modalité</label><select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>{MODALITES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label style={labelStyle}>Organisme (optionnel)</label>

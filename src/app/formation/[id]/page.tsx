@@ -312,7 +312,9 @@ export default function FormationPage() {
               {/* Badges */}
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
 
-                <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: dc.bg, color: dc.color }}>{f.domaine}</span>
+                {((f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine]).map((d: string) => (
+                  <span key={d} style={{ padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(d).bg, color: getDC(d).color }}>{d}</span>
+                ))}
                 <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⭐ {avg} ({fAvis.length} avis)</span>
               </div>
 

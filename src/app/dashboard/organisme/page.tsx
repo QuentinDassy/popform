@@ -19,7 +19,7 @@ type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organi
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
   return {
-    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "",
+    titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "", domaines: [] as string[],
     modalite: MODALITES[0],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
@@ -133,7 +133,7 @@ export default function DashboardOrganismePage() {
       setEditId(f.id);
       setForm({
         titre: f.titre, sous_titre: f.sous_titre || "", description: f.description,
-        domaine: f.domaine, domaine_custom: "",
+        domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []),
         modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0,
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, is_new: f.is_new, populations: f.populations || [],
@@ -158,7 +158,7 @@ export default function DashboardOrganismePage() {
     if (!organisme) return;
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
-    if (!form.domaine) { setMsg("Le domaine est obligatoire."); return }
+    if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return }
     if (!selFormateurId) { setMsg("Veuillez sélectionner un·e formateur·rice."); return }
     const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
     if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
@@ -173,7 +173,8 @@ export default function DashboardOrganismePage() {
       titre: form.titre.trim(),
       sous_titre: form.sous_titre.trim(),
       description: form.description.trim(),
-      domaine: form.domaine === "Autres" ? (form.domaine_custom.trim() || "Autres") : form.domaine,
+      domaine: form.domaines[0] || form.domaine,
+      domaines: form.domaines,
       modalite: computedModalite,
       prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h",
@@ -190,6 +191,7 @@ export default function DashboardOrganismePage() {
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
       formateur_id: selFormateurId || null as number | null,
+      prix_extras: (() => { const all = [...extraPrix]; if (newPrixLabel.trim() && newPrixValue) all.push({ label: newPrixLabel.trim(), value: newPrixValue }); return all.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) })); })() as any,
       note: 0,
       nb_avis: 0,
       sans_limite: false,
@@ -219,17 +221,6 @@ export default function DashboardOrganismePage() {
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
     }
-    // Save extra prix separately (requires prix_extras column)
-    if (formationId) {
-      const allExtras = [...extraPrix];
-      if (newPrixLabel.trim() && newPrixValue) allExtras.push({ label: newPrixLabel.trim(), value: newPrixValue });
-      if (allExtras.length > 0) {
-        const extras = allExtras.filter(e => e.label && e.value).map(e => ({ label: e.label, value: Number(e.value) }));
-        const { error: extErr } = await supabase.from("formations").update({ prix_extras: extras } as any).eq("id", formationId);
-        if (extErr) console.warn("prix_extras save error:", extErr.message);
-      }
-    }
-
     // Sessions: delete old, insert new
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
@@ -620,12 +611,18 @@ export default function DashboardOrganismePage() {
             </div>
 
             {/* Domaine */}
-            <div>
-              <label style={labelStyle}>Domaine</label>
-              <select value={form.domaine} onChange={e => setForm({ ...form, domaine: e.target.value })} style={inputStyle}>
-                <option value="">— Sélectionner un domaine * —</option>
-                {domainesList.map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
-              </select>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Domaine(s) *</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {domainesList.map(d => (
+                  <button key={d.nom} type="button" onClick={() => {
+                    const sel = form.domaines.includes(d.nom) ? form.domaines.filter(x => x !== d.nom) : [...form.domaines, d.nom];
+                    setForm({ ...form, domaines: sel, domaine: sel[0] || "" });
+                  }} style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.domaines.includes(d.nom) ? C.accent + "55" : C.border), background: form.domaines.includes(d.nom) ? C.accentBg : C.bgAlt, color: form.domaines.includes(d.nom) ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.domaines.includes(d.nom) ? 700 : 400 }}>
+                    {d.nom}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Modalité */}
