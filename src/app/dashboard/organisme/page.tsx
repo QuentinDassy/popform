@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 import { useRouter } from "next/navigation";
 
-const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 
 type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
@@ -160,14 +160,15 @@ export default function DashboardOrganismePage() {
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
     if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return }
     if (!selFormateurId) { setMsg("Veuillez sélectionner un·e formateur·rice."); return }
-    const hasDate = sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
-    if (sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
+    const isELearning = form.modalite === "E-learning";
+    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
+    if (!isELearning && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
 
     // Déterminer la modalité en fonction des sessions
-    const allVisio = sessions.length > 0 && sessions.every(s => s.is_visio);
-    const someVisio = sessions.some(s => s.is_visio) && !allVisio;
-    const computedModalite = allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel");
+    const allVisio = !isELearning && sessions.length > 0 && sessions.every(s => s.is_visio);
+    const someVisio = !isELearning && sessions.some(s => s.is_visio) && !allVisio;
+    const computedModalite = isELearning ? "E-learning" : (allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel"));
 
     // Calculer les prix supplémentaires
     const prixExtrasAll = [...extraPrix];
@@ -229,10 +230,10 @@ export default function DashboardOrganismePage() {
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
     }
-    // Sessions: delete old, insert new
+    // Sessions: delete old, insert new (skip for E-learning)
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
-      const validSessions = sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
+      const validSessions = isELearning ? [] : sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
         const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
@@ -753,6 +754,13 @@ export default function DashboardOrganismePage() {
           </div>
 
           {/* ===== SESSIONS ===== */}
+          {form.modalite === "E-learning" && (
+            <div style={{ marginTop: 24, padding: "14px 18px", background: C.accentBg, borderRadius: 12, border: "1.5px solid " + C.accent + "33" }}>
+              <p style={{ fontSize: 13, color: C.accent, fontWeight: 600, margin: 0 }}>📺 E-learning — pas de session ni de date requise.</p>
+              <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, marginBottom: 0 }}>Le contenu est accessible en autonomie à tout moment.</p>
+            </div>
+          )}
+          {form.modalite !== "E-learning" && (
           <div style={{ marginTop: 24 }}>
             <label style={labelStyle}>Sessions</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -914,6 +922,7 @@ export default function DashboardOrganismePage() {
               <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
+          )}
 
           {/* Save */}
           {msg && <p style={{ color: C.pink, fontSize: 13, marginTop: 14, textAlign: "center" }}>{msg}</p>}

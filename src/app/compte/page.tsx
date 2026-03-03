@@ -26,6 +26,12 @@ export default function ComptePage() {
   const [pMsg, setPMsg] = useState("");
   const [newsletterOpt, setNewsletterOpt] = useState(false);
   const [showPwChange, setShowPwChange] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("reset") === "1") {
+      setShowPwChange(true);
+    }
+  }, []);
   const [newPw, setNewPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);

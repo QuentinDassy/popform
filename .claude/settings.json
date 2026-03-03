@@ -3,7 +3,18 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(ls -la /c/Users/quent/formortho/.env*)",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "Bash(vercel login)",
+      "Bash(vercel --prod)",
+      "Bash(vercel --prod --yes)",
+      "Bash(vercel env add NEXT_PUBLIC_SUPABASE_URL production --force)",
+      "Bash(vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production --force)",
+      "Bash(vercel env add SUPABASE_SERVICE_ROLE_KEY production --force)",
+      "Bash(vercel projects ls)",
+      "Bash(ls c:/Users/quent/formortho/src/app/sitemap* c:/Users/quent/formortho/src/app/robots*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\quent\\formortho\\src\\app\\auth"
     ]
   }
 }

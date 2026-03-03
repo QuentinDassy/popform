@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 
-const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -57,6 +57,7 @@ function CatalogueContent() {
   const [loading, setLoading] = useState(true);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   useEffect(() => {
     fetchFormations().then(d => { setFormations(d); setLoading(false); });
@@ -140,34 +141,84 @@ function CatalogueContent() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: mob ? 6 : 8, marginBottom: hasActiveFilters ? 8 : 16, flexWrap: "wrap" }}>
-        <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(mob)}>
-          <option value="">Domaine</option>
-          {(domainesFiltres.length > 0 ? domainesFiltres :
-            [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
-          ).filter(d => !selDomaines.includes(d.nom)).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
-        </select>
-        <select value="" onChange={e => addF(selModalites, e.target.value, setSelModalites)} style={sel(mob)}>
-          <option value="">Modalité</option>
-          {MODALITES.filter(m => !selModalites.includes(m)).map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select value="" onChange={e => addF(selPrises, e.target.value, setSelPrises)} style={sel(mob)}>
-          <option value="">Prise en charge</option>
-          {PRISES.filter(p => !selPrises.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value="" onChange={e => addF(selPops, e.target.value, setSelPops)} style={sel(mob)}>
-          <option value="">Population</option>
-          {POPULATIONS.filter(p => !selPops.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(mob)}>
-          <option value="">Ville</option>
-          {!selVilles.includes("Visio") && <option value="Visio">💻 En visio</option>}
-          {cities.filter(v => !selVilles.includes(v)).map(v => <option key={v} value={v}>{v}</option>)}
-        </select>
-        {hasActiveFilters && (
-          <button onClick={clearAll} style={{ padding: mob ? "9px 12px" : "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: mob ? 11 : 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Effacer</button>
-        )}
-      </div>
+      {mob ? (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: hasActiveFilters ? 8 : 16 }}>
+            <button onClick={() => setShowFilterPanel(true)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1.5px solid " + (hasActiveFilters ? C.accent : C.border), background: hasActiveFilters ? C.accentBg : C.surface, color: hasActiveFilters ? C.accent : C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              <span>⚙️ Filtres</span>
+              {hasActiveFilters && <span style={{ padding: "1px 7px", borderRadius: 99, background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700 }}>{selDomaines.length + selModalites.length + selPrises.length + selPops.length + selVilles.length}</span>}
+            </button>
+            {hasActiveFilters && <button onClick={clearAll} style={{ padding: "11px 14px", borderRadius: 12, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
+          </div>
+
+          {/* Bottom sheet overlay */}
+          {showFilterPanel && (
+            <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+              <div onClick={() => setShowFilterPanel(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} />
+              <div style={{ position: "relative", background: C.surface, borderRadius: "20px 20px 0 0", padding: "20px 20px 40px", maxHeight: "80vh", overflowY: "auto" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Filtres</span>
+                  <button onClick={() => setShowFilterPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.textTer }}>✕</button>
+                </div>
+
+                {[
+                  { label: "Domaine", options: (domainesFiltres.length > 0 ? domainesFiltres : [...new Set(formations.map(f => f.domaine))].map(d => ({ nom: d, emoji: DOMAINE_EMOJIS[d] || "📚" }))).map(d => d.nom), sel: selDomaines, set: setSelDomaines },
+                  { label: "Modalité", options: MODALITES, sel: selModalites, set: setSelModalites },
+                  { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
+                  { label: "Population", options: POPULATIONS, sel: selPops, set: setSelPops },
+                  { label: "Ville", options: ["Visio", ...cities], sel: selVilles, set: setSelVilles },
+                ].map(({ label, options, sel: selected, set }) => (
+                  <div key={label} style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                      {options.map(opt => {
+                        const active = selected.includes(opt);
+                        return (
+                          <button key={opt} onClick={() => active ? remF(selected, opt, set) : addF(selected, opt, set)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (active ? C.accent : C.border), background: active ? C.accentBg : C.surface, color: active ? C.accent : C.textSec, fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>
+                            {opt === "Visio" ? "💻 Visio" : opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                <button onClick={() => { clearAll(); setShowFilterPanel(false); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>Réinitialiser les filtres</button>
+                <button onClick={() => setShowFilterPanel(false)} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 10 }}>Voir les {filtered.length} résultats</button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginBottom: hasActiveFilters ? 8 : 16, flexWrap: "wrap" }}>
+          <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(false)}>
+            <option value="">Domaine</option>
+            {(domainesFiltres.length > 0 ? domainesFiltres :
+              [...new Set(formations.map(f => f.domaine))].map(d => ({ id: 0, nom: d, emoji: DOMAINE_EMOJIS[d] || "📚", afficher_sur_accueil: true, ordre_affichage: 0, afficher_dans_filtres: true }))
+            ).filter(d => !selDomaines.includes(d.nom)).map(d => <option key={d.nom} value={d.nom}>{d.nom}</option>)}
+          </select>
+          <select value="" onChange={e => addF(selModalites, e.target.value, setSelModalites)} style={sel(false)}>
+            <option value="">Modalité</option>
+            {MODALITES.filter(m => !selModalites.includes(m)).map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value="" onChange={e => addF(selPrises, e.target.value, setSelPrises)} style={sel(false)}>
+            <option value="">Prise en charge</option>
+            {PRISES.filter(p => !selPrises.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value="" onChange={e => addF(selPops, e.target.value, setSelPops)} style={sel(false)}>
+            <option value="">Population</option>
+            {POPULATIONS.filter(p => !selPops.includes(p)).map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(false)}>
+            <option value="">Ville</option>
+            {!selVilles.includes("Visio") && <option value="Visio">💻 En visio</option>}
+            {cities.filter(v => !selVilles.includes(v)).map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          {hasActiveFilters && (
+            <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Effacer</button>
+          )}
+        </div>
+      )}
 
       {/* Active filter tags */}
       {hasActiveFilters && (
