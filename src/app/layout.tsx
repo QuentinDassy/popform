@@ -35,8 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <head>
-        <link rel="icon" href="/faviconpopform.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/faviconpopform.png" />
+        <link rel="icon" href="/favicon2popform.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon2popform.png" />
         <meta name="theme-color" content="#D42B2B" />
       </head>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FFFDF7", color: "#2D1B06", fontFamily: "var(--font-body), sans-serif" }}>
