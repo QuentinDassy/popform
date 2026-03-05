@@ -135,6 +135,8 @@ export default function HomePage() {
     if (code) {
       setRedirecting(true);
       window.location.href = "/auth/callback?code=" + code + "&type=" + (params.get("type") || "");
+      // Unblock if redirect doesn't happen within 3s
+      setTimeout(() => setRedirecting(false), 3000);
     }
   }, []);
 

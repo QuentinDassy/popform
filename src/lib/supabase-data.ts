@@ -46,33 +46,43 @@ let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
 const CACHE_TTL = 0; // No cache - always fresh (can re-enable after launch)
 
+const FETCH_TIMEOUT = 8000;
+const timedOut = <T>(ms: number): Promise<T> => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
+
 // Public: all formations with cache
 export async function fetchFormations(): Promise<Formation[]> {
   const now = Date.now();
   if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
-  const { data, error } = await supabase
-    .from("formations")
-    .select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)")
-    .eq("status", "publiee")
-    .order("date_ajout", { ascending: false });
-  if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
-  const result = data || [];
-  _formationsCache = result;
-  _cacheTime = now;
-  return result;
+  try {
+    const { data, error } = await Promise.race([
+      supabase.from("formations").select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false }),
+      timedOut(FETCH_TIMEOUT),
+    ]);
+    if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
+    const result = data || [];
+    _formationsCache = result;
+    _cacheTime = now;
+    return result;
+  } catch {
+    console.warn("fetchFormations timeout or error");
+    return _formationsCache || [];
+  }
 }
 
 export function invalidateCache() { _formationsCache = null; _cacheTime = 0; }
 
 export async function fetchFormation(id: number): Promise<Formation | null> {
-  // Always fetch fresh — cache from fetchFormations() lacks session_parties
-  const { data, error } = await supabase
-    .from("formations")
-    .select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) { console.error("fetchFormation error:", error); return null; }
-  return data;
+  try {
+    const { data, error } = await Promise.race([
+      supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)").eq("id", id).maybeSingle(),
+      timedOut(FETCH_TIMEOUT),
+    ]);
+    if (error) { console.error("fetchFormation error:", error); return null; }
+    return data;
+  } catch {
+    console.warn("fetchFormation timeout or error");
+    return null;
+  }
 }
 
 // All formations (for dashboards - includes pending)
