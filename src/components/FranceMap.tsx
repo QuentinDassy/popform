@@ -1,25 +1,70 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { C, REGIONS_CITIES } from "@/lib/data";
 
-// Simplified France regions GeoJSON (gregoiredavid, public domain)
+// Real France regions GeoJSON (gregoiredavid, public domain)
 const GEO_URL =
   "https://cdn.jsdelivr.net/gh/gregoiredavid/france-geojson/regions-version-simplifiee.geojson";
 
-// GeoJSON region names → our REGIONS_CITIES keys (minor differences)
+// SVG canvas
+const W = 600;
+const H = 560;
+const SCALE = 1800;
+const CENTER_LON = 2.5;
+const CENTER_LAT = 46.5;
+
+// Mercator projection: [lon, lat] → [x, y] in SVG coordinates
+const φ0 = Math.log(Math.tan(Math.PI / 4 + (CENTER_LAT * Math.PI) / 360));
+function project(lon: number, lat: number): [number, number] {
+  const x = SCALE * ((lon - CENTER_LON) * Math.PI) / 180;
+  const y = -SCALE * (Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) - φ0);
+  return [W / 2 + x, H / 2 + y];
+}
+
+function ringToPath(ring: number[][]): string {
+  return (
+    ring
+      .map((p, i) => {
+        const [x, y] = project(p[0], p[1]);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(" ") + "Z"
+  );
+}
+
+function featureToPath(geometry: { type: string; coordinates: unknown }): string {
+  if (geometry.type === "Polygon") {
+    return (geometry.coordinates as number[][][]).map(ringToPath).join(" ");
+  }
+  if (geometry.type === "MultiPolygon") {
+    return (geometry.coordinates as number[][][][])
+      .flatMap((poly) => poly.map(ringToPath))
+      .join(" ");
+  }
+  return "";
+}
+
+// GeoJSON name → REGIONS_CITIES key (minor discrepancies)
 const GEO_TO_KEY: Record<string, string> = {
   "Île-de-France": "Ile-de-France",
   "Provence-Alpes-Côte d'Azur": "Provence Alpes Côte d'Azur",
 };
 const getKey = (nom: string) => GEO_TO_KEY[nom] || nom;
 
-function countFormations(key: string, formations: { sessions?: { lieu: string }[] }[]): number {
+function countFormations(
+  key: string,
+  formations: { sessions?: { lieu: string }[] }[]
+): number {
   const cities = new Set((REGIONS_CITIES[key] || []).map((c) => c.toLowerCase()));
   return formations.filter((f) =>
     (f.sessions || []).some((s) => cities.has((s.lieu || "").toLowerCase()))
   ).length;
+}
+
+interface GeoFeature {
+  properties: { nom: string };
+  geometry: { type: string; coordinates: unknown };
 }
 
 const DOM_REGIONS = ["Guadeloupe", "Martinique", "Guyane", "Réunion", "Mayotte"];
@@ -29,63 +74,69 @@ export default function FranceMap({
 }: {
   formations?: { sessions?: { lieu: string }[] }[];
 }) {
+  const [features, setFeatures] = useState<GeoFeature[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
   const router = useRouter();
-  const go = (key: string) => router.push("/catalogue?region=" + encodeURIComponent(key));
+
+  useEffect(() => {
+    fetch(GEO_URL)
+      .then((r) => r.json())
+      .then((data) => setFeatures(data.features || []))
+      .catch(console.error);
+  }, []);
+
+  const go = (key: string) =>
+    router.push("/catalogue?region=" + encodeURIComponent(key));
 
   const hovCount = hovered ? countFormations(hovered, formations) : 0;
 
   return (
     <div>
-      {/* Map */}
-      <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#f0f4f8" }}>
-        <ComposableMap
-          projection="geoMercator"
-          projectionConfig={{ center: [2.5, 46.5], scale: 2600 }}
+      {/* SVG map */}
+      <div
+        style={{
+          position: "relative",
+          borderRadius: 16,
+          overflow: "hidden",
+          background: "#EBF0F5",
+        }}
+      >
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
           style={{ width: "100%", height: "auto", display: "block" }}
+          aria-label="Carte des régions de France"
         >
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const nom: string = geo.properties.nom;
-                const key = getKey(nom);
-                const count = countFormations(key, formations);
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => setHovered(key)}
-                    onMouseLeave={() => setHovered(null)}
-                    onClick={() => go(key)}
-                    style={{
-                      default: {
-                        fill: count > 0 ? "#FFE8C0" : "#EEE8DC",
-                        stroke: "#C8B898",
-                        strokeWidth: 0.5,
-                        outline: "none",
-                        cursor: "pointer",
-                        transition: "fill 0.15s",
-                      },
-                      hover: {
-                        fill: C.accent,
-                        stroke: C.accentDark,
-                        strokeWidth: 1,
-                        outline: "none",
-                        cursor: "pointer",
-                      },
-                      pressed: {
-                        fill: C.accentDark,
-                        stroke: C.accentDark,
-                        strokeWidth: 1,
-                        outline: "none",
-                      },
-                    }}
-                  />
-                );
-              })
-            }
-          </Geographies>
-        </ComposableMap>
+          {features.length === 0 && (
+            <text
+              x={W / 2}
+              y={H / 2}
+              textAnchor="middle"
+              fill={C.textTer}
+              fontSize={14}
+            >
+              Chargement…
+            </text>
+          )}
+          {features.map((f, i) => {
+            const nom = f.properties.nom;
+            const key = getKey(nom);
+            const count = countFormations(key, formations);
+            const isHov = hovered === key;
+            return (
+              <path
+                key={i}
+                d={featureToPath(f.geometry)}
+                fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
+                stroke={isHov ? C.accentDark : "#BFB09A"}
+                strokeWidth={isHov ? 1.2 : 0.6}
+                style={{ cursor: "pointer", transition: "fill 0.15s, stroke 0.15s" }}
+                onMouseEnter={() => setHovered(key)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => go(key)}
+              />
+            );
+          })}
+        </svg>
       </div>
 
       {/* Info bar */}
@@ -110,25 +161,42 @@ export default function FranceMap({
                 {hovCount} formation{hovCount > 1 ? "s" : ""}
               </span>
             ) : (
-              <span style={{ color: C.textTer, fontWeight: 400, fontSize: 12 }}>aucune formation</span>
+              <span style={{ color: C.textTer, fontWeight: 400, fontSize: 12 }}>
+                aucune formation
+              </span>
             )}
-            <span style={{ color: C.textTer, fontSize: 12, fontWeight: 400 }}>— cliquer pour voir</span>
+            <span style={{ color: C.textTer, fontSize: 12, fontWeight: 400 }}>
+              — cliquer pour voir
+            </span>
           </>
         ) : (
           <span>Survolez une région pour la sélectionner</span>
         )}
       </div>
 
-      {/* Légende */}
+      {/* Legend */}
       <div style={{ display: "flex", gap: 16, justifyContent: "center", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textTer }}>
-          <span style={{ width: 14, height: 14, borderRadius: 3, background: "#FFE8C0", border: "1px solid #C8B898", display: "inline-block" }} />
-          Formations disponibles
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textTer }}>
-          <span style={{ width: 14, height: 14, borderRadius: 3, background: "#EEE8DC", border: "1px solid #C8B898", display: "inline-block" }} />
-          Aucune formation
-        </div>
+        {[
+          { color: "#FFE8C0", label: "Formations disponibles" },
+          { color: "#E8DFCF", label: "Aucune formation" },
+        ].map(({ color, label }) => (
+          <div
+            key={label}
+            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textTer }}
+          >
+            <span
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 3,
+                background: color,
+                border: "1px solid #BFB09A",
+                display: "inline-block",
+              }}
+            />
+            {label}
+          </div>
+        ))}
       </div>
 
       {/* DOM */}
@@ -144,11 +212,12 @@ export default function FranceMap({
             textAlign: "center",
           }}
         >
-          Territoires d'Outre-Mer
+          Territoires d&apos;Outre-Mer
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
           {DOM_REGIONS.map((region) => {
             const count = countFormations(region, formations);
+            const isHov = hovered === region;
             return (
               <button
                 key={region}
@@ -158,9 +227,9 @@ export default function FranceMap({
                 style={{
                   padding: "10px 6px",
                   borderRadius: 12,
-                  border: "1.5px solid " + (hovered === region ? C.accent : C.borderLight),
-                  background: hovered === region ? C.accentBg : count > 0 ? "#FFF8EC" : C.surface,
-                  color: hovered === region ? C.accent : C.textSec,
+                  border: "1.5px solid " + (isHov ? C.accent : C.borderLight),
+                  background: isHov ? C.accentBg : count > 0 ? "#FFF8EC" : C.surface,
+                  color: isHov ? C.accent : C.textSec,
                   fontSize: 11,
                   fontWeight: 700,
                   cursor: "pointer",
