@@ -38,8 +38,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon2popform.png" type="image/png" />
         <link rel="apple-touch-icon" href="/favicon2popform.png" />
         <meta name="theme-color" content="#D42B2B" />
-        {/* Unregister stale service workers to fix blank-page cache issues */}
-        <script dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>{for(const sw of r)sw.unregister();})}` }} />
+        {/* Unregister stale service workers + auto-reload on chunk load errors */}
+        <script dangerouslySetInnerHTML={{ __html: `
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){for(var sw of r)sw.unregister();});}
+window.addEventListener('error',function(e){
+  var isChunk=e.message&&(e.message.indexOf('Loading chunk')>-1||e.message.indexOf('ChunkLoadError')>-1||e.message.indexOf('Failed to fetch dynamically')>-1);
+  var isScript=e.target&&(e.target.tagName==='SCRIPT'||e.target.tagName==='LINK')&&(e.target.src||e.target.href||'').indexOf('/_next/')>-1;
+  if((isChunk||isScript)&&!sessionStorage.getItem('_reloaded')){sessionStorage.setItem('_reloaded','1');window.location.reload();}
+},true);
+        `}} />
       </head>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FFFDF7", color: "#2D1B06", fontFamily: "var(--font-body), sans-serif" }}>
         <AuthProvider>

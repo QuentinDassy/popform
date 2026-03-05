@@ -29,7 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     let currentUserId: string | null = null;
 
+    // Safety timeout: unblock the UI if auth hangs more than 5s
+    const authTimeout = setTimeout(() => setLoading(false), 5000);
+
     supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
+      clearTimeout(authTimeout);
       const user = data.user;
       currentUserId = user?.id || null;
       setUser(user);
@@ -37,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => { clearTimeout(authTimeout); setLoading(false); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       // Handle token refresh errors — clear session silently
