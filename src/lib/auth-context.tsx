@@ -64,7 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data.user && !data.user.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return { error: "Veuillez confirmer votre adresse email avant de vous connecter. Vérifiez votre boîte mail." };
+    }
     return { error: error?.message || null };
   };
 
@@ -72,7 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName, role, newsletter_opt: newsletterOpt ?? false } },
+      options: {
+        data: { full_name: fullName, role, newsletter_opt: newsletterOpt ?? false },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
     // If signup succeeded and newsletter_opt is true, update profile after slight delay
     if (!error && newsletterOpt) {

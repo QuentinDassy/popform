@@ -55,9 +55,12 @@ function countFormations(
   key: string,
   formations: { sessions?: { lieu: string }[] }[]
 ): number {
-  const cities = new Set((REGIONS_CITIES[key] || []).map((c) => c.toLowerCase()));
+  const cities = (REGIONS_CITIES[key] || []).map((c) => c.toLowerCase());
   return formations.filter((f) =>
-    (f.sessions || []).some((s) => cities.has((s.lieu || "").toLowerCase()))
+    (f.sessions || []).some((s) => {
+      const lieu = (s.lieu || "").toLowerCase();
+      return cities.some((c) => lieu.includes(c));
+    })
   ).length;
 }
 

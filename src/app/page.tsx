@@ -334,7 +334,7 @@ export default function HomePage() {
       </section>
 
       {/* ===== A LA UNE ===== */}
-      {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={mob ? 4 : 8} link="/catalogue?nouveautes=1" />}
+      {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" />}
 
       {/* ===== SECTIONS ===== */}
       {domainesAccueil.length > 0 ? (
@@ -346,7 +346,7 @@ export default function HomePage() {
               title={domaine.nom}
               formations={domaineFormations}
               mob={mob}
-              max={4}
+              max={3}
               link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
             />
           );
@@ -354,14 +354,14 @@ export default function HomePage() {
       ) : (
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
-            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={4} />
+            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} />
           )}
           {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
-            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={4} />
+            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={3} />
           )}
         </>
       )}
-      {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
+      {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" />}
 
       {/* ===== VILLES ===== */}
       {topCities.length > 0 && (
