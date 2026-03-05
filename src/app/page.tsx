@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
+import FranceMap from "@/components/FranceMap";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
 
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [selPrises, setSelPrises] = useState<string[]>([]);
   const [selPops, setSelPops] = useState<string[]>([]);
   const [selVilles, setSelVilles] = useState<string[]>([]);
+  const [selRegion, setSelRegion] = useState<string>("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
@@ -103,6 +105,7 @@ export default function HomePage() {
     if (selPrises.length > 0) p.set("prises", selPrises.join(","));
     if (selPops.length > 0) p.set("pops", selPops.join(","));
     if (selVilles.length > 0) p.set("villes", selVilles.join(","));
+    if (selRegion) p.set("region", selRegion);
     router.push("/catalogue?" + p.toString());
   };
 
@@ -202,7 +205,8 @@ export default function HomePage() {
     .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
-  const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
+  const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
+  const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
   if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -248,10 +252,10 @@ export default function HomePage() {
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button onClick={() => setShowFilterPanel(true)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1.5px solid " + (hasFilters ? C.accent : C.border), background: hasFilters ? C.accentBg : C.surface, color: hasFilters ? C.accent : C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                 <span>Filtres</span>
-                {hasFilters && <span style={{ padding: "1px 7px", borderRadius: 99, background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700 }}>{selDomaines.length + selModalites.length + selPrises.length + selPops.length + selVilles.length}</span>}
+                {hasFilters && <span style={{ padding: "1px 7px", borderRadius: 99, background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700 }}>{selDomaines.length + selModalites.length + selPrises.length + selPops.length + selVilles.length + (selRegion ? 1 : 0)}</span>}
               </button>
               <button onClick={handleSearch} style={{ padding: "11px 16px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>🔍</button>
-              {hasFilters && <button onClick={() => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); }} style={{ padding: "11px 14px", borderRadius: 12, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
+              {hasFilters && <button onClick={clearAll} style={{ padding: "11px 14px", borderRadius: 12, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
 
               {showFilterPanel && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
@@ -262,6 +266,7 @@ export default function HomePage() {
                       <button onClick={() => setShowFilterPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.textTer }}>✕</button>
                     </div>
                     {[
+                      { label: "Région", options: Object.keys(REGIONS_CITIES), sel: selRegion ? [selRegion] : [], set: (v: string[]) => setSelRegion(v[v.length - 1] || "") },
                       { label: "Domaine", options: (domainesFiltres.length > 0 ? domainesFiltres : [...new Set(formations.map(f => f.domaine))].map(d => ({ nom: d }))).map(d => d.nom), sel: selDomaines, set: setSelDomaines },
                       { label: "Modalité", options: MODALITES, sel: selModalites, set: setSelModalites },
                       { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
@@ -278,7 +283,7 @@ export default function HomePage() {
                         </div>
                       </div>
                     ))}
-                    <button onClick={() => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setShowFilterPanel(false); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>Réinitialiser</button>
+                    <button onClick={() => { clearAll(); setShowFilterPanel(false); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>Réinitialiser</button>
                     <button onClick={() => { setShowFilterPanel(false); handleSearch(); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 10 }}>Rechercher</button>
                   </div>
                 </div>
@@ -286,6 +291,10 @@ export default function HomePage() {
             </div>
           ) : (
             <div style={{ display: "flex", gap: 8, marginTop: 18, maxWidth: 600, marginLeft: "auto", marginRight: "auto", flexWrap: "wrap" }}>
+              <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
+                <option value="">Région</option>
+                {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
               <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(false)}>
                 <option value="">Domaine</option>
                 {(domainesFiltres.length > 0 ? domainesFiltres :
@@ -308,13 +317,14 @@ export default function HomePage() {
                 <option value="">Ville</option>
                 {adminVilles.filter(v => !selVilles.includes(v.nom)).map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
               </select>
-              {hasFilters && <button onClick={() => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); }} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
+              {hasFilters && <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
               <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
             </div>
           )}
           {/* Tags filtres actifs */}
           {hasFilters && (
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10, justifyContent: "center" }}>
+              {selRegion && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>🗺️ {selRegion} <span onClick={() => setSelRegion("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
               {selDomaines.map(d => <span key={d} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: getDC(d).bg, color: getDC(d).color }}>{d} <span onClick={() => remF(selDomaines, d, setSelDomaines)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
               {selModalites.map(m => <span key={m} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>{m} <span onClick={() => remF(selModalites, m, setSelModalites)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
               {selPrises.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{p} <span onClick={() => remF(selPrises, p, setSelPrises)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
@@ -392,6 +402,17 @@ export default function HomePage() {
         </section>
       )}
 
+
+      {/* ===== CARTE REGIONS ===== */}
+      <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px", maxWidth: 1240, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par région 🗺️</h2>
+          <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir la carte →</Link>
+        </div>
+        <div style={{ maxWidth: mob ? "100%" : 540, margin: "0 auto" }}>
+          <FranceMap formations={formations} />
+        </div>
+      </section>
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
