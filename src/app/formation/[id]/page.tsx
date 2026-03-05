@@ -334,7 +334,7 @@ export default function FormationPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 18 }}>📍</span>
-                  <span style={{ fontSize: 14, color: C.textSec }}>{sessions.length > 0 ? sessions[0].lieu : "—"}</span>
+                  <span style={{ fontSize: 14, color: C.textSec }}>{(() => { const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))]; return ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—"); })()}</span>
                 </div>
               </div>
 

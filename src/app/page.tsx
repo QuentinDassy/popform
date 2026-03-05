@@ -192,7 +192,7 @@ export default function HomePage() {
         return { name: v.nom, count: found ? found[1] : 0, image: v.image || undefined };
       })
     : formationCities.slice(0, 8).map(([c, n]) => ({ name: c, count: n }));
-  const topCities = displayCities.slice(0, 8);
+  const topCities = [...displayCities].sort((a, b) => b.count - a.count).slice(0, 6);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const newF = formations
     .filter(f => f.date_ajout >= thirtyDaysAgo || f.affiche_order)
@@ -354,35 +354,36 @@ export default function HomePage() {
         <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px" }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
             <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par ville 📍</h2>
-            <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir toutes →</Link>
+            <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir toutes les villes →</Link>
           </div>
           {mob ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {topCities.slice(0, 6).map(c => (
+              {topCities.map(c => (
                 <CityCard key={c.name} city={c.name} count={c.count} mob image={c.image} />
               ))}
             </div>
           ) : (
             <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+              {/* Rangée 1 — 2 grandes */}
               {topCities.slice(0, 2).map(c => (
-                <div key={c.name} style={{ height: 180 }}>
+                <div key={c.name} style={{ height: 200 }}>
                   <CityCard city={c.name} count={c.count} image={c.image} />
                 </div>
               ))}
+              {/* Rangée 2 — 2 moyennes */}
               {topCities.slice(2, 4).map(c => (
-                <div key={c.name} style={{ height: 150 }}>
+                <div key={c.name} style={{ height: 160 }}>
                   <CityCard city={c.name} count={c.count} image={c.image} />
                 </div>
               ))}
-              {topCities.slice(4, 8).length > 0 && (
-                <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                  {topCities.slice(4, 8).map(c => (
-                    <div key={c.name} style={{ height: 120 }}>
-                      <CityCard city={c.name} count={c.count} image={c.image} />
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Rangée 3 — 2 petites sur toute la largeur */}
+              <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {topCities.slice(4, 6).map(c => (
+                  <div key={c.name} style={{ height: 130 }}>
+                    <CityCard city={c.name} count={c.count} image={c.image} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </section>
