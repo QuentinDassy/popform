@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
+import FranceMap from "@/components/FranceMap";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
 
@@ -140,8 +141,11 @@ export default function HomePage() {
       // Load all data in parallel with timeout
       const loadData = async () => {
         try {
-          // Load formations (most important)
-          const formationsData = await fetchFormations();
+          // Load formations (most important) — 10s safety timeout
+          const formationsData = await Promise.race([
+            fetchFormations(),
+            new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000)),
+          ]);
           setFormations(formationsData);
         } catch (e) {
           console.error("Error loading formations:", e);
@@ -388,6 +392,17 @@ export default function HomePage() {
           )}
         </section>
       )}
+
+{/* ===== CARTE REGIONS ===== */}
+      <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px", maxWidth: 1240, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par région</h2>
+          <span style={{ fontSize: 13, color: C.textTer, fontWeight: 600 }}>Cliquez sur une région</span>
+        </div>
+        <div style={{ maxWidth: mob ? "100%" : 540, margin: "0 auto" }}>
+          <FranceMap formations={formations} />
+        </div>
+      </section>
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>

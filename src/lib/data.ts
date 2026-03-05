@@ -69,6 +69,32 @@ export function fmtTitle(f: { sexe: string } | null | undefined) {
   return f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice";
 }
 
+export const REGIONS_CITIES: Record<string, string[]> = {
+  "Auvergne-Rhône-Alpes": ["Lyon", "Grenoble", "Clermont-Ferrand", "Saint-Étienne", "Annecy", "Chambéry", "Valence", "Aurillac", "Bourg-en-Bresse", "Le Puy-en-Velay", "Moulins", "Privas", "Roanne", "Vichy", "Montluçon"],
+  "Bourgogne-Franche-Comté": ["Dijon", "Besançon", "Chalon-sur-Saône", "Belfort", "Auxerre", "Nevers", "Mâcon", "Montbéliard", "Lons-le-Saunier", "Vesoul"],
+  "Bretagne": ["Rennes", "Brest", "Quimper", "Lorient", "Vannes", "Saint-Brieuc", "Saint-Malo", "Lannion"],
+  "Centre-Val de Loire": ["Orléans", "Tours", "Bourges", "Blois", "Chartres", "Châteauroux", "Vendôme"],
+  "Corse": ["Ajaccio", "Bastia", "Porto-Vecchio", "Corte"],
+  "Grand Est": ["Strasbourg", "Reims", "Metz", "Nancy", "Mulhouse", "Colmar", "Châlons-en-Champagne", "Épinal", "Troyes", "Thionville", "Sélestat"],
+  "Hauts-de-France": ["Lille", "Amiens", "Roubaix", "Tourcoing", "Dunkerque", "Calais", "Lens", "Arras", "Valenciennes", "Laon", "Beauvais", "Boulogne-sur-Mer", "Douai", "Cambrai"],
+  "Ile-de-France": ["Paris", "Versailles", "Boulogne-Billancourt", "Montreuil", "Argenteuil", "Saint-Denis", "Nanterre", "Créteil", "Vitry-sur-Seine", "Neuilly-sur-Seine", "Issy-les-Moulineaux", "Cergy", "Évry", "Melun", "Pontoise", "Vincennes", "Saint-Germain-en-Laye", "Massy", "Palaiseau", "Gif-sur-Yvette"],
+  "Normandie": ["Rouen", "Caen", "Le Havre", "Cherbourg", "Alençon", "Évreux", "Saint-Lô", "Bayeux", "Lisieux", "Dieppe"],
+  "Nouvelle-Aquitaine": ["Bordeaux", "Limoges", "Poitiers", "La Rochelle", "Bayonne", "Pau", "Périgueux", "Agen", "Angoulême", "Niort", "Mont-de-Marsan", "Brive-la-Gaillarde", "Rochefort", "Mérignac", "Pessac"],
+  "Occitanie": ["Toulouse", "Montpellier", "Nîmes", "Perpignan", "Carcassonne", "Albi", "Rodez", "Narbonne", "Béziers", "Sète", "Cahors", "Foix", "Mende", "Tarbes", "Castres"],
+  "Pays de la Loire": ["Nantes", "Angers", "Le Mans", "Saint-Nazaire", "La Roche-sur-Yon", "Laval", "Cholet", "Saint-Herblain"],
+  "Provence Alpes Côte d'Azur": ["Marseille", "Nice", "Toulon", "Aix-en-Provence", "Avignon", "Cannes", "Antibes", "Gap", "Grasse", "Fréjus", "Draguignan"],
+  "Guadeloupe": ["Pointe-à-Pitre", "Basse-Terre", "Baie-Mahault", "Le Gosier"],
+  "Guyane": ["Cayenne", "Saint-Laurent-du-Maroni", "Kourou"],
+  "Martinique": ["Fort-de-France", "Le Lamentin", "Le Robert"],
+  "Mayotte": ["Mamoudzou", "Koungou", "Bandraboua"],
+  "Réunion": ["Saint-Denis", "Saint-Paul", "Le Tampon", "Saint-Pierre", "Saint-André"],
+};
+
+export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CITIES).reduce(
+  (acc, [region, cities]) => { cities.forEach(c => { acc[c] = region; }); return acc; },
+  {} as Record<string, string>
+);
+
 export function getAllCitiesFromFormations(formations: FormationType[]): [string, number][] {
   const cities: Record<string, number> = {};
   formations.forEach(f => (f.sessions || []).forEach(s => {

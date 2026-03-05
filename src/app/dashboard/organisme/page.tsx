@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache, type Formation, type Organisme } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -883,7 +883,18 @@ export default function DashboardOrganismePage() {
                                     setSessions(n);
                                   }} style={inputStyle}>
                                     <option value="">— Choisir une ville —</option>
-                                    {adminVilles.map(v => <option key={v} value={v}>{v}</option>)}
+                                    {(() => {
+                                      const seen = new Set<string>();
+                                      return Object.entries(REGIONS_CITIES).flatMap(([region, cities]) => {
+                                        const avail = cities.filter(c => adminVilles.includes(c));
+                                        avail.forEach(c => seen.add(c));
+                                        if (avail.length === 0) return [];
+                                        return [<optgroup label={region} key={region}>{avail.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>];
+                                      }).concat((() => {
+                                        const other = adminVilles.filter(c => !seen.has(c));
+                                        return other.length > 0 ? [<optgroup label="Autre" key="__other_group">{other.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>] : [];
+                                      })());
+                                    })()}
                                     <option value="__OTHER__">✏️ Autre ville...</option>
                                   </select>
                                   {(!adminVilles.includes(p.ville)) && (

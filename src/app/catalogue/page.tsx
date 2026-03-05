@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -43,7 +43,9 @@ function CatalogueContent() {
   };
   const qParam = searchParams.get("q") || "";
   const organismeParam = searchParams.get("organisme") || "";
+  const regionParam = searchParams.get("region") || "";
   const [search, setSearch] = useState(qParam);
+  const [selRegion, setSelRegion] = useState(regionParam);
   const [sort, setSort] = useState("pertinence");
   const [selDomaines, setSelDomaines] = useState<string[]>(() => readParam("domaines", "domaine"));
   const [selModalites, setSelModalites] = useState<string[]>(() => readParam("modalites", "modalite"));
@@ -60,7 +62,7 @@ function CatalogueContent() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   useEffect(() => {
-    fetchFormations().then(d => { setFormations(d); setLoading(false); });
+    Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(d); setLoading(false); });
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
@@ -71,7 +73,7 @@ function CatalogueContent() {
   }, []);
 
   const cities = adminVilles;
-  const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0;
+  const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
 
   let filtered = formations.filter(f => {
     if (search) {
@@ -96,6 +98,13 @@ function CatalogueContent() {
     if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
     if (selPops.length > 0 && !selPops.every(p => (f.populations || []).includes(p))) return false;
+    if (selRegion) {
+      const regionCities = REGIONS_CITIES[selRegion] || [];
+      const matches = (f.sessions || []).some(s =>
+        regionCities.some(c => s.lieu.toLowerCase().includes(c.toLowerCase()))
+      );
+      if (!matches) return false;
+    }
     if (organismeParam) {
       const orgId = Number(organismeParam);
       const matchesOrg = f.organisme_id === orgId || (f.formateur && (f.formateur as any).organisme_id === orgId);
@@ -109,7 +118,7 @@ function CatalogueContent() {
   else if (sort === "note") filtered = [...filtered].sort((a, b) => b.note - a.note);
   else if (sort === "recent") filtered = [...filtered].sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
 
-  const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); };
+  const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -119,7 +128,7 @@ function CatalogueContent() {
       <div style={{ padding: "18px 0 10px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>
-          {organismeParam ? `Formations de cet organisme` : selVilles.length === 1 ? `Formations à ${selVilles[0]}` : selDomaines.length === 1 ? selDomaines[0] : "Toutes les formations"} 🎬
+          {organismeParam ? `Formations de cet organisme` : selRegion ? `Formations en ${selRegion}` : selVilles.length === 1 ? `Formations à ${selVilles[0]}` : selDomaines.length === 1 ? selDomaines[0] : "Toutes les formations"} 🎬
         </h1>
         {organismeParam && <Link href="/organismes" style={{ fontSize: 12, color: C.textTer, textDecoration: "none" }}>← Retour aux organismes</Link>}
       </div>
@@ -182,6 +191,14 @@ function CatalogueContent() {
                     </div>
                   </div>
                 ))}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Région</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {Object.keys(REGIONS_CITIES).map(r => (
+                      <button key={r} onClick={() => setSelRegion(selRegion === r ? "" : r)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === r ? C.accent : C.border), background: selRegion === r ? C.accentBg : C.surface, color: selRegion === r ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === r ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
+                    ))}
+                  </div>
+                </div>
 
                 <button onClick={() => { clearAll(); setShowFilterPanel(false); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>Réinitialiser les filtres</button>
                 <button onClick={() => setShowFilterPanel(false)} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 10 }}>Voir les {filtered.length} résultats</button>
@@ -213,6 +230,10 @@ function CatalogueContent() {
             <option value="">Ville</option>
             {cities.filter(v => !selVilles.includes(v)).map(v => <option key={v} value={v}>{v}</option>)}
           </select>
+          <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
+            <option value="">Région</option>
+            {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
           {hasActiveFilters && (
             <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Effacer</button>
           )}
@@ -227,6 +248,7 @@ function CatalogueContent() {
           {selPrises.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.greenBg, color: C.green }}>{p} <span onClick={() => remF(selPrises, p, setSelPrises)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
           {selPops.map(p => <span key={p} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: "rgba(232,123,53,0.08)", color: "#E87B35" }}>{p} <span onClick={() => remF(selPops, p, setSelPops)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
           {selVilles.map(v => <span key={v} style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.accentBg, color: C.accent }}>📍 {v} <span onClick={() => remF(selVilles, v, setSelVilles)} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>)}
+          {selRegion && <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: C.blueBg, color: C.blue }}>🗺️ {selRegion} <span onClick={() => setSelRegion("")} style={{ cursor: "pointer", marginLeft: 4 }}>✕</span></span>}
         </div>
       )}
 

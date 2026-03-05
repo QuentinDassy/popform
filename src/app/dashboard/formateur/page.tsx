@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
@@ -655,7 +655,37 @@ export default function DashboardFormateurPage() {
                           {p.modalite !== "Visio" && (
                             <div>
                               <label style={labelStyle}>Ville</label>
-                              <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties[pi].ville = e.target.value; n[i].parties[pi].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
+                              {adminVilles.length > 0 ? (
+                                <>
+                                  <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
+                                    const val = e.target.value;
+                                    const n = [...sessions];
+                                    if (val !== "__OTHER__") { n[i].parties[pi].ville = val; n[i].parties[pi].lieu = val; }
+                                    else { n[i].parties[pi].ville = ""; n[i].parties[pi].lieu = ""; }
+                                    setSessions(n);
+                                  }} style={inputStyle}>
+                                    <option value="">— Choisir une ville —</option>
+                                    {(() => {
+                                      const seen = new Set<string>();
+                                      return Object.entries(REGIONS_CITIES).flatMap(([region, cities]) => {
+                                        const avail = cities.filter(c => adminVilles.includes(c));
+                                        avail.forEach(c => seen.add(c));
+                                        if (avail.length === 0) return [];
+                                        return [<optgroup label={region} key={region}>{avail.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>];
+                                      }).concat((() => {
+                                        const other = adminVilles.filter(c => !seen.has(c));
+                                        return other.length > 0 ? [<optgroup label="Autre" key="__other_group">{other.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>] : [];
+                                      })());
+                                    })()}
+                                    <option value="__OTHER__">✏️ Autre ville...</option>
+                                  </select>
+                                  {!adminVilles.includes(p.ville) && p.ville && (
+                                    <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties[pi].ville = e.target.value; n[i].parties[pi].lieu = e.target.value; setSessions(n); }} placeholder="Entrez la ville" style={{ ...inputStyle, marginTop: 8 }} />
+                                  )}
+                                </>
+                              ) : (
+                                <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties[pi].ville = e.target.value; n[i].parties[pi].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
+                              )}
                             </div>
                           )}
                           {p.modalite !== "Visio" && (
