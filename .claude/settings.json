@@ -11,7 +11,8 @@
       "Bash(vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production --force)",
       "Bash(vercel env add SUPABASE_SERVICE_ROLE_KEY production --force)",
       "Bash(vercel projects ls)",
-      "Bash(ls c:/Users/quent/formortho/src/app/sitemap* c:/Users/quent/formortho/src/app/robots*)"
+      "Bash(ls c:/Users/quent/formortho/src/app/sitemap* c:/Users/quent/formortho/src/app/robots*)",
+      "Bash(grep -n \"sessions disponibles\\\\|voir les sessions\\\\|Session\\\\|session\" c:/Users/quent/formortho/src/app/formation/[id]/page.tsx)"
     ],
     "additionalDirectories": [
       "c:\\Users\\quent\\formortho\\src\\app\\auth"

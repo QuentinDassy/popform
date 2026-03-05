@@ -38,6 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon2popform.png" type="image/png" />
         <link rel="apple-touch-icon" href="/favicon2popform.png" />
         <meta name="theme-color" content="#D42B2B" />
+        {/* Unregister stale service workers to fix blank-page cache issues */}
+        <script dangerouslySetInnerHTML={{ __html: `if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>{for(const sw of r)sw.unregister();})}` }} />
       </head>
       <body style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FFFDF7", color: "#2D1B06", fontFamily: "var(--font-body), sans-serif" }}>
         <AuthProvider>

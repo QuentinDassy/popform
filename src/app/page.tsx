@@ -23,7 +23,7 @@ function useTyping(words: string[]) {
   return d;
 }
 
-const MODALITES = ["Présentiel", "Visio", "Mixte"];
+const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -244,7 +244,7 @@ export default function HomePage() {
           {mob ? (
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button onClick={() => setShowFilterPanel(true)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1.5px solid " + (hasFilters ? C.accent : C.border), background: hasFilters ? C.accentBg : C.surface, color: hasFilters ? C.accent : C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                <span>⚙️ Filtres</span>
+                <span>Filtres</span>
                 {hasFilters && <span style={{ padding: "1px 7px", borderRadius: 99, background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700 }}>{selDomaines.length + selModalites.length + selPrises.length + selPops.length + selVilles.length}</span>}
               </button>
               <button onClick={handleSearch} style={{ padding: "11px 16px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 16, cursor: "pointer", flexShrink: 0 }}>🔍</button>

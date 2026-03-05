@@ -145,7 +145,7 @@ function CatalogueContent() {
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: hasActiveFilters ? 8 : 16 }}>
             <button onClick={() => setShowFilterPanel(true)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1.5px solid " + (hasActiveFilters ? C.accent : C.border), background: hasActiveFilters ? C.accentBg : C.surface, color: hasActiveFilters ? C.accent : C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              <span>⚙️ Filtres</span>
+              <span>Filtres</span>
               {hasActiveFilters && <span style={{ padding: "1px 7px", borderRadius: 99, background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700 }}>{selDomaines.length + selModalites.length + selPrises.length + selPops.length + selVilles.length}</span>}
             </button>
             {hasActiveFilters && <button onClick={clearAll} style={{ padding: "11px 14px", borderRadius: 12, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
@@ -166,7 +166,7 @@ function CatalogueContent() {
                   { label: "Modalité", options: MODALITES, sel: selModalites, set: setSelModalites },
                   { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
                   { label: "Population", options: POPULATIONS, sel: selPops, set: setSelPops },
-                  { label: "Ville", options: ["Visio", ...cities], sel: selVilles, set: setSelVilles },
+                  { label: "Ville", options: cities, sel: selVilles, set: setSelVilles },
                 ].map(({ label, options, sel: selected, set }) => (
                   <div key={label} style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
@@ -175,7 +175,7 @@ function CatalogueContent() {
                         const active = selected.includes(opt);
                         return (
                           <button key={opt} onClick={() => active ? remF(selected, opt, set) : addF(selected, opt, set)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (active ? C.accent : C.border), background: active ? C.accentBg : C.surface, color: active ? C.accent : C.textSec, fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>
-                            {opt === "Visio" ? "💻 Visio" : opt}
+                            {opt}
                           </button>
                         );
                       })}
@@ -211,7 +211,6 @@ function CatalogueContent() {
           </select>
           <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(false)}>
             <option value="">Ville</option>
-            {!selVilles.includes("Visio") && <option value="Visio">💻 En visio</option>}
             {cities.filter(v => !selVilles.includes(v)).map(v => <option key={v} value={v}>{v}</option>)}
           </select>
           {hasActiveFilters && (

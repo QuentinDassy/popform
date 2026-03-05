@@ -345,9 +345,16 @@ export default function FormationPage() {
 
               {/* CTA Buttons */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
-                  Voir les sessions →
-                </a>
+                {f.modalite !== "E-learning" && (
+                  <a href="#sessions" style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+                    Voir les sessions →
+                  </a>
+                )}
+                {f.modalite === "E-learning" && f.url_inscription && (
+                  <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+                    Accéder à la formation →
+                  </a>
+                )}
               </div>
             </div>
 
@@ -386,8 +393,15 @@ export default function FormationPage() {
               </section>
             )}
 
-            {/* Sessions */}
-            <section id="sessions" style={{ marginBottom: 40 }}>
+            {/* Sessions — masquées pour E-learning */}
+            {f.modalite === "E-learning" && (
+              <section style={{ marginBottom: 40, padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
+                <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1A5FA8", marginBottom: 4 }}>Formation en ligne</div>
+                <p style={{ fontSize: 14, color: "#3A6EA0", margin: 0 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</p>
+              </section>
+            )}
+            {f.modalite !== "E-learning" && <section id="sessions" style={{ marginBottom: 40 }}>
               <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sessions disponibles</h2>
               {sessions.length === 0 ? (
                 <p style={{ color: C.textTer }}>Aucune session programmée pour le moment.</p>
@@ -436,7 +450,7 @@ export default function FormationPage() {
                   })}
                 </div>
               )}
-            </section>
+            </section>}
 
             {/* Avis */}
             <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} mob={mob} userId={user?.id} />

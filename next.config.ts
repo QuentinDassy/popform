@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Prevent browsers from caching HTML pages (stale JS chunk issue after deploy)
+      {
+        source: "/((?!_next/static|_next/image|favicon|.*\\.).*)",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
     ];
   },
 };
