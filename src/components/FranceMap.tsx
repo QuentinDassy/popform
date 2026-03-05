@@ -97,7 +97,7 @@ export default function FranceMap({
           position: "relative",
           borderRadius: 16,
           overflow: "hidden",
-          background: "#EBF0F5",
+          background: "transparent",
         }}
       >
         <svg

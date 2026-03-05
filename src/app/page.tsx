@@ -266,12 +266,12 @@ export default function HomePage() {
                       <button onClick={() => setShowFilterPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.textTer }}>✕</button>
                     </div>
                     {[
-                      { label: "Région", options: Object.keys(REGIONS_CITIES), sel: selRegion ? [selRegion] : [], set: (v: string[]) => setSelRegion(v[v.length - 1] || "") },
                       { label: "Domaine", options: (domainesFiltres.length > 0 ? domainesFiltres : [...new Set(formations.map(f => f.domaine))].map(d => ({ nom: d }))).map(d => d.nom), sel: selDomaines, set: setSelDomaines },
                       { label: "Modalité", options: MODALITES, sel: selModalites, set: setSelModalites },
                       { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
                       { label: "Population", options: POPULATIONS, sel: selPops, set: setSelPops },
                       { label: "Ville", options: adminVilles.map(v => v.nom), sel: selVilles, set: setSelVilles },
+                      { label: "Région", options: Object.keys(REGIONS_CITIES), sel: selRegion ? [selRegion] : [], set: (v: string[]) => setSelRegion(v[v.length - 1] || "") },
                     ].map(({ label, options, sel: selected, set }) => (
                       <div key={label} style={{ marginBottom: 20 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
@@ -291,10 +291,6 @@ export default function HomePage() {
             </div>
           ) : (
             <div style={{ display: "flex", gap: 8, marginTop: 18, maxWidth: 600, marginLeft: "auto", marginRight: "auto", flexWrap: "wrap" }}>
-              <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
-                <option value="">Région</option>
-                {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
               <select value="" onChange={e => addF(selDomaines, e.target.value, setSelDomaines)} style={sel(false)}>
                 <option value="">Domaine</option>
                 {(domainesFiltres.length > 0 ? domainesFiltres :
@@ -316,6 +312,10 @@ export default function HomePage() {
               <select value="" onChange={e => addF(selVilles, e.target.value, setSelVilles)} style={sel(false)}>
                 <option value="">Ville</option>
                 {adminVilles.filter(v => !selVilles.includes(v.nom)).map(v => <option key={v.nom} value={v.nom}>{v.nom}</option>)}
+              </select>
+              <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
+                <option value="">Région</option>
+                {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
               </select>
               {hasFilters && <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
               <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
@@ -376,27 +376,12 @@ export default function HomePage() {
               ))}
             </div>
           ) : (
-            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
-              {/* Rangée 1 — 2 grandes */}
-              {topCities.slice(0, 2).map(c => (
-                <div key={c.name} style={{ height: 200 }}>
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3, 1fr)" }}>
+              {topCities.map(c => (
+                <div key={c.name} style={{ height: 170 }}>
                   <CityCard city={c.name} count={c.count} image={c.image} />
                 </div>
               ))}
-              {/* Rangée 2 — 2 moyennes */}
-              {topCities.slice(2, 4).map(c => (
-                <div key={c.name} style={{ height: 160 }}>
-                  <CityCard city={c.name} count={c.count} image={c.image} />
-                </div>
-              ))}
-              {/* Rangée 3 — 2 petites sur toute la largeur */}
-              <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {topCities.slice(4, 6).map(c => (
-                  <div key={c.name} style={{ height: 130 }}>
-                    <CityCard city={c.name} count={c.count} image={c.image} />
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </section>
