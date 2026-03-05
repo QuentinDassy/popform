@@ -349,7 +349,45 @@ export default function HomePage() {
       )}
       {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={4} link="/catalogue?modalite=Visio" />}
 
-      {/* Section webinaires */}
+      {/* ===== VILLES ===== */}
+      {topCities.length > 0 && (
+        <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
+            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par ville 📍</h2>
+            <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir toutes →</Link>
+          </div>
+          {mob ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {topCities.slice(0, 6).map(c => (
+                <CityCard key={c.name} city={c.name} count={c.count} mob image={c.image} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+              {topCities.slice(0, 2).map(c => (
+                <div key={c.name} style={{ height: 180 }}>
+                  <CityCard city={c.name} count={c.count} image={c.image} />
+                </div>
+              ))}
+              {topCities.slice(2, 4).map(c => (
+                <div key={c.name} style={{ height: 150 }}>
+                  <CityCard city={c.name} count={c.count} image={c.image} />
+                </div>
+              ))}
+              {topCities.slice(4, 8).length > 0 && (
+                <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                  {topCities.slice(4, 8).map(c => (
+                    <div key={c.name} style={{ height: 120 }}>
+                      <CityCard city={c.name} count={c.count} image={c.image} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
         <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({formations.length} formations) →</div></Link>
