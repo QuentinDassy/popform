@@ -200,9 +200,7 @@ export default function HomePage() {
     : formationCities.slice(0, 8).map(([c, n]) => ({ name: c, count: n }));
   const topCities = [...displayCities].sort((a, b) => b.count - a.count).slice(0, 6);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const newF = formations
-    .filter(f => f.date_ajout >= thirtyDaysAgo || f.affiche_order)
-    .sort((a, b) => (a.affiche_order ?? 999) - (b.affiche_order ?? 999) || b.date_ajout.localeCompare(a.date_ajout));
+  const newF = formations.filter(f => f.is_new);
   const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
   const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
@@ -334,6 +332,9 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {/* ===== A LA UNE ===== */}
+      {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={mob ? 4 : 8} link="/catalogue?nouveautes=1" />}
 
       {/* ===== SECTIONS ===== */}
       {domainesAccueil.length > 0 ? (

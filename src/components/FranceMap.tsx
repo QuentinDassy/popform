@@ -211,7 +211,7 @@ export default function FranceMap({
             textAlign: "center",
           }}
         >
-          Territoires d&apos;Outre-Mer
+          Territoires et régions d&apos;Outre-Mer
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
           {DOM_REGIONS.map((region) => {
