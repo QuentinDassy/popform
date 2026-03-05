@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { C, REGIONS_CITIES } from "@/lib/data";
 
-// Real France regions GeoJSON (gregoiredavid, public domain)
-const GEO_URL =
-  "https://cdn.jsdelivr.net/gh/gregoiredavid/france-geojson/regions-version-simplifiee.geojson";
+// Real France regions GeoJSON (gregoiredavid, public domain) — served locally
+const GEO_URL = "/france-regions.geojson";
 
 // SVG canvas
 const W = 600;
