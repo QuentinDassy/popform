@@ -3,6 +3,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { C, getDC, getPhoto, type Formation, CITY_PHOTOS } from "@/lib/data";
 
+// Resize Supabase Storage images via the image transform API (Pro plan)
+function sbImg(url: string | null | undefined, w: number, h: number): string | null {
+  if (!url) return null;
+  if (!url.includes("/storage/v1/object/public/")) return url;
+  return url.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + `?width=${w}&height=${h}&resize=cover&quality=75`;
+}
+
 export function StarRow({ rating }: { rating: number }) {
   return (
     <div style={{ display: "flex", gap: "2px" }}>
@@ -45,7 +52,7 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
 export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boolean; mob?: boolean }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
-  const photo = (f as any).photo_url || null;
+  const photo = sbImg((f as any).photo_url, 600, 300) || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const uniqueLieux = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))];
@@ -55,7 +62,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
         <div style={{ position: "relative", height: compact ? (m ? 120 : 160) : (m ? 140 : 200), overflow: "hidden" }}>
           {photo
-            ? <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+            ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
             : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
           }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
@@ -83,7 +90,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const photo = image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
+  const photo = sbImg(image, 400, 200) || image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
