@@ -54,7 +54,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", height: compact ? (m ? 120 : 160) : (m ? 140 : 200), overflow: "hidden" }}>
+        <div style={{ position: "relative", height: compact ? (m ? 130 : 170) : (m ? 160 : 220), overflow: "hidden" }}>
           {photo
             ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
             : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
@@ -66,15 +66,16 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
           </div>
         </div>
-        <div style={{ padding: m ? "10px 12px" : "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: m ? 13 : compact ? 13.5 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
+        <div style={{ padding: m ? "12px 14px" : "18px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
+          <h3 style={{ fontSize: m ? 14 : compact ? 14 : 16, fontWeight: 700, color: C.text, lineHeight: 1.35, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
           {(f as any).formateur?.nom && <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: 0.1 }}>{(f as any).formateur.nom}</div>}
+          {f.description && <p style={{ fontSize: m ? 11 : 12, color: C.textSec, lineHeight: 1.5, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.description}</p>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
             <span>📍 {lieuDisplay}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
-            <div><span style={{ fontSize: m ? 16 : 19, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
+            <div><span style={{ fontSize: m ? 17 : 20, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
           </div>
         </div>
       </div>
