@@ -208,7 +208,7 @@ export default function HomePage() {
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
-  if (loading || redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (redirecting) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   return (
     <>
@@ -336,10 +336,16 @@ export default function HomePage() {
       </section>
 
       {/* ===== A LA UNE ===== */}
-      {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" />}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "32px 0", color: C.textTer, fontSize: 13 }}>Chargement des formations…</div>
+      ) : (
+        <>
+          {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" />}
+        </>
+      )}
 
       {/* ===== SECTIONS ===== */}
-      {domainesAccueil.length > 0 ? (
+      {!loading && domainesAccueil.length > 0 ? (
         domainesAccueil.map(domaine => {
           const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
           return (
@@ -353,7 +359,7 @@ export default function HomePage() {
             />
           );
         })
-      ) : (
+      ) : !loading ? (
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
             <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} />
@@ -362,8 +368,8 @@ export default function HomePage() {
             <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={3} />
           )}
         </>
-      )}
-      {visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" />}
+      ) : null}
+      {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" />}
 
       {/* ===== VILLES ===== */}
       {topCities.length > 0 && (

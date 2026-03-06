@@ -44,9 +44,9 @@ export type DomaineAdmin = {
 // ============ CACHE ============
 let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
-const CACHE_TTL = 0; // No cache - always fresh (can re-enable after launch)
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
-const FETCH_TIMEOUT = 8000;
+const FETCH_TIMEOUT = 12000;
 const timedOut = <T>(ms: number): Promise<T> => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
 
 // Public: all formations with cache
