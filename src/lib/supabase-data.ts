@@ -44,8 +44,8 @@ export type DomaineAdmin = {
 // ============ CACHE ============
 let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
-const MEM_TTL = 2 * 60 * 1000;       // 2 min in-memory
-const LS_TTL  = 30 * 60 * 1000;      // 30 min localStorage (survives navigation/new tab)
+const MEM_TTL = 2 * 60 * 1000;        // 2 min in-memory
+const LS_TTL  = 4 * 60 * 60 * 1000;  // 4h localStorage (survives long inactivity)
 const LS_KEY  = "pf_formations_v1";
 
 function lsRead(): { data: Formation[]; t: number } | null {
@@ -58,7 +58,7 @@ function lsWrite(data: Formation[]) {
   try { if (typeof window !== "undefined") localStorage.setItem(LS_KEY, JSON.stringify({ data, t: Date.now() })); } catch {}
 }
 
-const FETCH_TIMEOUT = 12000;
+const FETCH_TIMEOUT = 15000;
 const timedOut = <T>(ms: number): Promise<T> => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
 
 // Public: formations with stale-while-revalidate

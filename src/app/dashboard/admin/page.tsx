@@ -81,6 +81,14 @@ export default function DashboardAdminPage() {
     // Invalide le cache public pour que la formation apparaisse immédiatement
     const { invalidateCache } = await import("@/lib/data");
     invalidateCache();
+    // Email au formateur si la formation est publiée
+    if (status === "publiee") {
+      const f = formations.find(f => f.id === id);
+      if (f) {
+        const userId = (f as any).formateur?.user_id || (f as any).organisme?.user_id;
+        fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) }).catch(() => {});
+      }
+    }
   };
 
   const handleApprovePendingUpdate = async (id: number) => {

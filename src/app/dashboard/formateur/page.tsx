@@ -248,6 +248,10 @@ export default function DashboardFormateurPage() {
     const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
+    // Email à l'admin pour nouvelle soumission (pas pour les modifications)
+    if (!editId) {
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) }).catch(() => {});
+    }
     setFormPhotoFile(null);
     setExtraPrix([]);
     setNewPrixLabel(""); setNewPrixValue("");
