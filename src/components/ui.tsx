@@ -83,9 +83,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const photo = image && image.includes("/storage/v1/object/public/")
-    ? image.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + "?width=400&height=200&resize=cover"
-    : (image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"]);
+  const photo = image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
