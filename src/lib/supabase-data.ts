@@ -44,32 +44,68 @@ export type DomaineAdmin = {
 // ============ CACHE ============
 let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const MEM_TTL = 2 * 60 * 1000;       // 2 min in-memory
+const LS_TTL  = 30 * 60 * 1000;      // 30 min localStorage (survives navigation/new tab)
+const LS_KEY  = "pf_formations_v1";
+
+function lsRead(): { data: Formation[]; t: number } | null {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function lsWrite(data: Formation[]) {
+  try { if (typeof window !== "undefined") localStorage.setItem(LS_KEY, JSON.stringify({ data, t: Date.now() })); } catch {}
+}
 
 const FETCH_TIMEOUT = 12000;
 const timedOut = <T>(ms: number): Promise<T> => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
 
-// Public: all formations with cache
+// Public: formations with stale-while-revalidate
+// Returns instantly from cache (localStorage or memory), refreshes in background
 export async function fetchFormations(): Promise<Formation[]> {
   const now = Date.now();
-  if (_formationsCache && now - _cacheTime < CACHE_TTL) return _formationsCache;
+
+  // 1. Memory cache (hot — same session, < 2 min)
+  if (_formationsCache && now - _cacheTime < MEM_TTL) return _formationsCache;
+
+  // 2. localStorage cache (warm — survived navigation/new tab, < 30 min)
+  const ls = lsRead();
+  if (ls && now - ls.t < LS_TTL) {
+    _formationsCache = ls.data;
+    _cacheTime = ls.t;
+    // Revalidate in background without blocking
+    _fetchAndStore().catch(() => {});
+    return ls.data;
+  }
+
+  // 3. Cold fetch (no cache or expired)
+  return _fetchAndStore();
+}
+
+async function _fetchAndStore(): Promise<Formation[]> {
   try {
     const { data, error } = await Promise.race([
       supabase.from("formations").select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false }),
       timedOut(FETCH_TIMEOUT),
     ]);
-    if (error) { console.error("fetchFormations error:", error); return _formationsCache || []; }
+    if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
     _formationsCache = result;
-    _cacheTime = now;
+    _cacheTime = Date.now();
+    lsWrite(result);
     return result;
   } catch {
-    console.warn("fetchFormations timeout or error");
-    return _formationsCache || [];
+    console.warn("fetchFormations timeout");
+    return _formationsCache || lsRead()?.data || [];
   }
 }
 
-export function invalidateCache() { _formationsCache = null; _cacheTime = 0; }
+export function invalidateCache() {
+  _formationsCache = null;
+  _cacheTime = 0;
+  try { if (typeof window !== "undefined") localStorage.removeItem(LS_KEY); } catch {}
+}
 
 export async function fetchFormation(id: number): Promise<Formation | null> {
   try {
