@@ -17,7 +17,7 @@ export default function VillesPage() {
 
   useEffect(() => {
     function tout<T>(p: Promise<T>, fb: T): Promise<T> { return Promise.race([p, new Promise<T>(r => setTimeout(() => r(fb), 8000))]); }
-    tout(supabase.from("villes_admin").select("*").order("nom").then(r => r), { data: [], error: null }).then(({ data: villes }: { data: Record<string, string>[] | null }) => {
+    tout(supabase.from("villes_admin").select("*").order("nom").then((r: any) => r), { data: [], error: null }).then(({ data: villes }: { data: Record<string, string>[] | null }) => {
       const adminMap: Record<string, string> = {};
       (villes || []).forEach((v: Record<string, string>) => { adminMap[v.nom] = v.image || ""; });
       setAdminVilles(adminMap);
