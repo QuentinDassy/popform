@@ -8,12 +8,15 @@ const ADMIN_TO = "contact@popform.fr";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://popform.fr";
 
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) { console.warn("RESEND_API_KEY not set"); return; }
-  await fetch("https://api.resend.com/emails", {
+  if (!RESEND_API_KEY) { console.error("[email] RESEND_API_KEY not set — email not sent"); return; }
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
+    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
   });
+  const result = await res.json();
+  if (!res.ok) console.error("[email] Resend error:", result);
+  else console.log("[email] Sent to", to, "— id:", result.id);
 }
 
 function brandedHtml(title: string, body: string) {
