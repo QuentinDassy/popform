@@ -96,9 +96,14 @@ export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CIT
 );
 
 export function getAllCitiesFromFormations(formations: FormationType[]): [string, number][] {
-  const cities: Record<string, number> = {};
+  const cityMap: Record<string, Set<number>> = {};
   formations.forEach(f => (f.sessions || []).forEach(s => {
-    if (s.lieu && s.lieu !== "En ligne") cities[s.lieu] = (cities[s.lieu] || 0) + 1;
+    (s.lieu || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach(city => {
+      if (city !== "Visio" && city !== "En ligne" && city !== "Présentiel") {
+        if (!cityMap[city]) cityMap[city] = new Set();
+        cityMap[city].add(f.id);
+      }
+    });
   }));
-  return Object.entries(cities).sort((a, b) => b[1] - a[1]);
+  return Object.entries(cityMap).map(([city, ids]) => [city, ids.size] as [string, number]).sort((a, b) => b[1] - a[1]);
 }

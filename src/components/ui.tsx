@@ -3,12 +3,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { C, getDC, getPhoto, type Formation, CITY_PHOTOS } from "@/lib/data";
 
-// Resize Supabase Storage images via the image transform API (Pro plan)
-function sbImg(url: string | null | undefined, w: number, h: number): string | null {
-  if (!url) return null;
-  if (!url.includes("/storage/v1/object/public/")) return url;
-  return url.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + `?width=${w}&height=${h}&resize=cover&quality=75`;
-}
 
 export function StarRow({ rating }: { rating: number }) {
   return (
@@ -52,7 +46,7 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
 export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boolean; mob?: boolean }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
-  const photo = sbImg((f as any).photo_url, 600, 300) || null;
+  const photo = (f as any).photo_url || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const uniqueLieux = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))];
@@ -90,7 +84,7 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const photo = sbImg(image, 400, 200) || image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
+  const photo = image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>

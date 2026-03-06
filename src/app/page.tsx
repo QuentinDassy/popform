@@ -196,8 +196,11 @@ export default function HomePage() {
   // If admin configured villes, use those; otherwise fall back to formation cities
   const displayCities: { name: string; count: number; image?: string }[] = adminVilles.length > 0
     ? adminVilles.map(v => {
-        const found = formationCities.find(([c]) => c === v.nom);
-        return { name: v.nom, count: found ? found[1] : 0, image: v.image || undefined };
+        // Sum all city keys that exactly match or start with the admin ville name (e.g. "Paris 8ème" → "Paris")
+        const count = formationCities
+          .filter(([c]) => c === v.nom || c.startsWith(v.nom + " "))
+          .reduce((sum, [, n]) => sum + n, 0);
+        return { name: v.nom, count, image: v.image || undefined };
       })
     : formationCities.slice(0, 8).map(([c, n]) => ({ name: c, count: n }));
   const topCities = [...displayCities].sort((a, b) => b.count - a.count).slice(0, 6);
