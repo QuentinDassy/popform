@@ -38,6 +38,7 @@ function brandedHtml(title: string, body: string) {
 export async function POST(request: NextRequest) {
   try {
     const { type, ...data } = await request.json();
+    console.error("[email-route] POST reçu, type=", type, "RESEND_API_KEY set=", !!RESEND_API_KEY);
 
     if (type === "new_formation") {
       // Formation soumise → email à l'admin
