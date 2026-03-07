@@ -278,10 +278,7 @@ export default function DashboardOrganismePage() {
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
-      console.log("[email] Envoi email nouvelle formation (organisme):", payload.titre);
-      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: organisme.nom }) })
-        .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
-        .catch(e => console.error("[email] Erreur fetch:", e));
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: organisme.nom }) }).catch(() => {});
     }
     setFormPhotoFile(null);
     setTab("list");
@@ -344,8 +341,8 @@ export default function DashboardOrganismePage() {
     setFormations(prev => prev.filter(f => f.id !== id));
   };
 
-  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile?.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const px = mob ? "0 16px" : "0 40px";

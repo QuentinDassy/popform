@@ -5,6 +5,10 @@ const FROM = "PopForm <noreply@popform.fr>";
 const ADMIN_TO = "quentin.dassy@gmail.com";
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://popform.fr";
 
+function esc(s: string) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) { console.error("[email] RESEND_API_KEY not set — email not sent"); return; }
   const res = await fetch("https://api.resend.com/emails", {
@@ -36,8 +40,6 @@ function brandedHtml(title: string, body: string) {
 export async function POST(request: NextRequest) {
   try {
     const { type, ...data } = await request.json();
-    console.error("[email-route] POST reçu, type=", type, "RESEND_API_KEY set=", !!RESEND_API_KEY);
-
     if (type === "new_formation") {
       // Formation soumise → email à l'admin
       const { titre, formateur_nom } = data;
@@ -48,8 +50,8 @@ export async function POST(request: NextRequest) {
           "Nouvelle formation en attente de validation",
           `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 12px">Un formateur vient de soumettre une formation qui attend votre validation :</p>
            <div style="background:#FAF8F4;border-radius:10px;padding:16px;margin-bottom:20px">
-             <div style="font-size:15px;font-weight:700;color:#2D1B06;margin-bottom:4px">${titre}</div>
-             <div style="font-size:13px;color:#A48C6A">Formateur : ${formateur_nom}</div>
+             <div style="font-size:15px;font-weight:700;color:#2D1B06;margin-bottom:4px">${esc(titre)}</div>
+             <div style="font-size:13px;color:#A48C6A">Formateur : ${esc(formateur_nom)}</div>
            </div>
            <a href="${BASE_URL}/dashboard/admin" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Voir le tableau de bord →</a>`
         )
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
           "Votre formation est en ligne !",
           `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 12px">Bonne nouvelle ! Votre formation a été validée par notre équipe et est maintenant visible sur PopForm.</p>
            <div style="background:#FAF8F4;border-radius:10px;padding:16px;margin-bottom:20px">
-             <div style="font-size:15px;font-weight:700;color:#2D1B06">${titre}</div>
+             <div style="font-size:15px;font-weight:700;color:#2D1B06">${esc(titre)}</div>
            </div>
            <a href="${BASE_URL}/formation/${formation_id}" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Voir ma formation →</a>`
         )

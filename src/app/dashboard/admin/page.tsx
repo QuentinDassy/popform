@@ -9,7 +9,6 @@ import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 
-const ADMIN_EMAIL = "quentin.dassy@gmail.com"; // Change to your admin email
 
 export default function DashboardAdminPage() {
   const { user, profile } = useAuth();
@@ -86,10 +85,7 @@ export default function DashboardAdminPage() {
       const f = formations.find(f => f.id === id);
       if (f) {
         const userId = (f as any).formateur?.user_id || (f as any).organisme?.user_id;
-        console.log("[email] Envoi email formation acceptée:", f.titre, "user:", userId);
-        fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) })
-          .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
-          .catch(e => console.error("[email] Erreur fetch:", e));
+        fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) }).catch(() => {});
       }
     }
   };
@@ -246,9 +242,9 @@ export default function DashboardAdminPage() {
     setDomainesList(newList);
   };
 
-  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
-  if (user.email !== ADMIN_EMAIL) { if (typeof window !== "undefined") window.location.href = "/"; return null }
+  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
+  if (profile?.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const filtered = filter === "all" ? formations : formations.filter(f => f.status === filter);
   const pendingCount = formations.filter(f => f.status === "en_attente").length;

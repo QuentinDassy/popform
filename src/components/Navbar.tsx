@@ -42,7 +42,7 @@ export default function Navbar() {
   useEffect(() => { setMenuOpen(false) }, [pathname]);
 
   useEffect(() => {
-    if (user?.email === "quentin.dassy@gmail.com") {
+    if (profile?.role === "admin") {
       supabase.from("formations").select("id", { count: "exact", head: true }).eq("status", "en_attente").then(({ count }: { count: number | null }) => {
         setUnreadCount(count || 0);
       });
@@ -77,7 +77,7 @@ export default function Navbar() {
               {profile?.role === "formateur" && (
                 <Link href="/dashboard/formateur" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.yellow + "44", background: C.yellowBg, color: C.yellowDark, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🎤 Dashboard</Link>
               )}
-              {user?.email === "quentin.dassy@gmail.com" && (
+              {profile?.role === "admin" && (
                 <Link href="/dashboard/admin" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 700, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, position: "relative" }}>
                   🛡️ Admin
                   {unreadCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 9999, fontSize: 10, fontWeight: 800, padding: "1px 6px", lineHeight: "16px" }}>{unreadCount}</span>}
@@ -120,7 +120,7 @@ export default function Navbar() {
                       Dashboard
                     </Link>
                   )}
-                  {user?.email === "quentin.dassy@gmail.com" && (
+                  {profile?.role === "admin" && (
                     <Link href="/dashboard/admin" style={{ padding: "10px 14px", borderRadius: 9, background: pathname.includes("/admin") ? C.accentBg : "transparent", color: pathname.includes("/admin") ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
                       🛡️ Admin
                       {unreadCount > 0 && <span style={{ background: C.accent, color: "#fff", borderRadius: 9999, fontSize: 11, fontWeight: 800, padding: "1px 7px" }}>{unreadCount}</span>}

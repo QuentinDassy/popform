@@ -139,7 +139,6 @@ export default function DashboardFormateurPage() {
   };
 
   const handleSave = async () => {
-    console.log("[save] handleSave appelé, editId=", editId);
     if (!formateur) { setMsg("Erreur: profil formateur non trouvé."); return; }
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
@@ -251,10 +250,7 @@ export default function DashboardFormateurPage() {
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
-      console.log("[email] Envoi email nouvelle formation:", payload.titre);
-      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) })
-        .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
-        .catch(e => console.error("[email] Erreur fetch:", e));
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) }).catch(() => {});
     }
     setFormPhotoFile(null);
     setExtraPrix([]);
@@ -303,8 +299,8 @@ export default function DashboardFormateurPage() {
     setMerging(false);
   };
 
-  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null; }
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null; }
 
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
