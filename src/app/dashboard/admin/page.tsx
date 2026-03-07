@@ -86,7 +86,10 @@ export default function DashboardAdminPage() {
       const f = formations.find(f => f.id === id);
       if (f) {
         const userId = (f as any).formateur?.user_id || (f as any).organisme?.user_id;
-        fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) }).catch(() => {});
+        console.log("[email] Envoi email formation acceptée:", f.titre, "user:", userId);
+        fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) })
+          .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
+          .catch(e => console.error("[email] Erreur fetch:", e));
       }
     }
   };

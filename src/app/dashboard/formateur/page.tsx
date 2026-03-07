@@ -250,7 +250,10 @@ export default function DashboardFormateurPage() {
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
-      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) }).catch(() => {});
+      console.log("[email] Envoi email nouvelle formation:", payload.titre);
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) })
+        .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
+        .catch(e => console.error("[email] Erreur fetch:", e));
     }
     setFormPhotoFile(null);
     setExtraPrix([]);
