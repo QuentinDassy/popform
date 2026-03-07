@@ -276,6 +276,13 @@ export default function DashboardOrganismePage() {
     const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
+    // Email à l'admin pour nouvelle soumission (pas pour les modifications)
+    if (!editId) {
+      console.log("[email] Envoi email nouvelle formation (organisme):", payload.titre);
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: organisme.nom }) })
+        .then(r => r.json().then(d => console.log("[email] Réponse:", r.status, d)))
+        .catch(e => console.error("[email] Erreur fetch:", e));
+    }
     setFormPhotoFile(null);
     setTab("list");
     setMsg(null);
