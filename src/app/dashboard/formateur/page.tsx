@@ -139,6 +139,7 @@ export default function DashboardFormateurPage() {
   };
 
   const handleSave = async () => {
+    console.log("[save] handleSave appelé, editId=", editId);
     if (!formateur) { setMsg("Erreur: profil formateur non trouvé."); return; }
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
