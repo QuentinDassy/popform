@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = "PopForm <noreply@popform.fr>";
-const ADMIN_TO = "contact@popform.fr";
+const ADMIN_TO = "sylvie.nguyen01@gmail.com"; // TEST - remettre contact@popform.fr après
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://popform.fr";
 
 async function sendEmail(to: string, subject: string, html: string) {
