@@ -65,14 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // SIGNED_IN, TOKEN_REFRESHED (with session), USER_UPDATED, etc.
+      // IMPORTANT: do NOT await anything here — this callback runs while the
+      // auth lock is held. Awaiting a Supabase query blocks the lock for up to
+      // 15s, which prevents INITIAL_SESSION from ever firing (its lock acquire
+      // times out at 10s). Fire profile fetch as a non-blocking side effect.
       if (u?.id === currentUserId) return; // no change
       currentUserId = u?.id || null;
       setUser(u);
       if (u) {
-        try {
-          const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
-          if (pData) setProfile(pData);
-        } catch { /* ignore */ }
+        supabase.from("profiles").select("*").eq("id", u.id).single()
+          .then(({ data: pData }: { data: Profile | null }) => { if (pData) setProfile(pData); })
+          .catch(() => {});
       } else {
         setProfile(null);
       }
