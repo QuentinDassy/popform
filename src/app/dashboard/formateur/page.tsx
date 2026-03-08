@@ -27,7 +27,7 @@ function emptyFormation() {
 }
 
 export default function DashboardFormateurPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const mob = useIsMobile();
   const [formateur, setFormateur] = useState<Formateur | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -59,8 +59,9 @@ export default function DashboardFormateurPage() {
   const [merging, setMerging] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     (async () => {
+      try {
       const orgs = await fetchOrganismes();
       setOrganismes(orgs);
       
@@ -112,11 +113,11 @@ export default function DashboardFormateurPage() {
           setOrphanFmts(orphansWithCounts);
         }
       }
-      setLoading(false);
       // Load admin villes
       supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setAdminVilles(data.map((v: { nom: string }) => v.nom));
       });
+      } catch { /* timeout ou erreur réseau */ } finally { setLoading(false); }
     })();
   }, [user, profile]);
 
@@ -299,7 +300,7 @@ export default function DashboardFormateurPage() {
     setMerging(false);
   };
 
-  if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null; }
 
   const px = mob ? "0 16px" : "0 40px";

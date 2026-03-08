@@ -30,7 +30,7 @@ function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
 }
 
 export default function DashboardOrganismePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const mob = useIsMobile();
   const [organisme, setOrganisme] = useState<Organisme | null>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -82,8 +82,10 @@ export default function DashboardOrganismePage() {
 
   // Load organisme + formations
   useEffect(() => {
-    if (!user || !profile) return;
+    if (!user) { setLoading(false); return; }
+    if (!profile) return;
     (async () => {
+      try {
       // Find organisme linked to this user
       let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
       let myOrg = myOrgs?.[0] || null;
@@ -124,7 +126,7 @@ export default function DashboardOrganismePage() {
       // Load domaines from admin
       const domaines = await fetchDomainesAdmin();
       setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
-      setLoading(false);
+      } catch { /* timeout ou erreur réseau */ } finally { setLoading(false); }
     })();
   }, [user, profile]);
 
@@ -341,7 +343,7 @@ export default function DashboardOrganismePage() {
     setFormations(prev => prev.filter(f => f.id !== id));
   };
 
-  if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile?.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 

@@ -11,7 +11,7 @@ import { uploadImage } from "@/lib/upload";
 
 
 export default function DashboardAdminPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const mob = useIsMobile();
   const [formations, setFormations] = useState<Formation[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -37,7 +37,7 @@ export default function DashboardAdminPage() {
   const [congresList, setCongresList] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     (async () => {
       try {
         const { data: f, error: fErr } = await supabase
@@ -64,13 +64,10 @@ export default function DashboardAdminPage() {
         const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").order("date", { ascending: true });
         setCongresList(cgs || []);
       } catch (e: any) {
-        // Session expired - redirect to home
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
           window.location.href = "/";
-          return;
         }
-      }
-      setLoading(false);
+      } finally { setLoading(false); }
     })();
   }, [user]);
 
@@ -242,7 +239,7 @@ export default function DashboardAdminPage() {
     setDomainesList(newList);
   };
 
-  if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+  if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile?.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
