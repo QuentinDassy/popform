@@ -40,14 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (u?.id) {
           currentUserId = u.id;
           setUser(u);
-          // Load profile in background
-          supabase.from("profiles").select("*").eq("id", u.id).single()
+          // Fetch profile, then unblock UI (max 3s wait so dashboards never hang)
+          const profileFetch = supabase.from("profiles").select("*").eq("id", u.id).single()
             .then(({ data: pData }: { data: Profile | null }) => { if (pData) setProfile(pData); })
             .catch(() => {});
+          const maxWait = new Promise<void>(resolve => setTimeout(resolve, 3000));
+          Promise.race([profileFetch, maxWait]).finally(() => setLoading(false));
+        } else {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
-    } catch { /* localStorage unavailable (SSR/private browsing) */ }
-    setLoading(false); // Always unblock UI immediately
+    } catch { /* localStorage unavailable (SSR/private browsing) */ setLoading(false); }
 
     // onAuthStateChange handles token refresh + sign in/out events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {

@@ -241,7 +241,7 @@ export default function DashboardAdminPage() {
 
   if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
-  if (profile?.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
+  if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const filtered = filter === "all" ? formations : formations.filter(f => f.status === filter);
   const pendingCount = formations.filter(f => f.status === "en_attente").length;

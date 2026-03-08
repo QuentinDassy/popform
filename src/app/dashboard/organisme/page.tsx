@@ -83,15 +83,14 @@ export default function DashboardOrganismePage() {
   // Load organisme + formations
   useEffect(() => {
     if (!user) { setLoading(false); return; }
-    if (!profile) return;
     (async () => {
       try {
       // Find organisme linked to this user
       let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
       let myOrg = myOrgs?.[0] || null;
-      
+
       // If no organisme linked, try to find one without user_id and claim it, or create new
-      if (!myOrg && profile.role === "organisme") {
+      if (!myOrg && profile?.role === "organisme") {
         // Try to find an unlinked organisme
         const { data: unlinked } = await supabase.from("organismes").select("*").is("user_id", null).limit(1);
         if (unlinked?.[0]) {
@@ -345,7 +344,7 @@ export default function DashboardOrganismePage() {
 
   if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
-  if (profile?.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
+  if (profile && profile.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
