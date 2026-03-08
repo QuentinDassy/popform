@@ -195,7 +195,7 @@ export default function FormationPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   useEffect(() => {
     if (!id) return;
-    fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); });
+    fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); }).catch(() => setLoading(false));
     fetchAvis().then(setAvis);
     fetchFormations().then(setFormations);
     if (user) {

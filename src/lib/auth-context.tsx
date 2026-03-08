@@ -29,33 +29,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     let currentUserId: string | null = null;
 
-    // Safety timeout in case nothing fires
+    // Safety timeout in case INITIAL_SESSION never fires
     const authTimeout = setTimeout(() => setLoading(false), 3000);
 
-    // getSession() reads from localStorage instantly — no network call
-    supabase.auth.getSession().then(({ data }: { data: { session: { user: User } | null } }) => {
-      clearTimeout(authTimeout);
-      const user = data.session?.user ?? null;
-      currentUserId = user?.id || null;
-      setUser(user);
-      if (user) {
-        supabase.from("profiles").select("*").eq("id", user.id).single()
-          .then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
-      }
-      setLoading(false);
-    }).catch(() => { clearTimeout(authTimeout); setLoading(false); });
-
+    // onAuthStateChange fires INITIAL_SESSION from localStorage — no network call
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
+      const u = session?.user ?? null;
+
+      if (_event === "INITIAL_SESSION") {
+        clearTimeout(authTimeout);
+        currentUserId = u?.id || null;
+        setUser(u);
+        if (u) {
+          supabase.from("profiles").select("*").eq("id", u.id).single()
+            .then(({ data: pData }: { data: Profile | null }) => { if (pData) setProfile(pData); })
+            .catch(() => {});
+        }
+        setLoading(false);
+        return;
+      }
+
       if (_event === "TOKEN_REFRESHED" && !session) {
         setUser(null); setProfile(null); currentUserId = null; return;
       }
-      const u = session?.user ?? null;
+
       if (u?.id === currentUserId) return;
       currentUserId = u?.id || null;
       setUser(u);
       if (u) {
-        const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
-        setProfile(pData);
+        try {
+          const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
+          setProfile(pData);
+        } catch { /* ignore profile fetch error */ }
       } else {
         setProfile(null);
       }
