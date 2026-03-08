@@ -81,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+    // Notify admin of new signup (formateur or organisme only)
+    if (!error && (role === "formateur" || role === "organisme")) {
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_user", email, role, full_name: fullName }) }).catch(() => {});
+    }
     // If signup succeeded and newsletter_opt is true, update profile after slight delay
     if (!error && newsletterOpt) {
       setTimeout(async () => {

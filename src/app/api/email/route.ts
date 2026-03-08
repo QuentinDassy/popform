@@ -40,6 +40,24 @@ function brandedHtml(title: string, body: string) {
 export async function POST(request: NextRequest) {
   try {
     const { type, ...data } = await request.json();
+    if (type === "new_user") {
+      const { email, role, full_name } = data;
+      const roleLabel = role === "organisme" ? "Organisme" : "Formateur·rice";
+      await sendEmail(
+        ADMIN_TO,
+        `Nouvelle inscription ${roleLabel} : ${esc(full_name || email)}`,
+        brandedHtml(
+          `Nouvel·le ${roleLabel} inscrit·e`,
+          `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 12px">Un nouveau compte vient d'être créé sur PopForm :</p>
+           <div style="background:#FAF8F4;border-radius:10px;padding:16px;margin-bottom:20px">
+             <div style="font-size:15px;font-weight:700;color:#2D1B06;margin-bottom:4px">${esc(full_name || "—")}</div>
+             <div style="font-size:13px;color:#A48C6A">${esc(email)} · ${roleLabel}</div>
+           </div>
+           <a href="${BASE_URL}/dashboard/admin" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Voir le tableau de bord →</a>`
+        )
+      );
+    }
+
     if (type === "new_formation") {
       // Formation soumise → email à l'admin
       const { titre, formateur_nom } = data;
