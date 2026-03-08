@@ -58,9 +58,6 @@ function lsWrite(data: Formation[]) {
   try { if (typeof window !== "undefined") localStorage.setItem(LS_KEY, JSON.stringify({ data, t: Date.now() })); } catch {}
 }
 
-const FETCH_TIMEOUT = 15000;
-const timedOut = <T>(ms: number): Promise<T> => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms));
-
 // Public: formations with stale-while-revalidate
 // Returns instantly from cache (localStorage or memory), refreshes in background
 export async function fetchFormations(): Promise<Formation[]> {
@@ -69,7 +66,7 @@ export async function fetchFormations(): Promise<Formation[]> {
   // 1. Memory cache (hot — same session, < 2 min)
   if (_formationsCache && now - _cacheTime < MEM_TTL) return _formationsCache;
 
-  // 2. localStorage cache (warm — survived navigation/new tab, < 30 min)
+  // 2. localStorage cache (warm — survived navigation/new tab, < 4h)
   const ls = lsRead();
   if (ls && now - ls.t < LS_TTL) {
     _formationsCache = ls.data;
@@ -85,18 +82,15 @@ export async function fetchFormations(): Promise<Formation[]> {
 
 async function _fetchAndStore(): Promise<Formation[]> {
   try {
-    const { data, error } = await Promise.race([
-      supabase.from("formations").select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false }),
-      timedOut(FETCH_TIMEOUT),
-    ]);
+    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
     if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
     _formationsCache = result;
     _cacheTime = Date.now();
     lsWrite(result);
     return result;
-  } catch {
-    console.warn("fetchFormations timeout");
+  } catch (e) {
+    console.warn("fetchFormations error:", e);
     return _formationsCache || lsRead()?.data || [];
   }
 }
@@ -107,16 +101,52 @@ export function invalidateCache() {
   try { if (typeof window !== "undefined") localStorage.removeItem(LS_KEY); } catch {}
 }
 
-export async function fetchFormation(id: number): Promise<Formation | null> {
+// Per-formation cache (id → {data, t})
+const LS_FORMATION_PREFIX = "pf_formation_v1_";
+const FORMATION_TTL = 5 * 60 * 1000; // 5 min
+
+function lsReadFormation(id: number): { data: Formation; t: number } | null {
   try {
-    const { data, error } = await Promise.race([
-      supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)").eq("id", id).maybeSingle(),
-      timedOut(FETCH_TIMEOUT),
-    ]);
+    const raw = typeof window !== "undefined" ? localStorage.getItem(LS_FORMATION_PREFIX + id) : null;
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function lsWriteFormation(id: number, data: Formation) {
+  try { if (typeof window !== "undefined") localStorage.setItem(LS_FORMATION_PREFIX + id, JSON.stringify({ data, t: Date.now() })); } catch {}
+}
+
+export async function fetchFormation(id: number): Promise<Formation | null> {
+  // 1. Per-formation localStorage cache (< 5 min)
+  const cached = lsReadFormation(id);
+  if (cached && Date.now() - cached.t < FORMATION_TTL) {
+    // Revalidate in background
+    _fetchFormationRemote(id).then(f => { if (f) lsWriteFormation(id, f); }).catch(() => {});
+    return cached.data;
+  }
+  // 2. Fallback: try list cache
+  if (_formationsCache) {
+    const found = _formationsCache.find(f => f.id === id);
+    if (found) {
+      _fetchFormationRemote(id).then(f => { if (f) lsWriteFormation(id, f); }).catch(() => {});
+      return found;
+    }
+  }
+  // 3. Cold fetch
+  return _fetchFormationRemote(id);
+}
+
+async function _fetchFormationRemote(id: number): Promise<Formation | null> {
+  try {
+    const { data, error } = await supabase
+      .from("formations")
+      .select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,photo_url,site_url), organisme:organismes(id,nom,logo,site_url)")
+      .eq("id", id)
+      .maybeSingle();
     if (error) { console.error("fetchFormation error:", error); return null; }
+    if (data) lsWriteFormation(id, data);
     return data;
-  } catch {
-    console.warn("fetchFormation timeout or error");
+  } catch (e) {
+    console.warn("fetchFormation error:", e);
     return null;
   }
 }
