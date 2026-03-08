@@ -28,15 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = createClient();
     let currentUserId: string | null = null;
-    console.log("[auth] init");
 
     // Safety net: if INITIAL_SESSION never fires (shouldn't happen), unblock after 8s
-    const safetyTimer = setTimeout(() => { console.log("[auth] safety timer fired — INITIAL_SESSION never arrived"); setLoading(false); }, 8000);
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const u = session?.user ?? null;
-      console.log("[auth] event:", _event, "user:", u?.id ?? null);
-
       if (_event === "INITIAL_SESSION") {
         // This is the authoritative first-load event from @supabase/ssr
         clearTimeout(safetyTimer);
@@ -50,12 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
             ]);
             const pd = (race as { data: Profile | null }).data;
-            console.log("[auth] profile:", pd?.role ?? null);
             if (pd) setProfile(pd);
-          } catch (e) { console.log("[auth] profile fetch failed/timed out:", e); }
+          } catch { /* profile unavailable or timed out */ }
         }
         setLoading(false);
-        console.log("[auth] loading → false");
         return;
       }
 
