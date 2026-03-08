@@ -83,6 +83,7 @@ export default function DashboardOrganismePage() {
   // Load organisme + formations
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 12000);
     (async () => {
       try {
       // Find organisme linked to this user
@@ -125,8 +126,9 @@ export default function DashboardOrganismePage() {
       // Load domaines from admin
       const domaines = await fetchDomainesAdmin();
       setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
-      } catch { /* timeout ou erreur réseau */ } finally { setLoading(false); }
+      } catch { /* timeout ou erreur réseau */ } finally { clearTimeout(safetyTimer); setLoading(false); }
     })();
+    return () => clearTimeout(safetyTimer);
   }, [user, profile]);
 
   const openEdit = (f?: Formation) => {

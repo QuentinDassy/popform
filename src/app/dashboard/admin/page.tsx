@@ -38,6 +38,7 @@ export default function DashboardAdminPage() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 12000);
     (async () => {
       try {
         const { data: f, error: fErr } = await supabase
@@ -67,8 +68,9 @@ export default function DashboardAdminPage() {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
           window.location.href = "/";
         }
-      } finally { setLoading(false); }
+      } finally { clearTimeout(safetyTimer); setLoading(false); }
     })();
+    return () => clearTimeout(safetyTimer);
   }, [user]);
 
   const handleStatus = async (id: number, status: string) => {

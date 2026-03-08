@@ -29,50 +29,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     let currentUserId: string | null = null;
 
-    // Read session from localStorage SYNCHRONOUSLY — zero network, zero delay.
-    // Works even with expired tokens; onAuthStateChange refreshes in background.
-    try {
-      const projectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").split("//")[1]?.split(".")[0];
-      const stored = projectRef ? localStorage.getItem(`sb-${projectRef}-auth-token`) : null;
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const u: User | null = parsed?.user ?? null;
-        if (u?.id) {
-          currentUserId = u.id;
-          setUser(u);
-          // Fetch profile, then unblock UI (max 3s wait so dashboards never hang)
-          const profileFetch = supabase.from("profiles").select("*").eq("id", u.id).single()
-            .then(({ data: pData }: { data: Profile | null }) => { if (pData) setProfile(pData); })
-            .catch(() => {});
-          const maxWait = new Promise<void>(resolve => setTimeout(resolve, 3000));
-          Promise.race([profileFetch, maxWait]).finally(() => setLoading(false));
-        } else {
-          setLoading(false);
-        }
-      } else {
-        setLoading(false);
-      }
-    } catch { /* localStorage unavailable (SSR/private browsing) */ setLoading(false); }
+    // Safety net: if INITIAL_SESSION never fires (shouldn't happen), unblock after 8s
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
 
-    // onAuthStateChange handles token refresh + sign in/out events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const u = session?.user ?? null;
-      if (_event === "INITIAL_SESSION") return; // already handled above
-      if (_event === "TOKEN_REFRESHED" && !session) { setUser(null); setProfile(null); currentUserId = null; return; }
-      if (_event === "SIGNED_OUT") { setUser(null); setProfile(null); currentUserId = null; return; }
-      if (u?.id === currentUserId) return;
+
+      if (_event === "INITIAL_SESSION") {
+        // This is the authoritative first-load event from @supabase/ssr
+        clearTimeout(safetyTimer);
+        currentUserId = u?.id || null;
+        setUser(u);
+        if (u) {
+          // Fetch profile with max 3s wait, then unblock UI
+          try {
+            const race = await Promise.race([
+              supabase.from("profiles").select("*").eq("id", u.id).single(),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+            ]);
+            if ((race as { data: Profile | null }).data) setProfile((race as { data: Profile }).data);
+          } catch { /* profile unavailable or timed out — proceed without it */ }
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (_event === "SIGNED_OUT" || (_event === "TOKEN_REFRESHED" && !session)) {
+        setUser(null); setProfile(null); currentUserId = null;
+        return;
+      }
+
+      // SIGNED_IN, TOKEN_REFRESHED (with session), USER_UPDATED, etc.
+      if (u?.id === currentUserId) return; // no change
       currentUserId = u?.id || null;
       setUser(u);
       if (u) {
         try {
           const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
-          setProfile(pData);
+          if (pData) setProfile(pData);
         } catch { /* ignore */ }
       } else {
         setProfile(null);
       }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -94,11 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-    // Notify admin of new signup (formateur or organisme only)
     if (!error && (role === "formateur" || role === "organisme")) {
       fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_user", email, role, full_name: fullName }) }).catch(() => {});
     }
-    // If signup succeeded and newsletter_opt is true, update profile after slight delay
     if (!error && newsletterOpt) {
       setTimeout(async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -112,12 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-    } catch (e) {
-      // ignore errors
-    }
+    } catch { /* ignore */ }
     setUser(null);
     setProfile(null);
-    // Clear cookies manually as fallback
     document.cookie.split(";").forEach(c => {
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
     });

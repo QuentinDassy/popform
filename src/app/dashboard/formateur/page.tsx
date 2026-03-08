@@ -60,6 +60,7 @@ export default function DashboardFormateurPage() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 12000);
     (async () => {
       try {
       const orgs = await fetchOrganismes();
@@ -117,8 +118,9 @@ export default function DashboardFormateurPage() {
       supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setAdminVilles(data.map((v: { nom: string }) => v.nom));
       });
-      } catch { /* timeout ou erreur réseau */ } finally { setLoading(false); }
+      } catch { /* timeout ou erreur réseau */ } finally { clearTimeout(safetyTimer); setLoading(false); }
     })();
+    return () => clearTimeout(safetyTimer);
   }, [user, profile]);
 
   const openEdit = (f?: Formation) => {
