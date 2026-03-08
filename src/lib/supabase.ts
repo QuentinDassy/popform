@@ -6,7 +6,7 @@ let client: ReturnType<typeof createBrowserClient> | null = null;
 // instead of hanging indefinitely after network inactivity
 function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 20000);
+  const id = setTimeout(() => controller.abort(), 8000);
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(id));
 }
 

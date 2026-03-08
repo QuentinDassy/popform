@@ -29,22 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     let currentUserId: string | null = null;
 
-    // Safety timeout: unblock the UI if auth hangs more than 5s
-    const authTimeout = setTimeout(() => setLoading(false), 5000);
+    // Safety timeout in case nothing fires
+    const authTimeout = setTimeout(() => setLoading(false), 3000);
 
-    supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
+    // getSession() reads from localStorage instantly — no network call
+    supabase.auth.getSession().then(({ data }: { data: { session: { user: User } | null } }) => {
       clearTimeout(authTimeout);
-      const user = data.user;
+      const user = data.session?.user ?? null;
       currentUserId = user?.id || null;
       setUser(user);
       if (user) {
-        supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
+        supabase.from("profiles").select("*").eq("id", user.id).single()
+          .then(({ data: pData }: { data: Profile | null }) => setProfile(pData));
       }
       setLoading(false);
     }).catch(() => { clearTimeout(authTimeout); setLoading(false); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
-      // Handle token refresh errors — clear session silently
       if (_event === "TOKEN_REFRESHED" && !session) {
         setUser(null); setProfile(null); currentUserId = null; return;
       }
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(authTimeout); };
   }, []);
 
   const signIn = async (email: string, password: string) => {
