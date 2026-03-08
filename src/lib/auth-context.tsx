@@ -29,30 +29,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     let currentUserId: string | null = null;
 
-    // Safety timeout in case INITIAL_SESSION never fires
-    const authTimeout = setTimeout(() => setLoading(false), 3000);
-
-    // onAuthStateChange fires INITIAL_SESSION from localStorage — no network call
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
-      const u = session?.user ?? null;
-
-      if (_event === "INITIAL_SESSION") {
-        clearTimeout(authTimeout);
-        currentUserId = u?.id || null;
-        setUser(u);
-        if (u) {
+    // Read session from localStorage SYNCHRONOUSLY — zero network, zero delay.
+    // Works even with expired tokens; onAuthStateChange refreshes in background.
+    try {
+      const projectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").split("//")[1]?.split(".")[0];
+      const stored = projectRef ? localStorage.getItem(`sb-${projectRef}-auth-token`) : null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const u: User | null = parsed?.user ?? null;
+        if (u?.id) {
+          currentUserId = u.id;
+          setUser(u);
+          // Load profile in background
           supabase.from("profiles").select("*").eq("id", u.id).single()
             .then(({ data: pData }: { data: Profile | null }) => { if (pData) setProfile(pData); })
             .catch(() => {});
         }
-        setLoading(false);
-        return;
       }
+    } catch { /* localStorage unavailable (SSR/private browsing) */ }
+    setLoading(false); // Always unblock UI immediately
 
-      if (_event === "TOKEN_REFRESHED" && !session) {
-        setUser(null); setProfile(null); currentUserId = null; return;
-      }
-
+    // onAuthStateChange handles token refresh + sign in/out events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
+      const u = session?.user ?? null;
+      if (_event === "INITIAL_SESSION") return; // already handled above
+      if (_event === "TOKEN_REFRESHED" && !session) { setUser(null); setProfile(null); currentUserId = null; return; }
+      if (_event === "SIGNED_OUT") { setUser(null); setProfile(null); currentUserId = null; return; }
       if (u?.id === currentUserId) return;
       currentUserId = u?.id || null;
       setUser(u);
@@ -60,12 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data: pData }: { data: Profile | null } = await supabase.from("profiles").select("*").eq("id", u.id).single();
           setProfile(pData);
-        } catch { /* ignore profile fetch error */ }
+        } catch { /* ignore */ }
       } else {
         setProfile(null);
       }
     });
-    return () => { subscription.unsubscribe(); clearTimeout(authTimeout); };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
