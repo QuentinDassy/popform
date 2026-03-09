@@ -27,8 +27,9 @@ export default function VillesPage() {
         const skipLieux = new Set(["Visio", "En ligne", "Présentiel", "Mixte"]);
         const addCity = (cityName: string, fId: number) => {
           if (cityName && !skipLieux.has(cityName)) {
-            if (!formationsByCity[cityName]) formationsByCity[cityName] = new Set();
-            formationsByCity[cityName].add(fId);
+            const key = norm(cityName); // normalize key to avoid "Paris" vs "paris" mismatches
+            if (!formationsByCity[key]) formationsByCity[key] = new Set();
+            formationsByCity[key].add(fId);
           }
         };
         fs.forEach(f => {
@@ -47,7 +48,7 @@ export default function VillesPage() {
           setCities(adminNames.map(n => {
             const nn = norm(n);
             const count = Object.entries(cityCount)
-              .filter(([c]) => { const nc = norm(c); return nc === nn || nc.startsWith(nn + " "); })
+              .filter(([c]) => c === nn || c.startsWith(nn + " "))
               .reduce((sum, [, v]) => sum + v, 0);
             return [n, count] as [string, number];
           }).sort((a, b) => b[1] - a[1]));

@@ -68,7 +68,10 @@ function FormateursContent() {
     : fmts;
 
   const selected = fmts.find(f => f.id === selectedId);
-  const selectedFormations = formations.filter(f => f.formateur_id === selectedId && f.status === "publiee");
+  const selectedFormations = formations.filter(fo =>
+    fo.status === "publiee" &&
+    (fo.formateur_id === selectedId || ((fo as any).formateur_ids || []).includes(selectedId))
+  );
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>

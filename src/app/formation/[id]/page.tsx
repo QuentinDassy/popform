@@ -250,8 +250,9 @@ export default function FormationPage() {
   const formateur = f.formateur;
   const formateurs: typeof f.formateur[] = (f as any).formateurs?.length ? (f as any).formateurs : (formateur ? [formateur] : []);
   function fmtShortNom(fmt: NonNullable<typeof formateur>): string {
-    const nom = fmt.nom.split(" ").pop() || fmt.nom;
-    return `${fmt.sexe === "Homme" ? "M." : "Mme"} ${nom}`;
+    const parts = fmt.nom.trim().split(/\s+/);
+    if (parts.length >= 2) return `${parts[0][0].toUpperCase()}. ${parts.slice(1).join(" ")}`;
+    return fmt.nom;
   }
   const priseEnCharge = f.prise_en_charge || [];
   const fAvis = avis.filter(a => a.formation_id === f.id);
@@ -376,8 +377,9 @@ export default function FormationPage() {
               </div>
 
               {/* Price */}
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 24 }}>
-                <span style={{ fontSize: mob ? 32 : 42, fontWeight: 800, color: C.accent }}>{f.prix}€</span>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Prix</div>
+                <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.accent }}>à partir de {f.prix}€</span>
               </div>
 
               {/* CTA Buttons */}

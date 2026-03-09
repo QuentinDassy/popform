@@ -80,7 +80,10 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
-            <div><span style={{ fontSize: m ? 17 : 20, fontWeight: 800, color: C.text }}>{f.prix}</span><span style={{ fontSize: 10, color: C.textTer }}>€</span></div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Prix</div>
+              <div style={{ fontSize: m ? 11 : 12, fontWeight: 700, color: C.accent, marginTop: 2 }}>à partir de <span style={{ fontSize: m ? 15 : 17, fontWeight: 800, color: C.text }}>{f.prix}€</span></div>
+            </div>
           </div>
         </div>
       </div>

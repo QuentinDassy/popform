@@ -131,15 +131,8 @@ export async function fetchFormation(id: number): Promise<Formation | null> {
     _fetchFormationRemote(id).then(f => { if (f) lsWriteFormation(id, f); }).catch(() => {});
     return cached.data;
   }
-  // 2. Fallback: try list cache
-  if (_formationsCache) {
-    const found = _formationsCache.find(f => f.id === id);
-    if (found) {
-      _fetchFormationRemote(id).then(f => { if (f) lsWriteFormation(id, f); }).catch(() => {});
-      return found;
-    }
-  }
-  // 3. Cold fetch
+  // 2. Cold fetch — don't fall back to list cache: it only has (lieu,ville) for session_parties,
+  //    which would make dates invisible on first load.
   return _fetchFormationRemote(id);
 }
 
