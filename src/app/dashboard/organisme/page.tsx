@@ -90,22 +90,17 @@ export default function DashboardOrganismePage() {
       let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
       let myOrg = myOrgs?.[0] || null;
 
-      // If no organisme linked, try to find one without user_id and claim it, or create new
+      // If no organisme linked, create one for this user
       if (!myOrg && profile?.role === "organisme") {
-        // Try to find an unlinked organisme
-        const { data: unlinked } = await supabase.from("organismes").select("*").is("user_id", null).limit(1);
-        if (unlinked?.[0]) {
-          await supabase.from("organismes").update({ user_id: user.id }).eq("id", unlinked[0].id);
-          myOrg = { ...unlinked[0], user_id: user.id };
-        } else {
-          const { data: newOrg } = await supabase.from("organismes").insert({ 
-            nom: profile.full_name || "Mon organisme", 
-            logo: (profile.full_name || "MO").slice(0, 2).toUpperCase(), 
-            description: "",
-            user_id: user.id 
-          }).select().single();
-          myOrg = newOrg;
-        }
+        const orgNomFromMeta = (profile as any).organisme_nom as string | null;
+        const nom = orgNomFromMeta || profile.full_name || "Mon organisme";
+        const { data: newOrg } = await supabase.from("organismes").insert({
+          nom,
+          logo: nom.slice(0, 2).toUpperCase(),
+          description: "",
+          user_id: user.id,
+        }).select().single();
+        myOrg = newOrg;
       }
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");

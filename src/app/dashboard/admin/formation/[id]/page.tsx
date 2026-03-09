@@ -380,7 +380,8 @@ export default function AdminFormationEditorPage() {
 
         if (insertedSessions) {
           for (let si = 0; si < validSessions.length; si++) {
-            const parties = validSessions[si].parties.filter(p => p.date_debut || p.titre);
+            const sess = validSessions[si];
+            const parties = sess.parties.filter(p => p.date_debut || p.titre);
             if (parties.length > 0 && insertedSessions[si]) {
               await supabase.from("session_parties").insert(
                 parties.map(p => ({
@@ -394,6 +395,19 @@ export default function AdminFormationEditorPage() {
                   date_fin: p.date_fin || null,
                 }))
               );
+            } else if (parties.length === 0 && insertedSessions[si]) {
+              // Save a single session_party with ISO dates so the calendar can find them
+              const validRanges = sess.date_ranges.filter(r => r.debut);
+              if (validRanges.length > 0) {
+                await supabase.from("session_parties").insert(
+                  validRanges.map(r => ({
+                    session_id: insertedSessions[si].id,
+                    titre: "",
+                    date_debut: r.debut,
+                    date_fin: r.fin || r.debut,
+                  }))
+                );
+              }
             }
           }
         }

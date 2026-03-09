@@ -107,6 +107,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (type === "newsletter_confirm") {
+      const { email: to } = data;
+      if (!to) return NextResponse.json({ ok: true });
+      await sendEmail(
+        to,
+        "Bienvenue dans la newsletter PopForm 🍿",
+        brandedHtml(
+          "Vous êtes inscrit·e !",
+          `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 16px">Merci de rejoindre la newsletter PopForm ! Vous recevrez chaque semaine les nouvelles formations, les actus et les séances à ne pas rater.</p>
+           <a href="${BASE_URL}/catalogue" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Voir le catalogue →</a>
+           <p style="color:#A48C6A;font-size:12px;margin-top:20px">Pour vous désabonner, rendez-vous dans votre espace PopForm.</p>`
+        )
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Email API error:", e);

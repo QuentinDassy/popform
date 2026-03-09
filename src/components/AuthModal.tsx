@@ -47,6 +47,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [role, setRole] = useState("user");
   const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
     setError(null);
     if (mode === "register" && !name.trim()) { setError("Veuillez entrer votre nom."); return }
     if (mode === "register" && !firstName.trim()) { setError("Veuillez entrer votre prénom."); return }
+    if (mode === "register" && role === "organisme" && !orgName.trim()) { setError("Veuillez entrer le nom de votre organisme."); return }
     if (!email.trim()) { setError("Veuillez entrer votre email."); return }
     if (!password) { setError("Veuillez entrer un mot de passe."); return }
     if (mode === "register" && !pwValid) { setError("Le mot de passe ne respecte pas tous les critères."); return }
@@ -72,7 +74,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
       const { error } = await signIn(email, password);
       if (error) setError(error); else onSuccess();
     } else {
-      const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role, newsletterOptIn);
+      const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role, newsletterOptIn, role === "organisme" ? orgName.trim() : undefined);
       if (error) setError(error); else setSuccess(true);
     }
     setLoading(false);
@@ -162,6 +164,9 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                       ))}
                     </div>
                   </div>
+                  {role === "organisme" && (
+                    <input placeholder="Nom de l'organisme *" value={orgName} onChange={e => setOrgName(e.target.value)} style={inputStyle} />
+                  )}
                 </>
               )}
               <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={inputStyle} />

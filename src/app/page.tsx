@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import FranceMap from "@/components/FranceMap";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
+import { useAuth } from "@/lib/auth-context";
 
 function useTyping(words: string[]) {
   const [d, setD] = useState("");
@@ -48,7 +49,7 @@ const sel = (mob: boolean): React.CSSProperties => ({
   flex: 1, minWidth: mob ? 0 : 120,
 });
 
-function SectionGrid({ title, formations, mob, max, link }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string }) {
+function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string; favoriIds?: number[]; onToggleFav?: (id: number) => void }) {
   const show = formations.slice(0, max || (mob ? 4 : 8));
   return (
     <section style={{ padding: mob ? "24px 16px 8px" : "32px 40px 16px", maxWidth: 1240, margin: "0 auto" }}>
@@ -58,7 +59,7 @@ function SectionGrid({ title, formations, mob, max, link }: { title: string; for
       </div>
       {show.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: mob ? 12 : 16 }}>
-          {show.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
+          {show.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds?.includes(f.id)} onToggleFav={onToggleFav ? () => onToggleFav(f.id) : undefined} />)}
         </div>
       ) : (
         <p style={{ textAlign: "center", color: C.textTer, fontSize: 13, padding: "20px 0" }}>Prochainement…</p>
@@ -70,6 +71,8 @@ function SectionGrid({ title, formations, mob, max, link }: { title: string; for
 export default function HomePage() {
   const mob = useIsMobile();
   const router = useRouter();
+  const { user } = useAuth();
+  const [favoriIds, setFavoriIds] = useState<number[]>([]);
   const typed = useTyping(["langage oral", "dyspraxie", "EBP", "Marseille", "bégaiement", "cognition", "Paris"]);
   const [nlEmail, setNlEmail] = useState("");
   const [nlSent, setNlSent] = useState(false);
@@ -191,6 +194,17 @@ export default function HomePage() {
       loadData();
     }
   }, [redirecting]);
+
+  useEffect(() => {
+    if (!user) { setFavoriIds([]); return; }
+    fetchFavoris(user.id).then(favs => setFavoriIds(favs.map(fv => fv.formation_id))).catch(() => {});
+  }, [user]);
+
+  const handleToggleFav = async (formationId: number) => {
+    if (!user) return;
+    const added = await toggleFavori(user.id, formationId);
+    setFavoriIds(prev => added ? [...prev, formationId] : prev.filter(id => id !== formationId));
+  };
 
   const formationCities = getAllCitiesFromFormations(formations);
   // If admin configured villes, use those; otherwise fall back to formation cities
@@ -343,7 +357,7 @@ export default function HomePage() {
         <div style={{ textAlign: "center", padding: "32px 0", color: C.textTer, fontSize: 13 }}>Chargement des formations…</div>
       ) : (
         <>
-          {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" />}
+          {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
         </>
       )}
 
@@ -359,20 +373,22 @@ export default function HomePage() {
               mob={mob}
               max={3}
               link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
+              favoriIds={favoriIds}
+              onToggleFav={user ? handleToggleFav : undefined}
             />
           );
         })
       ) : !loading ? (
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
-            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} />
+            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />
           )}
           {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
-            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={3} />
+            <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />
           )}
         </>
       ) : null}
-      {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" />}
+      {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
 
       {/* ===== VILLES ===== */}
       {topCities.length > 0 && (
@@ -425,7 +441,14 @@ export default function HomePage() {
           {nlSent ? (<div style={{ color: C.green, fontSize: 13, fontWeight: 600 }}>✓ Place réservée !</div>) : (
             <div style={{ display: "flex", gap: 8, maxWidth: 380, margin: "0 auto", flexDirection: mob ? "column" : "row" }}>
               <input placeholder="votre@email.fr" type="email" value={nlEmail} onChange={e => setNlEmail(e.target.value)} style={{ flex: 1, padding: "11px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
-              <button onClick={() => { if (nlEmail) setNlSent(true) }} style={{ padding: "11px 22px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>S&apos;abonner</button>
+              <button onClick={async () => {
+                if (!nlEmail.trim()) return;
+                // Save to newsletter_subscribers table
+                await supabase.from("newsletter_subscribers").upsert({ email: nlEmail.trim().toLowerCase() }, { onConflict: "email" }).catch(() => {});
+                // Send confirmation email
+                fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "newsletter_confirm", email: nlEmail.trim() }) }).catch(() => {});
+                setNlSent(true);
+              }} style={{ padding: "11px 22px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>S&apos;abonner</button>
             </div>
           )}
         </div>

@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
+import { useAuth } from "@/lib/auth-context";
 
 const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
@@ -55,22 +56,32 @@ function CatalogueContent() {
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const mob = useIsMobile();
+  const { user } = useAuth();
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [favoriIds, setFavoriIds] = useState<number[]>([]);
 
   useEffect(() => {
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(d); setLoading(false); });
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
-    // Load domaines from admin
-    fetchDomainesFiltres().then(d => {
-      setDomainesFiltres(d);
-    }).catch(() => {});
+    fetchDomainesFiltres().then(d => { setDomainesFiltres(d); }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!user) { setFavoriIds([]); return; }
+    fetchFavoris(user.id).then(favs => setFavoriIds(favs.map(fv => fv.formation_id))).catch(() => {});
+  }, [user]);
+
+  const handleToggleFav = async (formationId: number) => {
+    if (!user) return;
+    const added = await toggleFavori(user.id, formationId);
+    setFavoriIds(prev => added ? [...prev, formationId] : prev.filter(id => id !== formationId));
+  };
 
   const cities = adminVilles;
   const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
@@ -265,7 +276,7 @@ function CatalogueContent() {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: mob ? 10 : 16, paddingBottom: 40 }}>
-          {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
+          {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
         </div>
       )}
     </div>

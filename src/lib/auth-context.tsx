@@ -12,7 +12,7 @@ interface AuthContextType {
   showAuth: boolean;
   setShowAuth: (v: boolean) => void;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean, organisme_nom?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
 }
@@ -92,12 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message || null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean) => {
+  const signUp = async (email: string, password: string, fullName: string, role: string, newsletterOpt?: boolean, organisme_nom?: string) => {
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: fullName, role, newsletter_opt: newsletterOpt ?? false },
+        data: { full_name: fullName, role, newsletter_opt: newsletterOpt ?? false, organisme_nom: organisme_nom || null },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });

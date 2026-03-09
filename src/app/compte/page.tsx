@@ -39,7 +39,7 @@ export default function ComptePage() {
   const [showPw, setShowPw] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
-  const [sessionParties, setSessionParties] = useState<{ session_id: number; jours: string | null }[]>([]);
+  const [sessionParties, setSessionParties] = useState<{ session_id: number; jours: string | null; date_debut: string | null; date_fin: string | null }[]>([]);
 
   const pwChecks = useMemo(() => [
     { label: "8 caractères", ok: newPw.length >= 8 },
@@ -67,7 +67,7 @@ export default function ComptePage() {
       if (sessionIds.length > 0) {
         const { data: parties } = await supabase
           .from("session_parties")
-          .select("session_id, jours")
+          .select("session_id, jours, date_debut, date_fin")
           .in("session_id", sessionIds);
         setSessionParties(parties || []);
       }
@@ -251,7 +251,12 @@ export default function ComptePage() {
                     const partyRows = session ? sessionParties.filter(p => p.session_id === session.id) : [];
                     const allDates: string[] = [];
                     partyRows.forEach(p => {
-                      if (p.jours) p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                      if (p.jours) {
+                        p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                      } else if (p.date_debut) {
+                        if (!allDates.includes(p.date_debut)) allDates.push(p.date_debut);
+                        if (p.date_fin && p.date_fin !== p.date_debut && !allDates.includes(p.date_fin)) allDates.push(p.date_fin);
+                      }
                     });
                     if (allDates.length === 0 && session?.dates) {
                       (session.dates.match(/\d{4}-\d{2}-\d{2}/g) || []).forEach(d => allDates.push(d));
@@ -308,7 +313,12 @@ export default function ComptePage() {
                     const partyRows = sessionParties.filter(p => p.session_id === session_id);
                     if (partyRows.length > 0) {
                       partyRows.forEach(p => {
-                        if (p.jours) p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                        if (p.jours) {
+                          p.jours.split(",").map(d => d.trim()).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
+                        } else if (p.date_debut) {
+                          if (!allDates.includes(p.date_debut)) allDates.push(p.date_debut);
+                          if (p.date_fin && p.date_fin !== p.date_debut && !allDates.includes(p.date_fin)) allDates.push(p.date_fin);
+                        }
                       });
                     }
                     if (allDates.length === 0) {

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { C, getDC, getPhoto, type Formation, CITY_PHOTOS } from "@/lib/data";
 
@@ -43,7 +43,7 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
   );
 }
 
-export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boolean; mob?: boolean }) {
+export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: Formation; compact?: boolean; mob?: boolean; favori?: boolean; onToggleFav?: () => void }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
   const photo = (f as any).photo_url || null;
@@ -60,7 +60,12 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
             : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
           }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
-          {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, right: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
+          {onToggleFav && (
+            <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
+              {favori ? "❤️" : "🤍"}
+            </button>
+          )}
+          {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, ...(onToggleFav ? { right: 48 } : { right: 8 }), padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
           <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: dc.color }}>{f.domaine}</span>
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
@@ -85,11 +90,14 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const photoSrc = image || CITY_PHOTOS[city] || "";
-  const optimized = image && image.includes("/storage/v1/object/public/")
-    ? image.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + "?width=400&height=200&resize=cover&quality=75"
-    : photoSrc;
-  const [photo, setPhoto] = useState(optimized);
+  const computePhoto = (img?: string) => {
+    const src = img || CITY_PHOTOS[city] || "";
+    return img && img.includes("/storage/v1/object/public/")
+      ? img.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + "?width=400&height=200&resize=cover&quality=75"
+      : src;
+  };
+  const [photo, setPhoto] = useState(() => computePhoto(image));
+  useEffect(() => { setPhoto(computePhoto(image)); }, [image, city]); // eslint-disable-line react-hooks/exhaustive-deps
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
