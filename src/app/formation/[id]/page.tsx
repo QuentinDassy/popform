@@ -319,8 +319,40 @@ export default function FormationPage() {
               </div>
 
               {/* Title */}
-              <h1 style={{ fontSize: mob ? 26 : 36, fontWeight: 800, color: C.text, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 12 }}>{f.titre}</h1>
-              {f.sous_titre && <p style={{ fontSize: mob ? 14 : 16, color: C.textSec, marginBottom: 20, fontStyle: "italic" }}>{f.sous_titre}</p>}
+              <h1 style={{ fontSize: mob ? 26 : 36, fontWeight: 800, color: C.text, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 8 }}>{f.titre}</h1>
+              {f.sous_titre && <p style={{ fontSize: mob ? 14 : 16, color: C.textSec, marginBottom: 14, fontStyle: "italic" }}>{f.sous_titre}</p>}
+
+              {/* Formateur & Organisme — prominent row */}
+              {(formateur || org) && (
+                <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+                  {formateur && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.accentBg, border: "1.5px solid " + C.accent + "33" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", background: C.gradient, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {(formateur as any).photo_url
+                          ? <img src={(formateur as any).photo_url} alt={formateur.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <span style={{ fontSize: 13, color: "#fff", fontWeight: 800 }}>{formateur.nom?.[0]?.toUpperCase()}</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Formateur</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>{formateur.nom}</div>
+                      </div>
+                    </div>
+                  )}
+                  {org && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.blueBg, border: "1.5px solid " + C.blue + "33" }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", background: C.bgAlt, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {org.logo?.startsWith("http")
+                          ? <img src={org.logo} alt={org.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <span style={{ fontSize: 16 }}>🏢</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Organisme</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>{org.nom}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Quick info */}
               <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
@@ -336,18 +368,6 @@ export default function FormationPage() {
                   <span style={{ fontSize: 18 }}>📍</span>
                   <span style={{ fontSize: 14, color: C.textSec }}>{(() => { const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))]; return ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—"); })()}</span>
                 </div>
-                {formateur && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 18 }}>🎤</span>
-                    <span style={{ fontSize: 14, color: C.textSec }}>{formateur.nom}</span>
-                  </div>
-                )}
-                {org && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 18 }}>🏢</span>
-                    <span style={{ fontSize: 14, color: C.textSec }}>{org.nom}</span>
-                  </div>
-                )}
               </div>
 
               {/* Price */}
