@@ -99,7 +99,7 @@ export function getAllCitiesFromFormations(formations: FormationType[]): [string
   const cityMap: Record<string, Set<number>> = {};
   formations.forEach(f => (f.sessions || []).forEach((s: any) => {
     const raw = (s.lieu || s.ville || "").trim();
-    raw.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach(city => {
+    raw.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((city: string) => {
       if (city !== "Visio" && city !== "En ligne" && city !== "Présentiel") {
         if (!cityMap[city]) cityMap[city] = new Set();
         cityMap[city].add(f.id);
