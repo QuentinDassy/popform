@@ -825,7 +825,13 @@ export default function AdminFormationEditorPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={lbl}>Ville</label>
-                  <input style={inp} value={s.ville} onChange={e => setSession(si, "ville", e.target.value)} placeholder="Paris" />
+                  <input style={inp} value={s.ville} onChange={e => {
+                    const v = e.target.value;
+                    setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
+                      ...sess, ville: v,
+                      parties: sess.parties.map(p => ({ ...p, ville: v })),
+                    }));
+                  }} placeholder="Paris" />
                 </div>
                 <div>
                   <label style={lbl}>Adresse</label>
