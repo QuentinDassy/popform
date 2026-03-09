@@ -666,36 +666,12 @@ export default function DashboardOrganismePage() {
               </select>
             </div>
 
-            {/* Prix */}
-            <div>
-              <label style={labelStyle}>Prix (€)</label>
-              <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450€" style={inputStyle} />
-            </div>
-
             {/* Durée */}
             <div>
               <label style={labelStyle}>Durée</label>
               <input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} />
             </div>
 
-            {/* Prix variantes dynamiques */}
-            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-              <label style={labelStyle}>Types de prix supplémentaires</label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {extraPrix.map((e, i) => (
-                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input value={e.label} onChange={ev => setExtraPrix(extraPrix.map((x, j) => j === i ? { ...x, label: ev.target.value } : x))} placeholder="Ex: Libéral" style={{ ...inputStyle, flex: 2 }} />
-                    <input type="number" value={e.value} onChange={ev => setExtraPrix(extraPrix.map((x, j) => j === i ? { ...x, value: ev.target.value } : x))} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
-                    <button type="button" onClick={() => setExtraPrix(extraPrix.filter((_, j) => j !== i))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid " + C.border, background: "transparent", color: C.pink, fontSize: 13, cursor: "pointer" }}>✕</button>
-                  </div>
-                ))}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Intitulé (ex: Libéral)" style={{ ...inputStyle, flex: 2 }} />
-                  <input type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" onClick={() => { if (newPrixLabel.trim() && newPrixValue.trim()) { setExtraPrix([...extraPrix, { label: newPrixLabel.trim(), value: newPrixValue.trim() }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+</button>
-                </div>
-              </div>
-            </div>
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>

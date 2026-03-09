@@ -23,11 +23,12 @@ export default function VillesPage() {
       setAdminVilles(adminMap);
       fetchFormations().then(fs => {
         setFormations(fs);
+        const norm = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
         const formationsByCity: Record<string, Set<number>> = {};
         const skipLieux = new Set(["Visio", "En ligne", "Présentiel", "Mixte"]);
         const addCity = (cityName: string, fId: number) => {
           if (cityName && !skipLieux.has(cityName)) {
-            const key = norm(cityName); // normalize key to avoid "Paris" vs "paris" mismatches
+            const key = norm(cityName);
             if (!formationsByCity[key]) formationsByCity[key] = new Set();
             formationsByCity[key].add(fId);
           }
@@ -42,7 +43,6 @@ export default function VillesPage() {
         });
         const cityCount: Record<string, number> = {};
         Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
-        const norm = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
         const adminNames = Object.keys(adminMap);
         if (adminNames.length > 0) {
           setCities(adminNames.map(n => {

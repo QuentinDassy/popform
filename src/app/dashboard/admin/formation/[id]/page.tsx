@@ -648,33 +648,6 @@ export default function AdminFormationEditorPage() {
         </div>
       </div>
 
-      {/* ── Prix ── */}
-      <div style={section}>
-        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Tarifs</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
-          {([["prix", "Prix (€) *"], ["prix_salarie", "Prix salarié"], ["prix_liberal", "Prix libéral"], ["prix_dpc", "Prix DPC"]] as [keyof FormState, string][]).map(([k, lbl2]) => (
-            <div key={k}>
-              <label style={lbl}>{lbl2}</label>
-              <input style={inp} type="number" value={(form[k] as number | null) ?? ""} onChange={e => setF(k, e.target.value === "" ? null : Number(e.target.value))} placeholder="0" />
-            </div>
-          ))}
-        </div>
-        {/* Prix extras */}
-        <label style={lbl}>Prix supplémentaires</label>
-        {form.prix_extras.map((e, i) => (
-          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
-            <input style={{ ...inp, flex: 2 }} value={e.label} onChange={x => setF("prix_extras", form.prix_extras.map((p, j) => j === i ? { ...p, label: x.target.value } : p))} placeholder="Libellé" />
-            <input style={{ ...inp, flex: 1 }} type="number" value={e.value || ""} onChange={x => setF("prix_extras", form.prix_extras.map((p, j) => j === i ? { ...p, value: Number(x.target.value) } : p))} placeholder="€" />
-            <button onClick={() => setF("prix_extras", form.prix_extras.filter((_, j) => j !== i))} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, cursor: "pointer", fontSize: 12 }}>✕</button>
-          </div>
-        ))}
-        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <input style={{ ...inp, flex: 2 }} value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Libellé (ex: Tarif groupe)" />
-          <input style={{ ...inp, flex: 1 }} type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" />
-          <button onClick={() => { if (newPrixLabel && newPrixValue) { setF("prix_extras", [...form.prix_extras, { label: newPrixLabel, value: Number(newPrixValue) }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>+ Ajouter</button>
-        </div>
-      </div>
-
       {/* ── Public & Mots-clés ── */}
       <div style={section}>
         <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Public & Mots-clés</div>
