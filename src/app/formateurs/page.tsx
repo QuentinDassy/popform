@@ -35,16 +35,15 @@ function FormateursContent() {
         return true;
       });
 
-      // Fetch total formation count per formateur (all non-refused)
+      // Fetch total formation count per formateur (all non-refused), counting formateur_ids too
       const { data: allFmtFormations } = await supabase
         .from("formations")
-        .select("formateur_id, status")
+        .select("formateur_id, formateur_ids, status")
         .neq("status", "refusee");
       const counts: Record<number, number> = {};
       for (const row of allFmtFormations || []) {
-        if (row.formateur_id != null) {
-          counts[row.formateur_id] = (counts[row.formateur_id] || 0) + 1;
-        }
+        const ids: number[] = (row.formateur_ids?.length ? row.formateur_ids : (row.formateur_id != null ? [row.formateur_id] : []));
+        for (const id of ids) counts[id] = (counts[id] || 0) + 1;
       }
 
       setFmts(unique);

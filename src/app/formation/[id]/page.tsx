@@ -377,10 +377,17 @@ export default function FormationPage() {
               </div>
 
               {/* Price */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Prix</div>
-                <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.accent }}>à partir de {f.prix}€</span>
-              </div>
+              {f.prix > 0 && (() => {
+                const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
+                return (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Prix</div>
+                    <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.accent }}>
+                      {isPrixFrom ? `à partir de ${f.prix}€` : `${f.prix}€`}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* CTA Buttons */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

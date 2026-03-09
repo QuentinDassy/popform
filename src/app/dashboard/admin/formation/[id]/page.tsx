@@ -28,6 +28,7 @@ type FormState = {
   formateur_ids: number[]; organisme_id: number | null;
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   prix_extras: { label: string; value: number }[];
+  prix_from: boolean;
   populations: string[]; mots_cles: string; professions: string[];
   effectif: number; url_inscription: string; video_url: string;
   sans_limite: boolean; status: string;
@@ -66,7 +67,7 @@ function emptyForm(): FormState {
     titre: "", sous_titre: "", description: "", domaine: "", domaines: [],
     modalite: "Présentiel", prise_en_charge: [],
     duree: "", formateur_ids: [], organisme_id: null,
-    prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [],
+    prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [], prix_from: false,
     populations: [], mots_cles: "", professions: ["Orthophonistes"],
     effectif: 20, url_inscription: "", video_url: "",
     sans_limite: false, status: "publiee", photo_url: "",
@@ -156,7 +157,8 @@ export default function AdminFormationEditorPage() {
               prix_salarie: f.prix_salarie,
               prix_liberal: f.prix_liberal,
               prix_dpc: f.prix_dpc,
-              prix_extras: (f as any).prix_extras || [],
+              prix_extras: ((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"),
+              prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"),
               populations: f.populations || [],
               mots_cles: (f.mots_cles || []).join(", "),
               professions: f.professions || [],
@@ -314,7 +316,8 @@ export default function AdminFormationEditorPage() {
     }
 
     const prixExtras = [
-      ...form.prix_extras,
+      ...(form.prix_from ? [{ label: "__from__", value: 0 }] : []),
+      ...form.prix_extras.filter(e => e.label !== "__from__"),
       ...(newPrixLabel.trim() && newPrixValue ? [{ label: newPrixLabel.trim(), value: Number(newPrixValue) }] : []),
     ].filter(e => e.label && !isNaN(e.value));
 
@@ -645,6 +648,20 @@ export default function AdminFormationEditorPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ── Prix ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Tarif</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div>
+            <label style={lbl}>Prix (€)</label>
+            <input style={inp} type="number" value={form.prix || ""} onChange={e => setF("prix", e.target.value === "" ? 0 : Number(e.target.value))} placeholder="Ex: 450" />
+          </div>
+          <button type="button" onClick={() => setF("prix_from", !form.prix_from)} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.surface, color: form.prix_from ? C.accent : C.textSec, fontSize: 13, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", marginBottom: 2 }}>
+            {form.prix_from ? "✓ " : ""}à partir de
+          </button>
         </div>
       </div>
 

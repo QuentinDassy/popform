@@ -80,10 +80,17 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Prix</div>
-              <div style={{ fontSize: m ? 11 : 12, fontWeight: 700, color: C.accent, marginTop: 2 }}>à partir de <span style={{ fontSize: m ? 15 : 17, fontWeight: 800, color: C.text }}>{f.prix}€</span></div>
-            </div>
+            {f.prix > 0 && (() => {
+              const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
+              return (
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Prix</div>
+                  <div style={{ fontSize: m ? 13 : 15, fontWeight: 800, color: C.text, marginTop: 2 }}>
+                    {isPrixFrom && <span style={{ fontSize: m ? 10 : 11, fontWeight: 700, color: C.accent }}>à partir de </span>}{f.prix}€
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

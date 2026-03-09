@@ -23,7 +23,7 @@ function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
     modalite: MODALITES[0],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
-    prix_liberal: null as number | null, prix_dpc: null as number | null,
+    prix_liberal: null as number | null, prix_dpc: null as number | null, prix_from: false,
     is_new: false, populations: [] as string[], mots_cles: "",
     professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
   };
@@ -138,7 +138,8 @@ export default function DashboardOrganismePage() {
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
-      setExtraPrix((f as any).prix_extras || []);
+      setForm(prev => ({ ...prev, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__") }));
+      setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
       const existingIds: number[] = (f as any).formateur_ids?.length ? (f as any).formateur_ids : ((f as any).formateur_id ? [(f as any).formateur_id] : []);
       setSelFormateurIds(existingIds);
     } else {
@@ -171,13 +172,14 @@ export default function DashboardOrganismePage() {
     const computedModalite = isELearning ? "E-learning" : (allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel"));
 
     // Calculer les prix supplémentaires
-    const prixExtrasAll = [...extraPrix];
+    const prixExtrasAll = [...extraPrix].filter(e => e.label !== "__from__");
     if (newPrixLabel.trim() && newPrixValue.trim()) {
       prixExtrasAll.push({ label: newPrixLabel.trim(), value: newPrixValue.trim() });
     }
-    const prixExtrasFinal = prixExtrasAll
-      .filter(e => e.label.trim() && String(e.value).trim())
-      .map(e => ({ label: e.label.trim(), value: Number(e.value) }));
+    const prixExtrasFinal = [
+      ...(form.prix_from ? [{ label: "__from__", value: 0 }] : []),
+      ...prixExtrasAll.filter(e => e.label.trim() && String(e.value).trim()).map(e => ({ label: e.label.trim(), value: Number(e.value) })),
+    ];
 
     const payload = {
       titre: form.titre.trim(),
@@ -670,6 +672,15 @@ export default function DashboardOrganismePage() {
             <div>
               <label style={labelStyle}>Durée</label>
               <input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} />
+            </div>
+
+            {/* Prix */}
+            <div>
+              <label style={labelStyle}>Prix (€)</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450" style={{ ...inputStyle, flex: 1 }} />
+                <button type="button" onClick={() => setForm({ ...form, prix_from: !form.prix_from })} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.bgAlt, color: form.prix_from ? C.accent : C.textSec, fontSize: 12, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap" }}>{form.prix_from ? "✓ " : ""}à partir de</button>
+              </div>
             </div>
 
             {/* Prise en charge */}
