@@ -26,12 +26,15 @@ export default function ComptePage() {
   const [pMsg, setPMsg] = useState("");
   const [newsletterOpt, setNewsletterOpt] = useState(false);
   const [showPwChange, setShowPwChange] = useState(false);
+  const [isResetFlow, setIsResetFlow] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("reset") === "1") {
       setShowPwChange(true);
+      setIsResetFlow(true);
     }
   }, []);
+  const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
@@ -89,9 +92,14 @@ export default function ComptePage() {
 
   const handleChangePw = async () => {
     if (!pwValid) return;
+    if (!isResetFlow && !currentPw) { setPwMsg("Veuillez saisir votre mot de passe actuel."); return; }
     setPwSaving(true); setPwMsg("");
+    if (!isResetFlow) {
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: currentPw });
+      if (authErr) { setPwMsg("Mot de passe actuel incorrect."); setPwSaving(false); return; }
+    }
     const { error } = await supabase.auth.updateUser({ password: newPw });
-    if (error) { setPwMsg("Erreur: " + error.message); } else { setPwMsg("✓ Mot de passe mis à jour"); setNewPw(""); setTimeout(() => { setPwMsg(""); setShowPwChange(false); }, 2000); }
+    if (error) { setPwMsg("Erreur: " + error.message); } else { setPwMsg("✓ Mot de passe mis à jour"); setCurrentPw(""); setNewPw(""); setTimeout(() => { setPwMsg(""); setShowPwChange(false); }, 2000); }
     setPwSaving(false);
   };
 
@@ -149,9 +157,15 @@ export default function ComptePage() {
 
       {showPwChange && (
         <div style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+          {!isResetFlow && (
+            <>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Mot de passe actuel</label>
+              <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} style={{ ...inputStyle, maxWidth: 300, marginBottom: 12 }} autoComplete="current-password" />
+            </>
+          )}
           <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4 }}>Nouveau mot de passe</label>
           <div style={{ position: "relative", maxWidth: 300 }}>
-            <input type={showPw ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleChangePw()} style={{ ...inputStyle, paddingRight: 40 }} />
+            <input type={showPw ? "text" : "password"} value={newPw} onChange={e => setNewPw(e.target.value)} onKeyDown={e => e.key === "Enter" && handleChangePw()} style={{ ...inputStyle, paddingRight: 40 }} autoComplete="new-password" />
             <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: C.textTer }} tabIndex={-1}>{showPw ? "🙈" : "👁️"}</button>
           </div>
           {newPw && <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>{pwChecks.map(c => <span key={c.label} style={{ fontSize: 10, color: c.ok ? C.green : C.textTer }}>{c.ok ? "✓" : "○"}{c.label}</span>)}</div>}

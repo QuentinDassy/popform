@@ -99,7 +99,14 @@ async function _fetchAndStore(): Promise<Formation[]> {
 export function invalidateCache() {
   _formationsCache = null;
   _cacheTime = 0;
-  try { if (typeof window !== "undefined") localStorage.removeItem(LS_KEY); } catch {}
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(LS_KEY);
+      // Also clear all per-formation caches
+      const keys = Object.keys(localStorage).filter(k => k.startsWith(LS_FORMATION_PREFIX));
+      keys.forEach(k => localStorage.removeItem(k));
+    }
+  } catch {}
 }
 
 // Per-formation cache (id → {data, t})

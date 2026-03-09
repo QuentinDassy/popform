@@ -5,6 +5,39 @@ import { C, fetchOrganismes, type Organisme } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { useIsMobile } from "@/lib/hooks";
 
+const MAX_DESC = 150;
+
+function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = (o.description || "").length > MAX_DESC;
+  const desc = long && !expanded ? o.description!.slice(0, MAX_DESC) + "…" : o.description;
+  return (
+    <Link href={`/catalogue?organisme=${o.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+      <div style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+            {o.logo && o.logo.startsWith("http") ? <img src={o.logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (o.logo || o.nom?.slice(0, 2))}
+          </div>
+          <div><div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{o.nom}</div><div style={{ fontSize: 11, color: C.textTer }}>{count} formation{count > 1 ? "s" : ""}</div></div>
+        </div>
+        {desc && (
+          <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5, margin: 0 }}>
+            {desc}
+            {long && (
+              <span
+                onClick={e => { e.preventDefault(); e.stopPropagation(); setExpanded(v => !v); }}
+                style={{ color: C.accent, fontWeight: 600, marginLeft: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {expanded ? " Réduire" : " En savoir plus"}
+              </span>
+            )}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 export default function OrganismesPage() {
   const mob = useIsMobile();
   const [orgs, setOrgs] = useState<Organisme[]>([]);
@@ -69,19 +102,7 @@ export default function OrganismesPage() {
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Organismes</h1>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12, paddingBottom: 40 }}>
-        {orgs.map(o => { const count = orgCounts[o.id] || 0; return (
-          <Link key={o.id} href={`/catalogue?organisme=${o.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-            <div style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer" }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
-                  {o.logo && o.logo.startsWith("http") ? <img src={o.logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (o.logo || o.nom?.slice(0,2))}
-                </div>
-                <div><div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{o.nom}</div><div style={{ fontSize: 11, color: C.textTer }}>{count} formation{count > 1 ? "s" : ""}</div></div>
-              </div>
-              {o.description && <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5 }}>{o.description}</p>}
-            </div>
-          </Link>
-        ); })}
+        {orgs.map(o => <OrgCard key={o.id} o={o} count={orgCounts[o.id] || 0} mob={mob} />)}
       </div>
     </div>
   );

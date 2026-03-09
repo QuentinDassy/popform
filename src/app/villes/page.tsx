@@ -39,7 +39,13 @@ export default function VillesPage() {
         Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
         const adminNames = Object.keys(adminMap);
         if (adminNames.length > 0) {
-          setCities(adminNames.map(n => [n, cityCount[n] || 0] as [string, number]).sort((a, b) => b[1] - a[1]));
+          setCities(adminNames.map(n => {
+            // Sum all city keys that exactly match or start with the admin name + space (e.g. "Lyon 3ème" → "Lyon")
+            const count = Object.entries(cityCount)
+              .filter(([c]) => c === n || c.startsWith(n + " "))
+              .reduce((sum, [, v]) => sum + v, 0);
+            return [n, count] as [string, number];
+          }).sort((a, b) => b[1] - a[1]));
         } else {
           setCities([]);
         }

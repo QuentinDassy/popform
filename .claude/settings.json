@@ -12,7 +12,14 @@
       "Bash(vercel env add SUPABASE_SERVICE_ROLE_KEY production --force)",
       "Bash(vercel projects ls)",
       "Bash(ls c:/Users/quent/formortho/src/app/sitemap* c:/Users/quent/formortho/src/app/robots*)",
-      "Bash(grep -n \"sessions disponibles\\\\|voir les sessions\\\\|Session\\\\|session\" c:/Users/quent/formortho/src/app/formation/[id]/page.tsx)"
+      "Bash(grep -n \"sessions disponibles\\\\|voir les sessions\\\\|Session\\\\|session\" c:/Users/quent/formortho/src/app/formation/[id]/page.tsx)",
+      "Bash(git add src/app/dashboard/admin/page.tsx src/app/dashboard/formateur/page.tsx src/app/dashboard/organisme/page.tsx)",
+      "Bash(git commit -m \"fix: wrap dashboard data fetch in try/finally to guarantee setLoading\\(false\\)\")",
+      "Bash(git push)",
+      "Bash(git add src/lib/auth-context.tsx src/app/formation/[id]/page.tsx src/lib/supabase.ts)",
+      "Bash(git commit -m \"fix: INITIAL_SESSION for instant auth, fix formation page timeout, 15s fetch timeout\")",
+      "Bash(git add src/lib/auth-context.tsx)",
+      "Bash(git commit -m \"fix: read auth session from localStorage synchronously, no network on init\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\quent\\formortho\\src\\app\\auth"

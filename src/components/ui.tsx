@@ -85,16 +85,16 @@ export function FormationCard({ f, compact, mob }: { f: Formation; compact?: boo
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const fallback = image || CITY_PHOTOS[city] || CITY_PHOTOS["Paris"];
+  const photoSrc = image || CITY_PHOTOS[city] || "";
   const optimized = image && image.includes("/storage/v1/object/public/")
     ? image.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + "?width=400&height=200&resize=cover&quality=75"
-    : fallback;
+    : photoSrc;
   const [photo, setPhoto] = useState(optimized);
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
-      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: m ? 12 : 16, overflow: "hidden", cursor: "pointer", width: "100%", height: m ? 100 : 140, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <img src={photo} onError={() => setPhoto(fallback)} alt={city} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ position: "relative", borderRadius: m ? 12 : 16, overflow: "hidden", cursor: "pointer", width: "100%", height: m ? 100 : 140, transition: "all 0.3s", transform: hov ? "translateY(-4px)" : "none", boxShadow: hov ? "0 12px 32px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.06)", background: C.gradientSoft }}>
+        {photo && <img src={photo} onError={() => setPhoto("")} alt={city} loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.8) 0%, rgba(45,27,6,0.1) 60%)" }} />
         <div style={{ position: "absolute", bottom: 10, left: 10 }}>
           <div style={{ fontSize: m ? 14 : 18, fontWeight: 800, color: "#fff" }}>{city}</div>

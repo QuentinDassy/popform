@@ -103,7 +103,7 @@ function FormateursContent() {
                 <div key={f.id} onClick={() => setSelectedId(isSelected ? null : f.id)}
                   style={{ padding: mob ? 12 : 14, background: isSelected ? C.accentBg : C.surface, borderRadius: 12, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.2s", display: "flex", gap: 10, alignItems: "center" }}>
                   {/* Avatar */}
-                  <div style={{ width: 40, height: 40, borderRadius: 20, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 32, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
                     {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
                   {/* Info */}
@@ -127,7 +127,7 @@ function FormateursContent() {
           <div style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start" }}>
             <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 28, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
                   {selected.photo_url ? <img src={selected.photo_url} alt={selected.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : selected.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                 </div>
                 <div>

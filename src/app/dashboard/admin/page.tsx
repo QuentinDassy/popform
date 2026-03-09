@@ -94,7 +94,7 @@ export default function DashboardAdminPage() {
     if (!f || !(f as any).pending_update) return;
     try {
       const pending = JSON.parse((f as any).pending_update);
-      const { sessions: pendingSessions, ...pendingData } = pending;
+      const { sessions: pendingSessions, status: _status, ...pendingData } = pending;
       await supabase.from("formations").update({ ...pendingData, pending_update: false }).eq("id", id);
       if (pendingSessions) {
         await supabase.from("sessions").delete().eq("formation_id", id);
@@ -110,7 +110,7 @@ export default function DashboardAdminPage() {
           })));
         }
       }
-      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, pending_update: false } : f));
+      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, status: f.status, pending_update: false } : f));
       const { invalidateCache } = await import("@/lib/data");
       invalidateCache();
     } catch(e) { console.error("Approve update error:", e); }

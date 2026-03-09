@@ -533,8 +533,9 @@ export default function AdminFormationEditorPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <select style={{ ...inp, flex: 1 }} value={newFmt.sexe} onChange={e => setNewFmt(f => ({ ...f, sexe: e.target.value }))}>
-                    <option value="Femme">Mme</option>
-                    <option value="Homme">M.</option>
+                    <option value="Femme">Formatrice</option>
+                    <option value="Homme">Formateur</option>
+                    <option value="Autre">Formateur.rice</option>
                   </select>
                   <input style={{ ...inp, flex: 2 }} placeholder="Bio (optionnel)" value={newFmt.bio} onChange={e => setNewFmt(f => ({ ...f, bio: e.target.value }))} />
                 </div>
@@ -558,8 +559,9 @@ export default function AdminFormationEditorPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <select style={{ ...inp, flex: 1 }} value={editFmt.sexe} onChange={e => setEditFmt(f => ({ ...f, sexe: e.target.value }))}>
-                    <option value="Femme">Mme</option>
-                    <option value="Homme">M.</option>
+                    <option value="Femme">Formatrice</option>
+                    <option value="Homme">Formateur</option>
+                    <option value="Autre">Formateur.rice</option>
                   </select>
                   <input style={{ ...inp, flex: 2 }} placeholder="Bio" value={editFmt.bio} onChange={e => setEditFmt(f => ({ ...f, bio: e.target.value }))} />
                 </div>

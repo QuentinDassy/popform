@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(curl:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install xlsx)",
+      "Bash(git add src/app/dashboard/admin/import/ src/app/dashboard/admin/page.tsx package.json package-lock.json)",
+      "Bash(git commit:*)",
+      "Bash(git add src/app/dashboard/admin/formation/ src/app/dashboard/admin/page.tsx)",
+      "Bash(grep -n \"formateur\\\\|organisme\\\\|jours\\\\|places\\\\|lieux\\\\|duree\\\\|effectif\" src/app/formation/[id]/page.tsx)",
+      "Bash(grep -n \"sexe\\\\|Homme\\\\|Femme\\\\|fmtTitle\" src/app/formation/[id]/page.tsx)",
+      "Bash(git add src/app/dashboard/admin/formation/[id]/page.tsx)",
+      "Bash(git add src/app/formation/[id]/page.tsx)"
     ]
   }
 }
