@@ -16,6 +16,8 @@
 
 html {
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #BFB09A transparent;
 }
 
 body {
@@ -34,9 +36,10 @@ h1, h2, h3, h4 {
   line-height: 1.25;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #BFB09A; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #A48C6A; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(18px); }

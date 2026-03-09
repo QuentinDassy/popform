@@ -49,10 +49,11 @@ const sel = (mob: boolean): React.CSSProperties => ({
   flex: 1, minWidth: mob ? 0 : 120,
 });
 
-function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string; favoriIds?: number[]; onToggleFav?: (id: number) => void }) {
+function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav, alt }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string; favoriIds?: number[]; onToggleFav?: (id: number) => void; alt?: boolean }) {
   const show = formations.slice(0, max || (mob ? 4 : 8));
   return (
-    <section style={{ padding: mob ? "24px 16px 8px" : "32px 40px 16px", maxWidth: 1240, margin: "0 auto" }}>
+    <div style={{ background: alt ? "#FFF8EC" : "transparent", borderTop: "1px solid #F0E4CC" }}>
+    <section style={{ padding: mob ? "28px 16px 16px" : "36px 40px 20px", maxWidth: 1240, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
         <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text }}>{title}</h2>
         <Link href={link || "/catalogue"} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tout →</Link>
@@ -65,6 +66,7 @@ function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav
         <p style={{ textAlign: "center", color: C.textTer, fontSize: 13, padding: "20px 0" }}>Prochainement…</p>
       )}
     </section>
+    </div>
   );
 }
 
@@ -364,7 +366,7 @@ export default function HomePage() {
 
       {/* ===== SECTIONS ===== */}
       {!loading && domainesAccueil.length > 0 ? (
-        domainesAccueil.map(domaine => {
+        domainesAccueil.map((domaine, di) => {
           const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
           return (
             <SectionGrid
@@ -376,24 +378,26 @@ export default function HomePage() {
               link={`/catalogue?domaine=${encodeURIComponent(domaine.nom)}`}
               favoriIds={favoriIds}
               onToggleFav={user ? handleToggleFav : undefined}
+              alt={di % 2 === 0}
             />
           );
         })
       ) : !loading ? (
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
-            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />
+            <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} alt />
           )}
           {formations.filter(f => f.domaine === "Neurologie").length > 0 && (
             <SectionGrid title="Neurologie" formations={formations.filter(f => f.domaine === "Neurologie")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />
           )}
         </>
       ) : null}
-      {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
+      {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} alt />}
 
       {/* ===== VILLES ===== */}
       {topCities.length > 0 && (
-        <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px" }}>
+        <div style={{ borderTop: "1px solid #F0E4CC" }}>
+        <section style={{ padding: mob ? "28px 16px 28px" : "36px 40px 40px" }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
             <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par ville 📍</h2>
             <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir toutes les villes →</Link>
@@ -414,11 +418,12 @@ export default function HomePage() {
             </div>
           )}
         </section>
+        </div>
       )}
 
-
       {/* ===== CARTE REGIONS ===== */}
-      <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px", maxWidth: 1240, margin: "0 auto" }}>
+      <div style={{ borderTop: "1px solid #F0E4CC", background: "#FFF8EC" }}>
+      <section style={{ padding: mob ? "28px 16px 32px" : "36px 40px 44px", maxWidth: 1240, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par région 🗺️</h2>
           <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir la carte →</Link>
@@ -427,6 +432,7 @@ export default function HomePage() {
           <FranceMap formations={formations} />
         </div>
       </section>
+      </div>
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>

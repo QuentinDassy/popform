@@ -47,7 +47,7 @@ let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
 const MEM_TTL = 2 * 60 * 1000;        // 2 min in-memory
 const LS_TTL  = 4 * 60 * 60 * 1000;  // 4h localStorage (survives long inactivity)
-const LS_KEY  = "pf_formations_v2";
+const LS_KEY  = "pf_formations_v3";
 
 function lsRead(): { data: Formation[]; t: number } | null {
   try {

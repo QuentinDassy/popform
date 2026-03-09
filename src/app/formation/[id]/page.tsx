@@ -616,7 +616,12 @@ export default function FormationPage() {
             {/* Share */}
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Partager</div>
-              <button onClick={() => navigator.share?.({ title: f.titre, url: window.location.href })} style={{ width: "100%", padding: "10px", borderRadius: 10, background: C.bgAlt, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 12, cursor: "pointer" }}>🔗 Partager à un·e collègue</button>
+              <button onClick={() => {
+                const url = window.location.href;
+                const text = "Regarde cette formation sur PopForm";
+                if (navigator.share) { navigator.share({ title: f.titre, text, url }); }
+                else { navigator.clipboard?.writeText(text + "\n" + url); }
+              }} style={{ width: "100%", padding: "10px", borderRadius: 10, background: C.bgAlt, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 12, cursor: "pointer" }}>🔗 Partager à un·e collègue</button>
             </div>
           </div>
         </div>

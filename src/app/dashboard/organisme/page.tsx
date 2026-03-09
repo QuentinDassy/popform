@@ -892,18 +892,6 @@ export default function DashboardOrganismePage() {
                               )}
                             </div>
                           )}
-                          {p.modalite !== "Visio" && (
-                            <div>
-                              <label style={labelStyle}>Adresse</label>
-                              <input value={p.adresse} onChange={e => { const n = [...sessions]; n[i].parties![pi].adresse = e.target.value; setSessions(n); }} placeholder="Ex: 12 rue de la Paix" style={inputStyle} />
-                            </div>
-                          )}
-                          {p.modalite !== "Visio" && (
-                            <div>
-                              <label style={labelStyle}>Code postal</label>
-                              <input value={p.code_postal} onChange={e => { const n = [...sessions]; n[i].parties![pi].code_postal = e.target.value; setSessions(n); }} placeholder="Ex: 75001" style={inputStyle} />
-                            </div>
-                          )}
                           {p.modalite !== "Présentiel" && (
                             <div style={{ gridColumn: "1 / -1" }}>
                               <label style={labelStyle}>Lien visioconférence</label>

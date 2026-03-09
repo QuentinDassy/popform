@@ -822,25 +822,15 @@ export default function AdminFormationEditorPage() {
                 <input style={inp} value={s.lien_visio} onChange={e => setSession(si, "lien_visio", e.target.value)} placeholder="https://zoom.us/…" />
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                <div>
-                  <label style={lbl}>Ville</label>
-                  <input style={inp} value={s.ville} onChange={e => {
-                    const v = e.target.value;
-                    setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
-                      ...sess, ville: v,
-                      parties: sess.parties.map(p => ({ ...p, ville: v })),
-                    }));
-                  }} placeholder="Paris" />
-                </div>
-                <div>
-                  <label style={lbl}>Adresse</label>
-                  <input style={inp} value={s.adresse} onChange={e => setSession(si, "adresse", e.target.value)} placeholder="10 rue…" />
-                </div>
-                <div>
-                  <label style={lbl}>Code postal</label>
-                  <input style={inp} value={s.code_postal} onChange={e => setSession(si, "code_postal", e.target.value)} placeholder="75001" />
-                </div>
+              <div>
+                <label style={lbl}>Ville</label>
+                <input style={inp} value={s.ville} onChange={e => {
+                  const v = e.target.value;
+                  setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
+                    ...sess, ville: v,
+                    parties: sess.parties.map(p => ({ ...p, ville: v })),
+                  }));
+                }} placeholder="Paris" />
               </div>
             )}
 
@@ -866,7 +856,7 @@ export default function AdminFormationEditorPage() {
                       <input style={{ ...inp, fontSize: 12 }} type="date" value={p.date_fin} onChange={e => setPartie(si, pi, "date_fin", e.target.value)} />
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
                     <div>
                       <label style={{ ...lbl, fontSize: 10 }}>Modalité</label>
                       <select style={{ ...inp, fontSize: 12 }} value={p.modalite} onChange={e => setPartie(si, pi, "modalite", e.target.value)}>
@@ -876,10 +866,6 @@ export default function AdminFormationEditorPage() {
                     <div>
                       <label style={{ ...lbl, fontSize: 10 }}>Ville</label>
                       <input style={{ ...inp, fontSize: 12 }} value={p.ville} onChange={e => setPartie(si, pi, "ville", e.target.value)} placeholder="Paris" />
-                    </div>
-                    <div>
-                      <label style={{ ...lbl, fontSize: 10 }}>Adresse</label>
-                      <input style={{ ...inp, fontSize: 12 }} value={p.adresse} onChange={e => setPartie(si, pi, "adresse", e.target.value)} placeholder="10 rue…" />
                     </div>
                     <div>
                       <label style={{ ...lbl, fontSize: 10 }}>Lien visio</label>
