@@ -1,0 +1,644 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { C, fetchDomainesAdmin, invalidateCache } from "@/lib/data";
+import { supabase, fetchOrganismes, fetchFormateurs, type Organisme, type Formateur } from "@/lib/supabase-data";
+import { uploadImage } from "@/lib/upload";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type SessionPartieRow = {
+  titre: string; date_debut: string; date_fin: string;
+  modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string;
+};
+type SessionRow = {
+  id?: number; dates: string; lieu: string; adresse: string; ville: string;
+  code_postal: string; modalite_session: string; lien_visio: string; is_visio: boolean;
+  parties: SessionPartieRow[];
+};
+type FormState = {
+  titre: string; sous_titre: string; description: string;
+  domaine: string; domaines: string[];
+  modalite: string; prise_en_charge: string[];
+  duree: string;
+  formateur_id: number | null; organisme_id: number | null;
+  prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
+  prix_extras: { label: string; value: number }[];
+  populations: string[]; mots_cles: string; professions: string[];
+  effectif: number; url_inscription: string; video_url: string;
+  sans_limite: boolean; status: string;
+  photo_url: string;
+};
+
+const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const PRISES = ["DPC", "FIF-PL", "FIFPL", "OPCO", "CPF"];
+const POPULATIONS_OPTS = ["Enfants", "Adolescents", "Adultes", "Personnes âgées", "Tous publics"];
+const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Médecins", "Infirmiers", "Tous professionnels"];
+const STATUS_OPTS = ["publiee", "en_attente", "refusee", "archivee"];
+
+function emptySession(): SessionRow {
+  return { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
+}
+function emptyForm(): FormState {
+  return {
+    titre: "", sous_titre: "", description: "", domaine: "", domaines: [],
+    modalite: "Présentiel", prise_en_charge: [],
+    duree: "", formateur_id: null, organisme_id: null,
+    prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [],
+    populations: [], mots_cles: "", professions: ["Orthophonistes"],
+    effectif: 20, url_inscription: "", video_url: "",
+    sans_limite: false, status: "publiee", photo_url: "",
+  };
+}
+
+// ─── Page principale ──────────────────────────────────────────────────────────
+
+export default function AdminFormationEditorPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const { profile, loading: authLoading } = useAuth();
+  const isNew = id === "new";
+
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [sessions, setSessions] = useState<SessionRow[]>([emptySession()]);
+  const [formateurs, setFormateurs] = useState<(Formateur & { organisme?: Organisme })[]>([]);
+  const [organismes, setOrganismes] = useState<Organisme[]>([]);
+  const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [newPrixLabel, setNewPrixLabel] = useState("");
+  const [newPrixValue, setNewPrixValue] = useState("");
+
+  // ── Auth guard ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (authLoading) return;
+    if (!profile || profile.role !== "admin") { router.replace("/"); return; }
+
+    (async () => {
+      try {
+        const [fmts, orgs, domaines] = await Promise.all([
+          fetchFormateurs(),
+          fetchOrganismes(),
+          fetchDomainesAdmin(),
+        ]);
+        setFormateurs(fmts);
+        setOrganismes(orgs);
+        setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
+
+        if (!isNew) {
+          const { data: f } = await supabase
+            .from("formations")
+            .select("*, prix_extras, domaines, sessions(*, session_parties(*))")
+            .eq("id", id)
+            .single();
+          if (f) {
+            setForm({
+              titre: f.titre || "",
+              sous_titre: f.sous_titre || "",
+              description: f.description || "",
+              domaine: f.domaine || "",
+              domaines: (f as any).domaines?.length ? (f as any).domaines : (f.domaine ? [f.domaine] : []),
+              modalite: f.modalite || "Présentiel",
+              prise_en_charge: f.prise_en_charge || [],
+              duree: f.duree || "",
+              formateur_id: f.formateur_id,
+              organisme_id: f.organisme_id,
+              prix: f.prix ?? 0,
+              prix_salarie: f.prix_salarie,
+              prix_liberal: f.prix_liberal,
+              prix_dpc: f.prix_dpc,
+              prix_extras: (f as any).prix_extras || [],
+              populations: f.populations || [],
+              mots_cles: (f.mots_cles || []).join(", "),
+              professions: f.professions || [],
+              effectif: f.effectif || 20,
+              url_inscription: f.url_inscription || "",
+              video_url: f.video_url || "",
+              sans_limite: f.sans_limite || false,
+              status: f.status || "publiee",
+              photo_url: (f as any).photo_url || "",
+            });
+            setSessions((f.sessions || []).map((s: any) => {
+              const sp = s.session_parties || [];
+              return {
+                id: s.id,
+                dates: s.dates || "",
+                lieu: s.lieu || "",
+                adresse: s.adresse || "",
+                ville: s.lieu || "",
+                code_postal: s.code_postal || "",
+                modalite_session: s.modalite_session || "Présentiel",
+                lien_visio: s.lien_visio || "",
+                is_visio: s.lieu === "Visio" || !!s.lien_visio,
+                parties: sp.map((p: any) => ({
+                  titre: p.titre || "",
+                  date_debut: p.date_debut || "",
+                  date_fin: p.date_fin || "",
+                  modalite: p.modalite || "Présentiel",
+                  lieu: p.lieu || "",
+                  adresse: p.adresse || "",
+                  ville: p.ville || "",
+                  code_postal: "",
+                  lien_visio: p.lien_visio || "",
+                })),
+              };
+            }));
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [authLoading, profile, id, isNew, router]);
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const setF = (k: keyof FormState, v: unknown) => setForm(f => ({ ...f, [k]: v }));
+
+  const toggleArr = (key: keyof FormState, val: string) => {
+    const arr = form[key] as string[];
+    setF(key, arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
+  };
+
+  const setSession = (i: number, k: keyof SessionRow, v: unknown) =>
+    setSessions(ss => ss.map((s, idx) => idx === i ? { ...s, [k]: v } : s));
+
+  const setPartie = (si: number, pi: number, k: keyof SessionPartieRow, v: string) =>
+    setSessions(ss => ss.map((s, i) => i !== si ? s : {
+      ...s,
+      parties: s.parties.map((p, j) => j !== pi ? p : { ...p, [k]: v }),
+    }));
+
+  // ── Save ────────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
+    setSaving(true); setMsg(null);
+
+    let photoUrl = form.photo_url;
+    if (photoFile) {
+      try { photoUrl = await uploadImage(photoFile, "formations"); }
+      catch (e: any) { setMsg("⚠️ Photo non uploadée : " + e.message); }
+    }
+
+    const prixExtras = [
+      ...form.prix_extras,
+      ...(newPrixLabel.trim() && newPrixValue ? [{ label: newPrixLabel.trim(), value: Number(newPrixValue) }] : []),
+    ].filter(e => e.label && !isNaN(e.value));
+
+    const payload: Record<string, unknown> = {
+      titre: form.titre.trim(),
+      sous_titre: form.sous_titre.trim(),
+      description: form.description.trim(),
+      domaine: form.domaines[0] || form.domaine || "",
+      domaines: form.domaines,
+      modalite: form.modalite,
+      prise_en_charge: form.prise_en_charge,
+      duree: form.duree || "",
+      formateur_id: form.formateur_id,
+      organisme_id: form.organisme_id,
+      prix: form.prix ?? 0,
+      prix_salarie: form.prix_salarie,
+      prix_liberal: form.prix_liberal,
+      prix_dpc: form.prix_dpc,
+      prix_extras: prixExtras,
+      populations: form.populations,
+      mots_cles: form.mots_cles.split(",").map(s => s.trim()).filter(Boolean),
+      professions: form.professions,
+      effectif: form.effectif || 20,
+      url_inscription: form.url_inscription || "",
+      video_url: form.video_url || "",
+      sans_limite: form.sans_limite,
+      status: form.status,
+      photo_url: photoUrl || null,
+      note: 0, nb_avis: 0, is_new: true,
+    };
+
+    let formationId: number | null = isNew ? null : Number(id);
+
+    if (isNew) {
+      payload.date_ajout = new Date().toISOString().slice(0, 10);
+      const { data, error } = await supabase.from("formations").insert(payload).select().single();
+      if (error) { setMsg("Erreur : " + error.message); setSaving(false); return; }
+      formationId = data.id;
+    } else {
+      const { error } = await supabase.from("formations").update(payload).eq("id", formationId);
+      if (error) { setMsg("Erreur : " + error.message); setSaving(false); return; }
+    }
+
+    // Sessions
+    if (formationId) {
+      await supabase.from("sessions").delete().eq("formation_id", formationId);
+      const validSessions = sessions.filter(s =>
+        s.dates.trim() || s.ville.trim() || s.lien_visio.trim() || s.parties.length > 0
+      );
+      if (validSessions.length > 0) {
+        const { data: insertedSessions } = await supabase.from("sessions").insert(
+          validSessions.map(s => ({
+            formation_id: formationId,
+            dates: s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
+            lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
+            adresse: s.is_visio ? (s.lien_visio || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+            code_postal: s.code_postal || null,
+            modalite_session: s.modalite_session || null,
+            lien_visio: s.lien_visio || null,
+          }))
+        ).select();
+
+        if (insertedSessions) {
+          for (let si = 0; si < validSessions.length; si++) {
+            const parties = validSessions[si].parties.filter(p => p.date_debut || p.titre);
+            if (parties.length > 0 && insertedSessions[si]) {
+              await supabase.from("session_parties").insert(
+                parties.map(p => ({
+                  session_id: insertedSessions[si].id,
+                  titre: p.titre || "",
+                  modalite: p.modalite,
+                  lieu: p.modalite === "Visio" ? "Visio" : (p.lieu || p.ville),
+                  adresse: p.modalite === "Visio" ? (p.lien_visio || null) : ([p.adresse, p.ville, p.code_postal].filter(Boolean).join(", ") || null),
+                  lien_visio: p.lien_visio || null,
+                  date_debut: p.date_debut || null,
+                  date_fin: p.date_fin || null,
+                }))
+              );
+            }
+          }
+        }
+      }
+    }
+
+    invalidateCache();
+    setSaving(false);
+    setMsg("✅ Formation enregistrée !");
+    setTimeout(() => {
+      if (isNew && formationId) router.push(`/dashboard/admin/formation/${formationId}`);
+      else router.push("/dashboard/admin");
+    }, 1200);
+  };
+
+  // ── Render guards ───────────────────────────────────────────────────────────
+  if (authLoading || loading) return <div style={{ padding: 60, textAlign: "center", color: C.textSec }}>Chargement…</div>;
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+  const inp: React.CSSProperties = { padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
+  const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" };
+  const section: React.CSSProperties = { background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, padding: "20px 24px", marginBottom: 16 };
+  const row2: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 };
+
+  return (
+    <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 16px 60px" }}>
+      {/* Header */}
+      <div style={{ padding: "18px 0 20px", display: "flex", gap: 12, alignItems: "center" }}>
+        <Link href="/dashboard/admin" style={{ color: C.textSec, fontSize: 13, textDecoration: "none" }}>← Dashboard admin</Link>
+      </div>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 24 }}>
+        {isNew ? "➕ Nouvelle formation" : "✏️ Modifier la formation"}
+      </h1>
+
+      {/* ── Infos de base ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Informations générales</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Titre *</label>
+          <input style={inp} value={form.titre} onChange={e => setF("titre", e.target.value)} placeholder="Titre de la formation" />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Sous-titre</label>
+          <input style={inp} value={form.sous_titre} onChange={e => setF("sous_titre", e.target.value)} placeholder="Accroche courte" />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Description</label>
+          <textarea style={{ ...inp, minHeight: 120, resize: "vertical" }} value={form.description} onChange={e => setF("description", e.target.value)} placeholder="Description complète…" />
+        </div>
+        <div style={row2}>
+          <div>
+            <label style={lbl}>Durée</label>
+            <input style={inp} value={form.duree} onChange={e => setF("duree", e.target.value)} placeholder="Ex : 2 jours (14h)" />
+          </div>
+          <div>
+            <label style={lbl}>Effectif max</label>
+            <input style={inp} type="number" value={form.effectif || ""} onChange={e => setF("effectif", Number(e.target.value))} placeholder="20" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Domaines & Modalité ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Domaines & Modalité</div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>Domaines</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {domainesList.map(d => (
+              <button key={d.nom} onClick={() => toggleArr("domaines", d.nom)} style={{
+                padding: "5px 12px", borderRadius: 20, border: "1.5px solid",
+                borderColor: form.domaines.includes(d.nom) ? C.accent : C.border,
+                background: form.domaines.includes(d.nom) ? C.accentBg : C.surface,
+                color: form.domaines.includes(d.nom) ? C.accent : C.textSec,
+                fontSize: 12, cursor: "pointer", fontWeight: form.domaines.includes(d.nom) ? 700 : 400,
+              }}>
+                {d.emoji} {d.nom}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={row2}>
+          <div>
+            <label style={lbl}>Modalité principale</label>
+            <select style={inp} value={form.modalite} onChange={e => setF("modalite", e.target.value)}>
+              {MODALITES.map(m => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Prise en charge</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 4 }}>
+              {PRISES.map(p => (
+                <label key={p} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer" }}>
+                  <input type="checkbox" checked={form.prise_en_charge.includes(p)} onChange={() => toggleArr("prise_en_charge", p)} />
+                  {p}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Formateur / Organisme ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Formateur & Organisme</div>
+        <div style={row2}>
+          <div>
+            <label style={lbl}>Formateur</label>
+            <select style={inp} value={form.formateur_id ?? ""} onChange={e => setF("formateur_id", e.target.value ? Number(e.target.value) : null)}>
+              <option value="">— Aucun / à lier plus tard —</option>
+              {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Organisme</label>
+            <select style={inp} value={form.organisme_id ?? ""} onChange={e => setF("organisme_id", e.target.value ? Number(e.target.value) : null)}>
+              <option value="">— Aucun / à lier plus tard —</option>
+              {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Prix ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Tarifs</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
+          {([["prix", "Prix (€) *"], ["prix_salarie", "Prix salarié"], ["prix_liberal", "Prix libéral"], ["prix_dpc", "Prix DPC"]] as [keyof FormState, string][]).map(([k, lbl2]) => (
+            <div key={k}>
+              <label style={lbl}>{lbl2}</label>
+              <input style={inp} type="number" value={(form[k] as number | null) ?? ""} onChange={e => setF(k, e.target.value === "" ? null : Number(e.target.value))} placeholder="0" />
+            </div>
+          ))}
+        </div>
+        {/* Prix extras */}
+        <label style={lbl}>Prix supplémentaires</label>
+        {form.prix_extras.map((e, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
+            <input style={{ ...inp, flex: 2 }} value={e.label} onChange={x => setF("prix_extras", form.prix_extras.map((p, j) => j === i ? { ...p, label: x.target.value } : p))} placeholder="Libellé" />
+            <input style={{ ...inp, flex: 1 }} type="number" value={e.value || ""} onChange={x => setF("prix_extras", form.prix_extras.map((p, j) => j === i ? { ...p, value: Number(x.target.value) } : p))} placeholder="€" />
+            <button onClick={() => setF("prix_extras", form.prix_extras.filter((_, j) => j !== i))} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid " + C.border, background: C.surface, color: C.pink, cursor: "pointer", fontSize: 12 }}>✕</button>
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <input style={{ ...inp, flex: 2 }} value={newPrixLabel} onChange={e => setNewPrixLabel(e.target.value)} placeholder="Libellé (ex: Tarif groupe)" />
+          <input style={{ ...inp, flex: 1 }} type="number" value={newPrixValue} onChange={e => setNewPrixValue(e.target.value)} placeholder="€" />
+          <button onClick={() => { if (newPrixLabel && newPrixValue) { setF("prix_extras", [...form.prix_extras, { label: newPrixLabel, value: Number(newPrixValue) }]); setNewPrixLabel(""); setNewPrixValue(""); } }} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>+ Ajouter</button>
+        </div>
+      </div>
+
+      {/* ── Public & Mots-clés ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Public & Mots-clés</div>
+        <div style={row2}>
+          <div>
+            <label style={lbl}>Populations cibles</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {POPULATIONS_OPTS.map(p => (
+                <button key={p} onClick={() => toggleArr("populations", p)} style={{ padding: "4px 10px", borderRadius: 16, border: "1.5px solid", borderColor: form.populations.includes(p) ? C.blue : C.border, background: form.populations.includes(p) ? C.blueBg : C.surface, color: form.populations.includes(p) ? C.blue : C.textSec, fontSize: 12, cursor: "pointer" }}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Professions ciblées</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {PROFESSIONS_OPTS.map(p => (
+                <button key={p} onClick={() => toggleArr("professions", p)} style={{ padding: "4px 10px", borderRadius: 16, border: "1.5px solid", borderColor: form.professions.includes(p) ? C.green : C.border, background: form.professions.includes(p) ? C.greenBg : C.surface, color: form.professions.includes(p) ? C.green : C.textSec, fontSize: 12, cursor: "pointer" }}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label style={lbl}>Mots-clés (séparés par virgule)</label>
+          <input style={inp} value={form.mots_cles} onChange={e => setF("mots_cles", e.target.value)} placeholder="dyslexie, bilan, langage…" />
+        </div>
+      </div>
+
+      {/* ── Inscription & Options ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Inscription & Options</div>
+        <div style={row2}>
+          <div>
+            <label style={lbl}>URL d&apos;inscription</label>
+            <input style={inp} value={form.url_inscription} onChange={e => setF("url_inscription", e.target.value)} placeholder="https://…" />
+          </div>
+          <div>
+            <label style={lbl}>URL vidéo (YouTube)</label>
+            <input style={inp} value={form.video_url} onChange={e => setF("video_url", e.target.value)} placeholder="https://youtube.com/…" />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 20, marginTop: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", color: C.textSec }}>
+            <input type="checkbox" checked={form.sans_limite} onChange={e => setF("sans_limite", e.target.checked)} />
+            Sans limite de date
+          </label>
+        </div>
+      </div>
+
+      {/* ── Photo ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Photo</div>
+        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          {(photoFile ? URL.createObjectURL(photoFile) : form.photo_url) && (
+            <img src={photoFile ? URL.createObjectURL(photoFile) : form.photo_url} alt="" style={{ width: 120, height: 80, borderRadius: 10, objectFit: "cover", border: "1px solid " + C.border }} />
+          )}
+          <div>
+            <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setPhotoFile(e.target.files?.[0] || null)} />
+            <button onClick={() => photoInputRef.current?.click()} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 13, cursor: "pointer" }}>
+              📷 {photoFile ? photoFile.name.slice(0, 24) : (form.photo_url ? "Changer la photo" : "Ajouter une photo")}
+            </button>
+            {(photoFile || form.photo_url) && (
+              <button onClick={() => { setPhotoFile(null); setF("photo_url", ""); }} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>Supprimer</button>
+            )}
+          </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label style={lbl}>Ou URL directe</label>
+          <input style={inp} value={form.photo_url} onChange={e => { setF("photo_url", e.target.value); setPhotoFile(null); }} placeholder="https://…" />
+        </div>
+      </div>
+
+      {/* ── Sessions ── */}
+      <div style={section}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>Sessions ({sessions.length})</div>
+          <button onClick={() => setSessions(ss => [...ss, emptySession()])} style={{ padding: "6px 14px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            + Session
+          </button>
+        </div>
+
+        {sessions.length === 0 && (
+          <div style={{ textAlign: "center", padding: "20px 0", color: C.textTer, fontSize: 13 }}>
+            Aucune session (formation sans date fixe ou e-learning)
+          </div>
+        )}
+
+        {sessions.map((s, si) => (
+          <div key={si} style={{ border: "1px solid " + C.border, borderRadius: 12, padding: "16px 16px 12px", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: C.text }}>Session {si + 1}</div>
+              <button onClick={() => setSessions(ss => ss.filter((_, i) => i !== si))} style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
+            </div>
+
+            {/* Mode visio toggle */}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13, cursor: "pointer", color: C.textSec }}>
+              <input type="checkbox" checked={s.is_visio} onChange={e => setSession(si, "is_visio", e.target.checked)} />
+              Visioconférence
+            </label>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={lbl}>Dates (texte libre)</label>
+                <input style={inp} value={s.dates} onChange={e => setSession(si, "dates", e.target.value)} placeholder="Ex : 15-16 mars 2025" />
+              </div>
+              <div>
+                <label style={lbl}>Modalité session</label>
+                <select style={inp} value={s.modalite_session} onChange={e => setSession(si, "modalite_session", e.target.value)}>
+                  {MODALITES.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {s.is_visio ? (
+              <div>
+                <label style={lbl}>Lien visio</label>
+                <input style={inp} value={s.lien_visio} onChange={e => setSession(si, "lien_visio", e.target.value)} placeholder="https://zoom.us/…" />
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={lbl}>Ville</label>
+                  <input style={inp} value={s.ville} onChange={e => setSession(si, "ville", e.target.value)} placeholder="Paris" />
+                </div>
+                <div>
+                  <label style={lbl}>Adresse</label>
+                  <input style={inp} value={s.adresse} onChange={e => setSession(si, "adresse", e.target.value)} placeholder="10 rue…" />
+                </div>
+                <div>
+                  <label style={lbl}>Code postal</label>
+                  <input style={inp} value={s.code_postal} onChange={e => setSession(si, "code_postal", e.target.value)} placeholder="75001" />
+                </div>
+              </div>
+            )}
+
+            {/* Parties de session */}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.textSec }}>Parties de session ({s.parties.length})</span>
+                <button onClick={() => setSession(si, "parties", [...s.parties, { titre: "", date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }])} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer" }}>+ Partie</button>
+              </div>
+              {s.parties.map((p, pi) => (
+                <div key={pi} style={{ background: C.bgAlt, borderRadius: 8, padding: "10px 12px", marginBottom: 6 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 8, marginBottom: 6 }}>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Titre partie</label>
+                      <input style={{ ...inp, fontSize: 12 }} value={p.titre} onChange={e => setPartie(si, pi, "titre", e.target.value)} placeholder="Jour 1 — Théorie" />
+                    </div>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Date début</label>
+                      <input style={{ ...inp, fontSize: 12 }} type="date" value={p.date_debut} onChange={e => setPartie(si, pi, "date_debut", e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Date fin</label>
+                      <input style={{ ...inp, fontSize: 12 }} type="date" value={p.date_fin} onChange={e => setPartie(si, pi, "date_fin", e.target.value)} />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Modalité</label>
+                      <select style={{ ...inp, fontSize: 12 }} value={p.modalite} onChange={e => setPartie(si, pi, "modalite", e.target.value)}>
+                        {MODALITES.map(m => <option key={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Ville</label>
+                      <input style={{ ...inp, fontSize: 12 }} value={p.ville} onChange={e => setPartie(si, pi, "ville", e.target.value)} placeholder="Paris" />
+                    </div>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Adresse</label>
+                      <input style={{ ...inp, fontSize: 12 }} value={p.adresse} onChange={e => setPartie(si, pi, "adresse", e.target.value)} placeholder="10 rue…" />
+                    </div>
+                    <div>
+                      <label style={{ ...lbl, fontSize: 10 }}>Lien visio</label>
+                      <input style={{ ...inp, fontSize: 12 }} value={p.lien_visio} onChange={e => setPartie(si, pi, "lien_visio", e.target.value)} placeholder="https://…" />
+                    </div>
+                    <button onClick={() => setSession(si, "parties", s.parties.filter((_, j) => j !== pi))} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, cursor: "pointer", fontSize: 12, marginBottom: 1 }}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Statut ── */}
+      <div style={section}>
+        <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Statut de publication</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {STATUS_OPTS.map(s => (
+            <button key={s} onClick={() => setF("status", s)} style={{
+              padding: "7px 16px", borderRadius: 9, border: "1.5px solid",
+              borderColor: form.status === s ? C.accent : C.border,
+              background: form.status === s ? C.accentBg : C.surface,
+              color: form.status === s ? C.accent : C.textSec,
+              fontSize: 12, fontWeight: form.status === s ? 700 : 400, cursor: "pointer",
+            }}>
+              {s === "publiee" ? "✅ Publiée" : s === "en_attente" ? "⏳ En attente" : s === "refusee" ? "✕ Refusée" : "📦 Archivée"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Message & Bouton ── */}
+      {msg && (
+        <div style={{ padding: "12px 18px", borderRadius: 10, background: msg.startsWith("✅") ? C.greenBg : "#FEF2F2", border: "1px solid " + (msg.startsWith("✅") ? C.green + "44" : "#FECACA"), color: msg.startsWith("✅") ? C.green : C.accent, marginBottom: 16, fontSize: 14 }}>
+          {msg}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 12 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ padding: "12px 32px", borderRadius: 12, border: "none", background: saving ? C.border : C.accent, color: saving ? C.textSec : "#fff", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer" }}
+        >
+          {saving ? "Enregistrement…" : (isNew ? "Créer la formation" : "Enregistrer les modifications")}
+        </button>
+        <Link href="/dashboard/admin" style={{ padding: "12px 20px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 14, textDecoration: "none", display: "flex", alignItems: "center" }}>
+          Annuler
+        </Link>
+      </div>
+    </div>
+  );
+}

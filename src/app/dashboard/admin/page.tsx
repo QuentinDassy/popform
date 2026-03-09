@@ -620,8 +620,9 @@ export default function DashboardAdminPage() {
       )}
 
       {adminTab === "formations" && <>
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
+      {/* Filter tabs + bouton nouvelle formation */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", gap: 4, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         {[
           { v: "en_attente", l: "⏳ En attente (" + pendingCount + ")" },
           { v: "publiee", l: "✅ Publiées" },
@@ -630,6 +631,8 @@ export default function DashboardAdminPage() {
         ].map(t => (
           <button key={t.v} onClick={() => setFilter(t.v)} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: filter === t.v ? C.surface : "transparent", color: filter === t.v ? C.text : C.textTer, fontSize: 12, fontWeight: filter === t.v ? 700 : 500, cursor: "pointer", boxShadow: filter === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>{t.l}</button>
         ))}
+      </div>
+      <Link href="/dashboard/admin/formation/new" style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>➕ Nouvelle formation</Link>
       </div>
 
       {/* Formation list */}
@@ -726,6 +729,7 @@ export default function DashboardAdminPage() {
                       {f.status !== "en_attente" && (
                         <button onClick={() => handleStatus(f.id, "en_attente")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.yellowDark, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>⏳ Remettre en attente</button>
                       )}
+                      <Link href={`/dashboard/admin/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.blue, background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>✏️ Modifier</Link>
                       {f.status === "publiee" && (
                         <Link href={`/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>👁️ Voir sur le site</Link>
                       )}
