@@ -90,14 +90,9 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
 
 export function CityCard({ city, count, mob, image }: { city: string; count: number; mob?: boolean; image?: string }) {
   const [hov, setHov] = useState(false);
-  const computePhoto = (img?: string) => {
-    const src = img || CITY_PHOTOS[city] || "";
-    return img && img.includes("/storage/v1/object/public/")
-      ? img.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") + "?width=400&height=200&resize=cover&quality=75"
-      : src;
-  };
+  const computePhoto = (img?: string) => img || CITY_PHOTOS[city] || "";
   const [photo, setPhoto] = useState(() => computePhoto(image));
-  useEffect(() => { setPhoto(computePhoto(image)); }, [image, city]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPhoto(computePhoto(image)); }, [image, city, computePhoto]); // eslint-disable-line react-hooks/exhaustive-deps
   const m = mob ?? false;
   return (
     <Link href={`/catalogue?ville=${encodeURIComponent(city)}`} style={{ textDecoration: "none", display: "block" }}>
