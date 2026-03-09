@@ -101,16 +101,16 @@ function FormateursContent() {
               const isSelected = selectedId === f.id;
               return (
                 <div key={f.id} onClick={() => setSelectedId(isSelected ? null : f.id)}
-                  style={{ padding: mob ? 12 : 14, background: isSelected ? C.accentBg : C.surface, borderRadius: 12, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.2s", display: "flex", gap: 10, alignItems: "center" }}>
+                  style={{ padding: mob ? 14 : 16, background: isSelected ? C.accentBg : C.surface, borderRadius: 14, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.2s", display: "flex", gap: 12, alignItems: "center" }}>
                   {/* Avatar */}
-                  <div style={{ width: 64, height: 64, borderRadius: 32, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                  <div style={{ width: 80, height: 80, borderRadius: 40, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
                     {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                   </div>
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? C.accent : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.nom}</div>
-                    <div style={{ fontSize: 11, color: C.textTer }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
-                    {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 2, overflow: "hidden", maxHeight: "2.6em", lineHeight: "1.3em" }}>{f.bio}</div>}
+                    <div style={{ fontSize: 15, fontWeight: 700, color: isSelected ? C.accent : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.nom}</div>
+                    <div style={{ fontSize: 12, color: C.textTer }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
+                    {f.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, overflow: "hidden", maxHeight: "2.6em", lineHeight: "1.3em" }}>{f.bio}</div>}
                   </div>
                   <span style={{ fontSize: 11, color: isSelected ? C.accent : C.textTer, flexShrink: 0 }}>{isSelected ? "▲" : "▶"}</span>
                 </div>

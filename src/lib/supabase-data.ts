@@ -47,7 +47,7 @@ let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
 const MEM_TTL = 2 * 60 * 1000;        // 2 min in-memory
 const LS_TTL  = 4 * 60 * 60 * 1000;  // 4h localStorage (survives long inactivity)
-const LS_KEY  = "pf_formations_v1";
+const LS_KEY  = "pf_formations_v2";
 
 function lsRead(): { data: Formation[]; t: number } | null {
   try {
@@ -83,7 +83,7 @@ export async function fetchFormations(): Promise<Formation[]> {
 
 async function _fetchAndStore(): Promise<Formation[]> {
   try {
-    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
+    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(lieu,ville)), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
     if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
     _formationsCache = result;

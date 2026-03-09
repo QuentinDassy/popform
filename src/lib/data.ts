@@ -39,12 +39,41 @@ export const PHOTOS: Record<string, string> = {
 
 export const CITY_PHOTOS: Record<string, string> = {
   "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=250&fit=crop",
-  "Lille": "https://images.unsplash.com/photo-1600028068930-83f75de17400?w=400&h=250&fit=crop",
+  "Lyon": "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=400&h=250&fit=crop",
   "Marseille": "https://images.unsplash.com/photo-1589394815804-964ed0be2eb5?w=400&h=250&fit=crop",
   "Bordeaux": "https://images.unsplash.com/photo-1593194142338-6b0d860e4783?w=400&h=250&fit=crop",
-  "Lyon": "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=400&h=250&fit=crop",
   "Toulouse": "https://images.unsplash.com/photo-1582764048895-db0c0e680674?w=400&h=250&fit=crop",
+  "Lille": "https://images.unsplash.com/photo-1600028068930-83f75de17400?w=400&h=250&fit=crop",
+  "Nantes": "https://images.unsplash.com/photo-1571406761122-3e7c88b98e25?w=400&h=250&fit=crop",
+  "Nice": "https://images.unsplash.com/photo-1491557345352-5929e343eb89?w=400&h=250&fit=crop",
+  "Strasbourg": "https://images.unsplash.com/photo-1576808597967-93e2f1b5b6dc?w=400&h=250&fit=crop",
+  "Rennes": "https://images.unsplash.com/photo-1598177250617-1c285a0e2dd0?w=400&h=250&fit=crop",
+  "Montpellier": "https://images.unsplash.com/photo-1580994960786-c2c5dcfd4be4?w=400&h=250&fit=crop",
+  "Grenoble": "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&h=250&fit=crop",
+  "Aix-en-Provence": "https://images.unsplash.com/photo-1589656966895-2f33e7653819?w=400&h=250&fit=crop",
+  "Brest": "https://images.unsplash.com/photo-1549892877-20bebe8f4c91?w=400&h=250&fit=crop",
+  "Dijon": "https://images.unsplash.com/photo-1576085898323-218337e3e43c?w=400&h=250&fit=crop",
+  "Rouen": "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400&h=250&fit=crop",
+  "Reims": "https://images.unsplash.com/photo-1571680322279-a226e6a4cc2a?w=400&h=250&fit=crop",
+  "Le Mans": "https://images.unsplash.com/photo-1599476843688-c8d67cd3fe7e?w=400&h=250&fit=crop",
+  "Amiens": "https://images.unsplash.com/photo-1548401747-31a6e83de1d0?w=400&h=250&fit=crop",
+  "Nancy": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop",
+  "Metz": "https://images.unsplash.com/photo-1576085898323-218337e3e43c?w=400&h=250&fit=crop",
+  "Caen": "https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400&h=250&fit=crop",
+  "Limoges": "https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&h=250&fit=crop",
+  "Angers": "https://images.unsplash.com/photo-1598177250617-1c285a0e2dd0?w=400&h=250&fit=crop",
+  "Poitiers": "https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&h=250&fit=crop",
+  "Clermont-Ferrand": "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&h=250&fit=crop",
+  "Tours": "https://images.unsplash.com/photo-1598177250617-1c285a0e2dd0?w=400&h=250&fit=crop",
+  "Orléans": "https://images.unsplash.com/photo-1598177250617-1c285a0e2dd0?w=400&h=250&fit=crop",
+  "Besançon": "https://images.unsplash.com/photo-1576085898323-218337e3e43c?w=400&h=250&fit=crop",
+  "Toulon": "https://images.unsplash.com/photo-1491557345352-5929e343eb89?w=400&h=250&fit=crop",
+  "Avignon": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop",
+  "Perpignan": "https://images.unsplash.com/photo-1580994960786-c2c5dcfd4be4?w=400&h=250&fit=crop",
   "Montreuil": "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400&h=250&fit=crop",
+  "Nîmes": "https://images.unsplash.com/photo-1580994960786-c2c5dcfd4be4?w=400&h=250&fit=crop",
+  "Pau": "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&h=250&fit=crop",
+  "La Rochelle": "https://images.unsplash.com/photo-1593194142338-6b0d860e4783?w=400&h=250&fit=crop",
 };
 
 export const DC: Record<string, { bg: string; color: string }> = {
@@ -95,15 +124,23 @@ export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CIT
   {} as Record<string, string>
 );
 
+const SKIP_LIEUX = new Set(["Visio", "En ligne", "Présentiel", "Mixte", ""]);
+
 export function getAllCitiesFromFormations(formations: FormationType[]): [string, number][] {
   const cityMap: Record<string, Set<number>> = {};
+  const addCity = (city: string, formationId: number) => {
+    if (!SKIP_LIEUX.has(city)) {
+      if (!cityMap[city]) cityMap[city] = new Set();
+      cityMap[city].add(formationId);
+    }
+  };
   formations.forEach(f => (f.sessions || []).forEach((s: any) => {
-    const raw = (s.lieu || s.ville || "").trim();
-    raw.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((city: string) => {
-      if (city !== "Visio" && city !== "En ligne" && city !== "Présentiel") {
-        if (!cityMap[city]) cityMap[city] = new Set();
-        cityMap[city].add(f.id);
-      }
+    // Check session.lieu (may be comma-separated for multi-lieu)
+    (s.lieu || "").trim().split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((city: string) => addCity(city, f.id));
+    // Also check session_parties.lieu (for admin-created multi-lieu formations)
+    (s.session_parties || []).forEach((p: any) => {
+      const pLieu = (p.lieu || p.ville || "").trim();
+      pLieu.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((city: string) => addCity(city, f.id));
     });
   }));
   return Object.entries(cityMap).map(([city, ids]) => [city, ids.size] as [string, number]).sort((a, b) => b[1] - a[1]);

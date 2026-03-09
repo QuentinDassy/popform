@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, type Formation, type Formateur } from "@/lib/data";
@@ -43,7 +43,6 @@ export default function DashboardFormateurPage() {
   const [extraPrix, setExtraPrix] = useState<{label: string; value: string}[]>([]);
   const [newPrixLabel, setNewPrixLabel] = useState("");
   const [newPrixValue, setNewPrixValue] = useState("");
-  const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [profilPhotoFile, setProfilPhotoFile] = useState<File | null>(null);
   const [fmtSiteUrl, setFmtSiteUrl] = useState<string>("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -147,7 +146,7 @@ export default function DashboardFormateurPage() {
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
     if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return; }
     const isELearning = form.modalite === "E-learning";
-    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
+    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => p.date_debut));
     if (!isELearning && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
     setSaving(true); setMsg(null);
 
@@ -614,50 +613,21 @@ export default function DashboardFormateurPage() {
                             </div>
                           </div>
                           <div style={{ gridColumn: "1 / -1" }}>
-                            <label style={labelStyle}>Jours de formation</label>
-                            <p style={{ fontSize: 11, color: C.textTer, marginBottom: 6 }}>Cliquez sur chaque jour (ex: 4, 7 et 9 mars — discontinus possible)</p>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                              {(p.jours || []).map((j, ji) => (
-                                <div key={ji} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44" }}>
-                                  <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{j}</span>
-                                  <button type="button" onClick={() => { const n = [...sessions]; const nj = p.jours.filter((_, jk) => jk !== ji); n[i].parties[pi].jours = nj; n[i].parties[pi].date_debut = nj[0] || ""; n[i].parties[pi].date_fin = nj[nj.length - 1] || ""; setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 12, cursor: "pointer", padding: 0 }}>✕</button>
-                                </div>
-                              ))}
-                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                                <input ref={el => { dateInputRefs.current[`${i}-${pi}`] = el; }} type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 140 }}
-                                  onBlur={() => {
-                                    const el = dateInputRefs.current[`${i}-${pi}`];
-                                    const val = el?.value;
-                                    if (!val) return;
-                                    const n = [...sessions];
-                                    const cur = n[i].parties[pi].jours || [];
-                                    if (!cur.includes(val)) {
-                                      const sorted = [...cur, val].sort();
-                                      n[i].parties[pi].jours = sorted;
-                                      n[i].parties[pi].date_debut = sorted[0];
-                                      n[i].parties[pi].date_fin = sorted[sorted.length - 1];
-                                      setSessions(n);
-                                    }
-                                    if (el) el.value = "";
-                                  }}
-                                />
-                                <button type="button" onClick={() => {
-                                  const el = dateInputRefs.current[`${i}-${pi}`];
-                                  const val = el?.value;
-                                  if (!val) return;
-                                  const n = [...sessions];
-                                  const cur = n[i].parties[pi].jours || [];
-                                  if (!cur.includes(val)) {
-                                    const sorted = [...cur, val].sort();
-                                    n[i].parties[pi].jours = sorted;
-                                    n[i].parties[pi].date_debut = sorted[0];
-                                    n[i].parties[pi].date_fin = sorted[sorted.length - 1];
-                                  }
-                                  setSessions(n);
-                                  if (el) el.value = "";
-                                }} style={{ padding: "5px 12px", borderRadius: 8, background: C.gradient, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>+</button>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              <div>
+                                <label style={labelStyle}>Date de début *</label>
+                                <input type="date" value={p.date_debut} min={today} onChange={e => { const n = [...sessions]; n[i].parties[pi].date_debut = e.target.value; n[i].parties[pi].jours = e.target.value ? [e.target.value] : []; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Date de fin (si différent)</label>
+                                <input type="date" value={p.date_fin} min={p.date_debut || today} onChange={e => { const n = [...sessions]; n[i].parties[pi].date_fin = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
                               </div>
                             </div>
+                            {p.date_debut && (
+                              <div style={{ fontSize: 11, color: C.textSec, marginTop: 4, background: C.bgAlt, borderRadius: 7, padding: "4px 8px", display: "inline-block" }}>
+                                📅 {p.date_debut}{p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}
+                              </div>
+                            )}
                           </div>
                           {p.modalite !== "Visio" && (
                             <div>

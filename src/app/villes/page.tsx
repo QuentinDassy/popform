@@ -24,14 +24,18 @@ export default function VillesPage() {
       fetchFormations().then(fs => {
         setFormations(fs);
         const formationsByCity: Record<string, Set<number>> = {};
+        const skipLieux = new Set(["Visio", "En ligne", "Présentiel", "Mixte"]);
+        const addCity = (cityName: string, fId: number) => {
+          if (cityName && !skipLieux.has(cityName)) {
+            if (!formationsByCity[cityName]) formationsByCity[cityName] = new Set();
+            formationsByCity[cityName].add(fId);
+          }
+        };
         fs.forEach(f => {
           (f.sessions || []).forEach((s: any) => {
-            const raw = s.lieu || s.ville || "";
-            raw.split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => {
-              if (cityName !== "Visio" && cityName !== "En ligne") {
-                if (!formationsByCity[cityName]) formationsByCity[cityName] = new Set();
-                formationsByCity[cityName].add(f.id);
-              }
+            (s.lieu || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
+            (s.session_parties || []).forEach((p: any) => {
+              (p.lieu || p.ville || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
             });
           });
         });

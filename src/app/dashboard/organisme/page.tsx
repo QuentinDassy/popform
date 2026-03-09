@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, type Formation, type Organisme } from "@/lib/data";
@@ -47,7 +47,7 @@ export default function DashboardOrganismePage() {
   const [fmtForm, setFmtForm] = useState({ prenom: "", nom: "", bio: "", sexe: "Non genré", photo_url: "" });
   const [fmtPhotoFile, setFmtPhotoFile] = useState<File | null>(null);
   const [editFmtId, setEditFmtId] = useState<number | null>(null);
-  const [selFormateurId, setSelFormateurId] = useState<number | null>(null);
+  const [selFormateurIds, setSelFormateurIds] = useState<number[]>([]);
   const [inlineNewFmt, setInlineNewFmt] = useState(false);
   const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "Non genré" });
   // Admin villes
@@ -58,7 +58,6 @@ export default function DashboardOrganismePage() {
   const [extraPrix, setExtraPrix] = useState<{label: string; value: string}[]>([]);
   const [newPrixLabel, setNewPrixLabel] = useState("");
   const [newPrixValue, setNewPrixValue] = useState("");
-  const dateInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
   const [orgNom, setOrgNom] = useState<string>("");
@@ -140,12 +139,15 @@ export default function DashboardOrganismePage() {
       });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.length > 0 ? sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })) : [defaultParty()]; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
       setExtraPrix((f as any).prix_extras || []);
+      const existingIds: number[] = (f as any).formateur_ids?.length ? (f as any).formateur_ids : ((f as any).formateur_id ? [(f as any).formateur_id] : []);
+      setSelFormateurIds(existingIds);
     } else {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 1, parties: [defaultParty()] }]);
       setFormPhotoFile(null);
       setExtraPrix([]);
+      setSelFormateurIds([]);
     }
     setNewPrixLabel(""); setNewPrixValue("");
     setMsg(null);
@@ -157,9 +159,9 @@ export default function DashboardOrganismePage() {
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
     if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return }
-    if (!selFormateurId) { setMsg("Veuillez sélectionner un·e formateur·rice."); return }
+    if (selFormateurIds.length === 0) { setMsg("Veuillez sélectionner au moins un·e formateur·rice."); return }
     const isELearning = form.modalite === "E-learning";
-    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => (p.jours || []).length > 0 || p.date_debut));
+    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => p.date_debut));
     if (!isELearning && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
 
@@ -198,7 +200,7 @@ export default function DashboardOrganismePage() {
       video_url: form.video_url,
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
-      formateur_id: selFormateurId || null as number | null,
+      formateur_id: selFormateurIds[0] || null as number | null, formateur_ids: selFormateurIds,
       note: 0,
       nb_avis: 0,
       sans_limite: false,
@@ -594,14 +596,25 @@ export default function DashboardOrganismePage() {
             </div>
 
             {/* Formateur */}
-            <div>
-              <label style={labelStyle}>Formateur·rice</label>
-              <div style={{ display: "flex", gap: 6 }}>
-                <select value={selFormateurId ?? ""} onChange={e => setSelFormateurId(e.target.value ? Number(e.target.value) : null)} style={{ ...inputStyle, flex: 1 }}>
-                  <option value="">— Aucun —</option>
-                  {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
-                </select>
-                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer</button>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Formateur(s) *</label>
+              {formateurs.length === 0 ? (
+                <p style={{ fontSize: 12, color: C.textTer }}>Aucun formateur — <button type="button" onClick={() => setTab("formateurs")} style={{ background: "none", border: "none", color: C.accent, fontSize: 12, cursor: "pointer", fontWeight: 600, padding: 0 }}>en créer un d'abord →</button></p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {formateurs.map(f => {
+                    const isSelected = selFormateurIds.includes(f.id);
+                    return (
+                      <button key={f.id} type="button" onClick={() => setSelFormateurIds(prev => isSelected ? prev.filter(id => id !== f.id) : [...prev, f.id])}
+                        style={{ padding: "6px 12px", borderRadius: 9, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.border), background: isSelected ? C.accentBg : C.bgAlt, color: isSelected ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: isSelected ? 700 : 400 }}>
+                        {f.nom}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ marginTop: 8 }}>
+                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un formateur</button>
               </div>
               {inlineNewFmt && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, padding: 12, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
@@ -622,7 +635,7 @@ export default function DashboardOrganismePage() {
                       const sexeVal = inlineFmt.sexe === "Non genré" ? null : inlineFmt.sexe || null;
                       const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: sexeVal }).select().single();
                       if (error) { setMsg("Erreur création formateur : " + error.message); return; }
-                      if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurId(data.id); }
+                      if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurIds(prev => [...prev, data.id]); }
                       setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });
                     }} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Créer et sélectionner</button>
                   </div>
@@ -827,50 +840,21 @@ export default function DashboardOrganismePage() {
                             </div>
                           </div>
                           <div style={{ gridColumn: "1 / -1" }}>
-                            <label style={labelStyle}>Jours de formation</label>
-                            <p style={{ fontSize: 11, color: C.textTer, marginBottom: 6 }}>Cliquez sur chaque jour (les jours peuvent être discontinus, ex: 4, 7 et 9 mars)</p>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                              {(p.jours || []).map((j, ji) => (
-                                <div key={ji} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44" }}>
-                                  <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{j}</span>
-                                  <button type="button" onClick={() => { const n = [...sessions]; n[i].parties![pi].jours = p.jours.filter((_, jk) => jk !== ji); n[i].parties![pi].date_debut = n[i].parties![pi].jours[0] || ""; n[i].parties![pi].date_fin = n[i].parties![pi].jours[n[i].parties![pi].jours.length - 1] || ""; setSessions(n); }} style={{ background: "none", border: "none", color: C.pink, fontSize: 12, cursor: "pointer", padding: 0 }}>✕</button>
-                                </div>
-                              ))}
-                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                                <input ref={el => { dateInputRefs.current[`${i}-${pi}`] = el; }} type="date" min={today} style={{ ...inputStyle, fontSize: 12, width: "auto", minWidth: 140 }}
-                                  onBlur={() => {
-                                    const el = dateInputRefs.current[`${i}-${pi}`];
-                                    const val = el?.value;
-                                    if (!val) return;
-                                    const n = [...sessions];
-                                    const cur = n[i].parties![pi].jours || [];
-                                    if (!cur.includes(val)) {
-                                      const sorted = [...cur, val].sort();
-                                      n[i].parties![pi].jours = sorted;
-                                      n[i].parties![pi].date_debut = sorted[0];
-                                      n[i].parties![pi].date_fin = sorted[sorted.length - 1];
-                                      setSessions(n);
-                                    }
-                                    if (el) el.value = "";
-                                  }}
-                                />
-                                <button type="button" onClick={() => {
-                                  const el = dateInputRefs.current[`${i}-${pi}`];
-                                  const val = el?.value;
-                                  if (!val) return;
-                                  const n = [...sessions];
-                                  const cur = n[i].parties![pi].jours || [];
-                                  if (!cur.includes(val)) {
-                                    const sorted = [...cur, val].sort();
-                                    n[i].parties![pi].jours = sorted;
-                                    n[i].parties![pi].date_debut = sorted[0];
-                                    n[i].parties![pi].date_fin = sorted[sorted.length - 1];
-                                  }
-                                  setSessions(n);
-                                  if (el) el.value = "";
-                                }} style={{ padding: "5px 12px", borderRadius: 8, background: C.gradient, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>+</button>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              <div>
+                                <label style={labelStyle}>Date de début *</label>
+                                <input type="date" value={p.date_debut} min={today} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_debut = e.target.value; n[i].parties![pi].jours = e.target.value ? [e.target.value] : []; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Date de fin (si différent)</label>
+                                <input type="date" value={p.date_fin} min={p.date_debut || today} onChange={e => { const n = [...sessions]; n[i].parties![pi].date_fin = e.target.value; setSessions(n); }} style={{ ...inputStyle, fontSize: 12 }} />
                               </div>
                             </div>
+                            {p.date_debut && (
+                              <div style={{ fontSize: 11, color: C.textSec, marginTop: 4, background: C.bgAlt, borderRadius: 7, padding: "4px 8px", display: "inline-block" }}>
+                                📅 {p.date_debut}{p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}
+                              </div>
+                            )}
                           </div>
                           {p.modalite !== "Visio" && (
                             <div>

@@ -53,13 +53,14 @@ const getKey = (nom: string) => GEO_TO_KEY[nom] || nom;
 
 function countFormations(
   key: string,
-  formations: { sessions?: { lieu: string }[] }[]
+  formations: { sessions?: { lieu: string; session_parties?: { lieu?: string; ville?: string }[] }[] }[]
 ): number {
   const cities = (REGIONS_CITIES[key] || []).map((c) => c.toLowerCase());
+  const matchesCity = (text: string) => cities.some((c) => text.toLowerCase().includes(c));
   return formations.filter((f) =>
     (f.sessions || []).some((s) => {
-      const lieu = (s.lieu || "").toLowerCase();
-      return cities.some((c) => lieu.includes(c));
+      if (matchesCity(s.lieu || "")) return true;
+      return (s.session_parties || []).some((p) => matchesCity(p.lieu || p.ville || ""));
     })
   ).length;
 }

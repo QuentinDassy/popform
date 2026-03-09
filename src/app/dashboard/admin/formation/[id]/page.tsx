@@ -370,7 +370,10 @@ export default function AdminFormationEditorPage() {
           validSessions.map(s => ({
             formation_id: formationId,
             dates: (s.date_ranges.some(r => r.debut) ? formatMultipleDateRanges(s.date_ranges) : null) || s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
-            lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
+            lieu: s.is_visio ? "Visio" :
+              (s.parties.length > 0 && s.parties.some(p => p.lieu || p.ville)
+                ? [...new Set(s.parties.map(p => p.modalite === "Visio" ? "Visio" : (p.lieu || p.ville)).filter(Boolean))].join(", ")
+                : (s.ville.trim() || s.lieu.trim())),
             adresse: s.is_visio ? (s.lien_visio || "") : s.adresse.trim() || null,
             code_postal: s.code_postal || null,
             modalite_session: s.modalite_session || null,
