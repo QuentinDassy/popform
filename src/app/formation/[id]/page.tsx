@@ -248,6 +248,11 @@ export default function FormationPage() {
   const sessions = f.sessions || [];
   const org = f.organisme;
   const formateur = f.formateur;
+  const formateurs: typeof f.formateur[] = (f as any).formateurs?.length ? (f as any).formateurs : (formateur ? [formateur] : []);
+  function fmtShortNom(fmt: NonNullable<typeof formateur>): string {
+    const nom = fmt.nom.split(" ").pop() || fmt.nom;
+    return `${fmt.sexe === "Homme" ? "M." : "Mme"} ${nom}`;
+  }
   const priseEnCharge = f.prise_en_charge || [];
   const fAvis = avis.filter(a => a.formation_id === f.id);
   const avg = fAvis.length ? (fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length).toFixed(1) : "—";
@@ -322,22 +327,22 @@ export default function FormationPage() {
               <h1 style={{ fontSize: mob ? 26 : 36, fontWeight: 800, color: C.text, lineHeight: 1.2, letterSpacing: "-0.02em", marginBottom: 8 }}>{f.titre}</h1>
               {f.sous_titre && <p style={{ fontSize: mob ? 14 : 16, color: C.textSec, marginBottom: 14, fontStyle: "italic" }}>{f.sous_titre}</p>}
 
-              {/* Formateur & Organisme — prominent row */}
-              {(formateur || org) && (
+              {/* Formateur(s) & Organisme — prominent row */}
+              {(formateurs.length > 0 || org) && (
                 <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-                  {formateur && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.accentBg, border: "1.5px solid " + C.accent + "33" }}>
+                  {formateurs.map((fmt, fi) => fmt && (
+                    <div key={fi} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.accentBg, border: "1.5px solid " + C.accent + "33" }}>
                       <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", background: C.gradient, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {(formateur as any).photo_url
-                          ? <img src={(formateur as any).photo_url} alt={formateur.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          : <span style={{ fontSize: 13, color: "#fff", fontWeight: 800 }}>{formateur.nom?.[0]?.toUpperCase()}</span>}
+                        {(fmt as any).photo_url
+                          ? <img src={(fmt as any).photo_url} alt={fmt.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <span style={{ fontSize: 13, color: "#fff", fontWeight: 800 }}>{fmt.nom?.[0]?.toUpperCase()}</span>}
                       </div>
                       <div>
                         <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Formateur</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>{formateur.nom}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>{formateurs.length > 1 ? fmtShortNom(fmt) : fmt.nom}</div>
                       </div>
                     </div>
-                  )}
+                  ))}
                   {org && (
                     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.blueBg, border: "1.5px solid " + C.blue + "33" }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", background: C.bgAlt, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -438,47 +443,67 @@ export default function FormationPage() {
               {sessions.length === 0 ? (
                 <p style={{ color: C.textTer }}>Aucune session programmée pour le moment.</p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: sessions.length > 2 ? 6 : 12 }}>
                   {sessions.map((s, si) => {
                     const parts = (s as any).session_parties as Array<{titre:string;date_debut:string;date_fin:string;jours:string|null;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
                     const isInscrit = inscriptions.some(ins => ins.formation_id === f.id && ins.session_id === s.id);
+                    const compact = sessions.length > 2;
+                    // Compute display date & lieu for compact mode
+                    const displayDate = parts && parts.length > 0
+                      ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
+                      : s.dates;
+                    const displayLieu = parts && parts.length > 0
+                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : p.lieu).filter(Boolean))].join(", ")
+                      : s.lieu;
                     return (
-                    <div key={si} style={{ padding: 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
-                      {sessions.length > 1 && (
-                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Session {si + 1}</div>
-                      )}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                        <div style={{ flex: 1 }}>
-                          {parts && parts.length > 0 ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {parts.map((p, pi) => (
-                                <div key={pi} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                                  {parts.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
-                                  <div>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-                                      {p.modalite === "Visio" ? "💻" : "📍"} {p.modalite === "Visio" ? "En visio" : p.lieu}
-                                      {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
-                                    </div>
-                                    {p.modalite !== "Visio" && p.adresse && <div style={{ fontSize: 11, color: C.textTer }}>{p.adresse}</div>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {s.dates}</div>
-                              <div style={{ fontSize: 13, color: C.textSec }}>📍 {s.lieu}</div>
-                              {s.adresse && <div style={{ fontSize: 12, color: C.textTer, marginTop: 2 }}>{s.adresse}</div>}
-                            </>
-                          )}
+                    <div key={si} style={{ padding: compact ? "10px 14px" : 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
+                      {compact ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                          {sessions.length > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", minWidth: 60 }}>Session {si + 1}</div>}
+                          <div style={{ flex: 1, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>📅 {displayDate}</span>
+                            <span style={{ fontSize: 13, color: C.textSec }}>{displayLieu === "Visio" ? "💻 Visio" : "📍 " + displayLieu}</span>
+                          </div>
+                          <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "7px 16px", borderRadius: 9, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 12, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                            {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
+                          </button>
                         </div>
-                        <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
-                          {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
-                        </button>
-                      </div>
+                      ) : (
+                        <>
+                          {sessions.length > 1 && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Session {si + 1}</div>
+                          )}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{ flex: 1 }}>
+                              {parts && parts.length > 0 ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                  {parts.map((p, pi) => (
+                                    <div key={pi} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                      {parts.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
+                                      <div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                                          {p.modalite === "Visio" ? "💻 En visio" : "📍 " + p.lieu}
+                                          {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {s.dates}</div>
+                                  <div style={{ fontSize: 13, color: C.textSec }}>{s.lieu === "Visio" ? "💻 Visio" : "📍 " + s.lieu}</div>
+                                </>
+                              )}
+                            </div>
+                            <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
+                              {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                     );
-                  ;
                   })}
                 </div>
               )}

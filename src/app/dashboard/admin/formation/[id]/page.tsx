@@ -25,7 +25,7 @@ type FormState = {
   domaine: string; domaines: string[];
   modalite: string; prise_en_charge: string[];
   duree: string;
-  formateur_id: number | null; organisme_id: number | null;
+  formateur_ids: number[]; organisme_id: number | null;
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   prix_extras: { label: string; value: number }[];
   populations: string[]; mots_cles: string; professions: string[];
@@ -65,7 +65,7 @@ function emptyForm(): FormState {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaines: [],
     modalite: "Présentiel", prise_en_charge: [],
-    duree: "", formateur_id: null, organisme_id: null,
+    duree: "", formateur_ids: [], organisme_id: null,
     prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [],
     populations: [], mots_cles: "", professions: ["Orthophonistes"],
     effectif: 20, url_inscription: "", video_url: "",
@@ -150,7 +150,7 @@ export default function AdminFormationEditorPage() {
               modalite: f.modalite || "Présentiel",
               prise_en_charge: f.prise_en_charge || [],
               duree: f.duree || "",
-              formateur_id: f.formateur_id,
+              formateur_ids: (f as any).formateur_ids?.length ? (f as any).formateur_ids : (f.formateur_id ? [f.formateur_id] : []),
               organisme_id: f.organisme_id,
               prix: f.prix ?? 0,
               prix_salarie: f.prix_salarie,
@@ -178,7 +178,7 @@ export default function AdminFormationEditorPage() {
                 dates: s.dates || "",
                 date_ranges,
                 lieu: s.lieu || "",
-                adresse: s.adresse || "",
+                adresse: "",
                 ville: s.lieu || "",
                 code_postal: s.code_postal || "",
                 modalite_session: s.modalite_session || "Présentiel",
@@ -232,7 +232,7 @@ export default function AdminFormationEditorPage() {
     const { data, error } = await supabase.from("formateurs").insert({ nom: fullNom, sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
     if (!error && data) {
       setFormateurs(fmts => [...fmts, data]);
-      setF("formateur_id", data.id);
+      setF("formateur_ids", [...form.formateur_ids, data.id]);
       setShowNewFormateur(false);
       setNewFmt({ prenom: "", nom: "", sexe: "Femme", bio: "" });
       setNewFmtPhotoFile(null);
@@ -327,7 +327,8 @@ export default function AdminFormationEditorPage() {
       modalite: form.modalite,
       prise_en_charge: form.prise_en_charge,
       duree: form.duree || "",
-      formateur_id: form.formateur_id,
+      formateur_id: form.formateur_ids[0] || null,
+      formateur_ids: form.formateur_ids,
       organisme_id: form.organisme_id,
       prix: form.prix ?? 0,
       prix_salarie: form.prix_salarie,
@@ -370,7 +371,7 @@ export default function AdminFormationEditorPage() {
             formation_id: formationId,
             dates: (s.date_ranges.some(r => r.debut) ? formatMultipleDateRanges(s.date_ranges) : null) || s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
             lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
-            adresse: s.is_visio ? (s.lien_visio || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
+            adresse: s.is_visio ? (s.lien_visio || "") : s.adresse.trim() || null,
             code_postal: s.code_postal || null,
             modalite_session: s.modalite_session || null,
             lien_visio: s.lien_visio || null,
@@ -499,17 +500,27 @@ export default function AdminFormationEditorPage() {
         <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Formateur & Organisme</div>
         <div style={row2}>
           <div>
-            <label style={lbl}>Formateur</label>
+            <label style={lbl}>Formateur(s)</label>
+            {/* Selected formateurs chips */}
+            {form.formateur_ids.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                {form.formateur_ids.map(fid => {
+                  const fmt = formateurs.find(f => f.id === fid);
+                  return fmt ? (
+                    <div key={fid} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: 12 }}>
+                      <span style={{ color: C.text, fontWeight: 600 }}>{fmt.nom}</span>
+                      <button onClick={() => editingFmtId === fid ? setEditingFmtId(null) : handleEditFormateur(fid)} style={{ padding: "1px 4px", border: "none", background: "none", cursor: "pointer", fontSize: 11, color: C.textSec }}>✏️</button>
+                      <button onClick={() => { setF("formateur_ids", form.formateur_ids.filter(id => id !== fid)); if (editingFmtId === fid) setEditingFmtId(null); }} style={{ padding: "1px 4px", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: C.pink }}>✕</button>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <select style={{ ...inp, flex: 1 }} value={form.formateur_id ?? ""} onChange={e => { setF("formateur_id", e.target.value ? Number(e.target.value) : null); setEditingFmtId(null); }}>
-                <option value="">— Aucun / à lier plus tard —</option>
-                {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
+              <select style={{ ...inp, flex: 1 }} value="" onChange={e => { if (e.target.value && !form.formateur_ids.includes(Number(e.target.value))) { setF("formateur_ids", [...form.formateur_ids, Number(e.target.value)]); setEditingFmtId(null); } }}>
+                <option value="">+ Ajouter un formateur…</option>
+                {formateurs.filter(f => !form.formateur_ids.includes(f.id)).map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
               </select>
-              {form.formateur_id && !showNewFormateur && (
-                <button onClick={() => editingFmtId ? setEditingFmtId(null) : handleEditFormateur(form.formateur_id!)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: editingFmtId ? C.accentBg : C.surface, color: editingFmtId ? C.accent : C.textSec, fontSize: 12, cursor: "pointer" }}>
-                  {editingFmtId ? "✕" : "✏️"}
-                </button>
-              )}
               <button onClick={() => { setShowNewFormateur(v => !v); setEditingFmtId(null); }} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewFormateur ? C.accentBg : C.surface, color: showNewFormateur ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {showNewFormateur ? "✕" : "+ Nouveau"}
               </button>
@@ -721,7 +732,12 @@ export default function AdminFormationEditorPage() {
       </div>
 
       {/* ── Sessions ── */}
-      <div style={section}>
+      {form.modalite === "E-learning" && (
+        <div style={{ ...section, background: "#f0f9ff", border: "1.5px solid #bae6fd", color: "#0369a1", fontSize: 13, textAlign: "center", padding: "14px 20px" }}>
+          📱 E-learning — pas de sessions à configurer
+        </div>
+      )}
+      {form.modalite !== "E-learning" && <div style={section}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>Sessions ({sessions.length})</div>
           <button onClick={() => setSessions(ss => [...ss, emptySession()])} style={{ padding: "6px 14px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -851,7 +867,7 @@ export default function AdminFormationEditorPage() {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* ── Statut ── */}
       <div style={section}>

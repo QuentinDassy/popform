@@ -11,7 +11,7 @@ export type Formateur = { id: number; nom: string; bio: string; sexe: string; or
 export type Formation = {
   id: number; titre: string; sous_titre: string; description: string;
   domaine: string; domaines?: string[]; modalite: string; prise_en_charge: string[];
-  duree: string; formateur_id: number | null; organisme_id: number | null;
+  duree: string; formateur_id: number | null; formateur_ids?: number[] | null; organisme_id: number | null;
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   prix_extras?: { label: string; value: number }[];
   note: number; nb_avis: number; is_new: boolean; date_ajout: string;
@@ -23,6 +23,7 @@ export type Formation = {
   affiche_order: number | null;
   sessions?: Session[];
   formateur?: Formateur;
+  formateurs?: Formateur[];
   organisme?: Organisme;
 };
 export type Avis = { id: number; formation_id: number; user_id: string; user_name: string; note: number; texte: string; created_at: string; note_contenu: number | null; note_organisation: number | null; note_supports: number | null; note_pertinence: number | null };
@@ -143,7 +144,18 @@ async function _fetchFormationRemote(id: number): Promise<Formation | null> {
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("fetchFormation error:", error); return null; }
-    if (data) lsWriteFormation(id, data);
+    if (data) {
+      const ids: number[] = (data as any).formateur_ids?.length
+        ? (data as any).formateur_ids
+        : (data.formateur_id ? [data.formateur_id] : []);
+      if (ids.length > 0) {
+        const { data: fmts } = await supabase.from("formateurs").select("id,nom,sexe,bio,photo_url,site_url").in("id", ids);
+        (data as any).formateurs = fmts || [];
+      } else {
+        (data as any).formateurs = data.formateur ? [data.formateur] : [];
+      }
+      lsWriteFormation(id, data);
+    }
     return data;
   } catch (e) {
     console.warn("fetchFormation error:", e);
