@@ -15,7 +15,7 @@ type SessionPartieRow = {
   modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string;
 };
 type SessionRow = {
-  id?: number; dates: string; date_debut_session: string; date_fin_session: string;
+  id?: number; dates: string; date_ranges: { debut: string; fin: string }[];
   lieu: string; adresse: string; ville: string;
   code_postal: string; modalite_session: string; lien_visio: string; is_visio: boolean;
   parties: SessionPartieRow[];
@@ -54,8 +54,12 @@ function formatDateRange(debut: string, fin: string): string {
   return `${d1.getDate()} ${MOIS_FR[d1.getMonth()]}${y1} et ${d2.getDate()} ${MOIS_FR[d2.getMonth()]} ${d2.getFullYear()}`;
 }
 
+function formatMultipleDateRanges(ranges: { debut: string; fin: string }[]): string {
+  return ranges.filter(r => r.debut).map(r => formatDateRange(r.debut, r.fin)).join(" et ");
+}
+
 function emptySession(): SessionRow {
-  return { dates: "", date_debut_session: "", date_fin_session: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
+  return { dates: "", date_ranges: [{ debut: "", fin: "" }], lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
 }
 function emptyForm(): FormState {
   return {
@@ -93,10 +97,26 @@ export default function AdminFormationEditorPage() {
   // Inline creation
   const [showNewFormateur, setShowNewFormateur] = useState(false);
   const [newFmt, setNewFmt] = useState({ nom: "", sexe: "F", bio: "" });
+  const [newFmtPhotoFile, setNewFmtPhotoFile] = useState<File | null>(null);
+  const newFmtPhotoRef = useRef<HTMLInputElement>(null);
   const [creatingFmt, setCreatingFmt] = useState(false);
   const [showNewOrganisme, setShowNewOrganisme] = useState(false);
   const [newOrg, setNewOrg] = useState({ nom: "", description: "" });
+  const [newOrgLogoFile, setNewOrgLogoFile] = useState<File | null>(null);
+  const newOrgLogoRef = useRef<HTMLInputElement>(null);
   const [creatingOrg, setCreatingOrg] = useState(false);
+
+  // Edit existing formateur/organisme
+  const [editingFmtId, setEditingFmtId] = useState<number | null>(null);
+  const [editFmt, setEditFmt] = useState({ nom: "", sexe: "F", bio: "" });
+  const [editFmtPhotoFile, setEditFmtPhotoFile] = useState<File | null>(null);
+  const editFmtPhotoRef = useRef<HTMLInputElement>(null);
+  const [savingFmt, setSavingFmt] = useState(false);
+  const [editingOrgId, setEditingOrgId] = useState<number | null>(null);
+  const [editOrg, setEditOrg] = useState({ nom: "", description: "", logo: "" });
+  const [editOrgLogoFile, setEditOrgLogoFile] = useState<File | null>(null);
+  const editOrgLogoRef = useRef<HTMLInputElement>(null);
+  const [savingOrg, setSavingOrg] = useState(false);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -149,14 +169,14 @@ export default function AdminFormationEditorPage() {
             });
             setSessions((f.sessions || []).map((s: any) => {
               const sp = s.session_parties || [];
-              // Try to parse existing dates string back to date inputs
-              const allDebuts = sp.map((p: any) => p.date_debut).filter(Boolean).sort();
-              const allFins = sp.map((p: any) => p.date_fin || p.date_debut).filter(Boolean).sort();
+              const partiesWithDates = sp.filter((p: any) => p.date_debut);
+              const date_ranges = partiesWithDates.length > 0
+                ? partiesWithDates.map((p: any) => ({ debut: p.date_debut, fin: p.date_fin || p.date_debut }))
+                : [{ debut: "", fin: "" }];
               return {
                 id: s.id,
                 dates: s.dates || "",
-                date_debut_session: allDebuts[0] || "",
-                date_fin_session: allFins[allFins.length - 1] || allDebuts[0] || "",
+                date_ranges,
                 lieu: s.lieu || "",
                 adresse: s.adresse || "",
                 ville: s.lieu || "",
@@ -206,12 +226,15 @@ export default function AdminFormationEditorPage() {
   const handleCreateFormateur = async () => {
     if (!newFmt.nom.trim()) return;
     setCreatingFmt(true);
-    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || null, organisme_id: form.organisme_id }).select().single();
+    let photoUrl: string | null = null;
+    if (newFmtPhotoFile) { try { photoUrl = await uploadImage(newFmtPhotoFile, "formateurs"); } catch {} }
+    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || null, organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
     if (!error && data) {
       setFormateurs(fmts => [...fmts, data]);
       setF("formateur_id", data.id);
       setShowNewFormateur(false);
       setNewFmt({ nom: "", sexe: "F", bio: "" });
+      setNewFmtPhotoFile(null);
     }
     setCreatingFmt(false);
   };
@@ -219,14 +242,59 @@ export default function AdminFormationEditorPage() {
   const handleCreateOrganisme = async () => {
     if (!newOrg.nom.trim()) return;
     setCreatingOrg(true);
-    const { data, error } = await supabase.from("organismes").insert({ nom: newOrg.nom.trim(), description: newOrg.description.trim() || null, logo: "" }).select().single();
+    let logo = "";
+    if (newOrgLogoFile) { try { logo = await uploadImage(newOrgLogoFile, "organismes"); } catch {} }
+    const { data, error } = await supabase.from("organismes").insert({ nom: newOrg.nom.trim(), description: newOrg.description.trim() || null, logo }).select().single();
     if (!error && data) {
       setOrganismes(orgs => [...orgs, data]);
       setF("organisme_id", data.id);
       setShowNewOrganisme(false);
       setNewOrg({ nom: "", description: "" });
+      setNewOrgLogoFile(null);
     }
     setCreatingOrg(false);
+  };
+
+  const handleEditFormateur = (id: number) => {
+    const fmt = formateurs.find(f => f.id === id);
+    if (!fmt) return;
+    setEditFmt({ nom: fmt.nom, sexe: fmt.sexe, bio: fmt.bio || "" });
+    setEditFmtPhotoFile(null);
+    setEditingFmtId(id);
+    setShowNewFormateur(false);
+  };
+  const handleSaveFormateur = async () => {
+    if (!editingFmtId) return;
+    setSavingFmt(true);
+    let photoUrl = formateurs.find(f => f.id === editingFmtId)?.photo_url || null;
+    if (editFmtPhotoFile) { try { photoUrl = await uploadImage(editFmtPhotoFile, "formateurs"); } catch {} }
+    const { error } = await supabase.from("formateurs").update({ nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim() || null, photo_url: photoUrl }).eq("id", editingFmtId);
+    if (!error) {
+      setFormateurs(fmts => fmts.map(f => f.id === editingFmtId ? { ...f, nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim(), photo_url: photoUrl } : f));
+      setEditingFmtId(null);
+    }
+    setSavingFmt(false);
+  };
+
+  const handleEditOrganisme = (id: number) => {
+    const org = organismes.find(o => o.id === id);
+    if (!org) return;
+    setEditOrg({ nom: org.nom, description: org.description || "", logo: org.logo || "" });
+    setEditOrgLogoFile(null);
+    setEditingOrgId(id);
+    setShowNewOrganisme(false);
+  };
+  const handleSaveOrganisme = async () => {
+    if (!editingOrgId) return;
+    setSavingOrg(true);
+    let logo = editOrg.logo;
+    if (editOrgLogoFile) { try { logo = await uploadImage(editOrgLogoFile, "organismes"); } catch {} }
+    const { error } = await supabase.from("organismes").update({ nom: editOrg.nom.trim(), description: editOrg.description.trim() || null, logo }).eq("id", editingOrgId);
+    if (!error) {
+      setOrganismes(orgs => orgs.map(o => o.id === editingOrgId ? { ...o, nom: editOrg.nom.trim(), description: editOrg.description.trim(), logo } : o));
+      setEditingOrgId(null);
+    }
+    setSavingOrg(false);
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
@@ -289,13 +357,13 @@ export default function AdminFormationEditorPage() {
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
       const validSessions = sessions.filter(s =>
-        s.dates.trim() || s.ville.trim() || s.lien_visio.trim() || s.parties.length > 0
+        s.date_ranges.some(r => r.debut) || s.dates.trim() || s.ville.trim() || s.lien_visio.trim() || s.parties.length > 0
       );
       if (validSessions.length > 0) {
         const { data: insertedSessions } = await supabase.from("sessions").insert(
           validSessions.map(s => ({
             formation_id: formationId,
-            dates: (s.date_debut_session ? formatDateRange(s.date_debut_session, s.date_fin_session) : null) || s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
+            dates: (s.date_ranges.some(r => r.debut) ? formatMultipleDateRanges(s.date_ranges) : null) || s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
             lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
             adresse: s.is_visio ? (s.lien_visio || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
             code_postal: s.code_postal || null,
@@ -428,11 +496,16 @@ export default function AdminFormationEditorPage() {
           <div>
             <label style={lbl}>Formateur</label>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <select style={{ ...inp, flex: 1 }} value={form.formateur_id ?? ""} onChange={e => setF("formateur_id", e.target.value ? Number(e.target.value) : null)}>
+              <select style={{ ...inp, flex: 1 }} value={form.formateur_id ?? ""} onChange={e => { setF("formateur_id", e.target.value ? Number(e.target.value) : null); setEditingFmtId(null); }}>
                 <option value="">— Aucun / à lier plus tard —</option>
                 {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
               </select>
-              <button onClick={() => setShowNewFormateur(v => !v)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewFormateur ? C.accentBg : C.surface, color: showNewFormateur ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+              {form.formateur_id && !showNewFormateur && (
+                <button onClick={() => editingFmtId ? setEditingFmtId(null) : handleEditFormateur(form.formateur_id!)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: editingFmtId ? C.accentBg : C.surface, color: editingFmtId ? C.accent : C.textSec, fontSize: 12, cursor: "pointer" }}>
+                  {editingFmtId ? "✕" : "✏️"}
+                </button>
+              )}
+              <button onClick={() => { setShowNewFormateur(v => !v); setEditingFmtId(null); }} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewFormateur ? C.accentBg : C.surface, color: showNewFormateur ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {showNewFormateur ? "✕" : "+ Nouveau"}
               </button>
             </div>
@@ -446,8 +519,37 @@ export default function AdminFormationEditorPage() {
                   </select>
                   <input style={{ ...inp, flex: 2 }} placeholder="Bio (optionnel)" value={newFmt.bio} onChange={e => setNewFmt(f => ({ ...f, bio: e.target.value }))} />
                 </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input ref={newFmtPhotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setNewFmtPhotoFile(e.target.files?.[0] || null)} />
+                  <button type="button" onClick={() => newFmtPhotoRef.current?.click()} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px dashed " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>
+                    📷 {newFmtPhotoFile ? newFmtPhotoFile.name.slice(0, 22) : "Photo (optionnel)"}
+                  </button>
+                  {newFmtPhotoFile && <button onClick={() => setNewFmtPhotoFile(null)} style={{ fontSize: 12, color: C.pink, cursor: "pointer", border: "none", background: "none" }}>✕</button>}
+                </div>
                 <button onClick={handleCreateFormateur} disabled={creatingFmt || !newFmt.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !newFmt.nom.trim() ? 0.5 : 1 }}>
                   {creatingFmt ? "Création…" : "Créer et sélectionner"}
+                </button>
+              </div>
+            )}
+            {editingFmtId && (
+              <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <input style={inp} placeholder="Nom *" value={editFmt.nom} onChange={e => setEditFmt(f => ({ ...f, nom: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select style={{ ...inp, flex: 1 }} value={editFmt.sexe} onChange={e => setEditFmt(f => ({ ...f, sexe: e.target.value }))}>
+                    <option value="F">Mme</option>
+                    <option value="M">M.</option>
+                  </select>
+                  <input style={{ ...inp, flex: 2 }} placeholder="Bio" value={editFmt.bio} onChange={e => setEditFmt(f => ({ ...f, bio: e.target.value }))} />
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input ref={editFmtPhotoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setEditFmtPhotoFile(e.target.files?.[0] || null)} />
+                  <button type="button" onClick={() => editFmtPhotoRef.current?.click()} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px dashed " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>
+                    📷 {editFmtPhotoFile ? editFmtPhotoFile.name.slice(0, 22) : (formateurs.find(f => f.id === editingFmtId)?.photo_url ? "Changer la photo" : "Ajouter une photo")}
+                  </button>
+                  {editFmtPhotoFile && <button onClick={() => setEditFmtPhotoFile(null)} style={{ fontSize: 12, color: C.pink, cursor: "pointer", border: "none", background: "none" }}>✕</button>}
+                </div>
+                <button onClick={handleSaveFormateur} disabled={savingFmt || !editFmt.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {savingFmt ? "Enregistrement…" : "💾 Enregistrer formateur"}
                 </button>
               </div>
             )}
@@ -455,11 +557,16 @@ export default function AdminFormationEditorPage() {
           <div>
             <label style={lbl}>Organisme</label>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <select style={{ ...inp, flex: 1 }} value={form.organisme_id ?? ""} onChange={e => setF("organisme_id", e.target.value ? Number(e.target.value) : null)}>
+              <select style={{ ...inp, flex: 1 }} value={form.organisme_id ?? ""} onChange={e => { setF("organisme_id", e.target.value ? Number(e.target.value) : null); setEditingOrgId(null); }}>
                 <option value="">— Aucun / à lier plus tard —</option>
                 {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
               </select>
-              <button onClick={() => setShowNewOrganisme(v => !v)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewOrganisme ? C.accentBg : C.surface, color: showNewOrganisme ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+              {form.organisme_id && !showNewOrganisme && (
+                <button onClick={() => editingOrgId ? setEditingOrgId(null) : handleEditOrganisme(form.organisme_id!)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: editingOrgId ? C.accentBg : C.surface, color: editingOrgId ? C.accent : C.textSec, fontSize: 12, cursor: "pointer" }}>
+                  {editingOrgId ? "✕" : "✏️"}
+                </button>
+              )}
+              <button onClick={() => { setShowNewOrganisme(v => !v); setEditingOrgId(null); }} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewOrganisme ? C.accentBg : C.surface, color: showNewOrganisme ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {showNewOrganisme ? "✕" : "+ Nouveau"}
               </button>
             </div>
@@ -467,8 +574,32 @@ export default function AdminFormationEditorPage() {
               <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <input style={inp} placeholder="Nom de l'organisme *" value={newOrg.nom} onChange={e => setNewOrg(o => ({ ...o, nom: e.target.value }))} />
                 <input style={inp} placeholder="Description (optionnel)" value={newOrg.description} onChange={e => setNewOrg(o => ({ ...o, description: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input ref={newOrgLogoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setNewOrgLogoFile(e.target.files?.[0] || null)} />
+                  <button type="button" onClick={() => newOrgLogoRef.current?.click()} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px dashed " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>
+                    🖼️ {newOrgLogoFile ? newOrgLogoFile.name.slice(0, 22) : "Logo (optionnel)"}
+                  </button>
+                  {newOrgLogoFile && <button onClick={() => setNewOrgLogoFile(null)} style={{ fontSize: 12, color: C.pink, cursor: "pointer", border: "none", background: "none" }}>✕</button>}
+                </div>
                 <button onClick={handleCreateOrganisme} disabled={creatingOrg || !newOrg.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !newOrg.nom.trim() ? 0.5 : 1 }}>
                   {creatingOrg ? "Création…" : "Créer et sélectionner"}
+                </button>
+              </div>
+            )}
+            {editingOrgId && (
+              <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <input style={inp} placeholder="Nom *" value={editOrg.nom} onChange={e => setEditOrg(o => ({ ...o, nom: e.target.value }))} />
+                <input style={inp} placeholder="Description" value={editOrg.description} onChange={e => setEditOrg(o => ({ ...o, description: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {editOrg.logo && !editOrgLogoFile && <img src={editOrg.logo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", border: "1px solid " + C.border }} />}
+                  <input ref={editOrgLogoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setEditOrgLogoFile(e.target.files?.[0] || null)} />
+                  <button type="button" onClick={() => editOrgLogoRef.current?.click()} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px dashed " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>
+                    🖼️ {editOrgLogoFile ? editOrgLogoFile.name.slice(0, 22) : (editOrg.logo ? "Changer le logo" : "Ajouter un logo")}
+                  </button>
+                  {editOrgLogoFile && <button onClick={() => setEditOrgLogoFile(null)} style={{ fontSize: 12, color: C.pink, cursor: "pointer", border: "none", background: "none" }}>✕</button>}
+                </div>
+                <button onClick={handleSaveOrganisme} disabled={savingOrg || !editOrg.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.blue, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {savingOrg ? "Enregistrement…" : "💾 Enregistrer organisme"}
                 </button>
               </div>
             )}
@@ -606,27 +737,38 @@ export default function AdminFormationEditorPage() {
               Visioconférence
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={lbl}>Date début</label>
-                <input style={inp} type="date" value={s.date_debut_session} onChange={e => setSession(si, "date_debut_session", e.target.value)} />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={lbl}>Dates</label>
+                <button onClick={() => setSession(si, "date_ranges", [...s.date_ranges, { debut: "", fin: "" }])} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer" }}>+ Ajouter date</button>
               </div>
-              <div>
-                <label style={lbl}>Date fin</label>
-                <input style={inp} type="date" value={s.date_fin_session} min={s.date_debut_session} onChange={e => setSession(si, "date_fin_session", e.target.value)} />
-              </div>
-              <div>
-                <label style={lbl}>Modalité session</label>
-                <select style={inp} value={s.modalite_session} onChange={e => setSession(si, "modalite_session", e.target.value)}>
-                  {MODALITES.map(m => <option key={m}>{m}</option>)}
-                </select>
-              </div>
+              {s.date_ranges.map((dr, dri) => (
+                <div key={dri} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 6, alignItems: "end" }}>
+                  <div>
+                    <label style={{ ...lbl, fontSize: 10 }}>Début</label>
+                    <input style={inp} type="date" value={dr.debut} onChange={e => { const r = [...s.date_ranges]; r[dri] = { ...dr, debut: e.target.value }; setSession(si, "date_ranges", r); }} />
+                  </div>
+                  <div>
+                    <label style={{ ...lbl, fontSize: 10 }}>Fin (si différent)</label>
+                    <input style={inp} type="date" value={dr.fin} min={dr.debut} onChange={e => { const r = [...s.date_ranges]; r[dri] = { ...dr, fin: e.target.value }; setSession(si, "date_ranges", r); }} />
+                  </div>
+                  {s.date_ranges.length > 1 && (
+                    <button onClick={() => setSession(si, "date_ranges", s.date_ranges.filter((_, j) => j !== dri))} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, cursor: "pointer", fontSize: 12 }}>✕</button>
+                  )}
+                </div>
+              ))}
+              {s.date_ranges.some(r => r.debut) && (
+                <div style={{ fontSize: 12, color: C.textSec, marginTop: 4, background: C.bgAlt, borderRadius: 7, padding: "5px 10px", display: "inline-block" }}>
+                  📅 {formatMultipleDateRanges(s.date_ranges)}
+                </div>
+              )}
             </div>
-            {s.date_debut_session && (
-              <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8, background: C.bgAlt, borderRadius: 7, padding: "5px 10px", display: "inline-block" }}>
-                📅 {formatDateRange(s.date_debut_session, s.date_fin_session)}
-              </div>
-            )}
+            <div style={{ marginBottom: 10 }}>
+              <label style={lbl}>Modalité session</label>
+              <select style={inp} value={s.modalite_session} onChange={e => setSession(si, "modalite_session", e.target.value)}>
+                {MODALITES.map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
 
             {s.is_visio ? (
               <div>

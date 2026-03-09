@@ -245,7 +245,8 @@ export default function DashboardAdminPage() {
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
-  const filtered = filter === "all" ? formations : formations.filter(f => f.status === filter);
+  const filtered = filter === "all" ? formations.filter(f => f.status !== "supprimee") : formations.filter(f => f.status === filter);
+  const deletedCount = formations.filter(f => f.status === "supprimee").length;
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
   const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
   const pendingFormationIds = new Set(formations.filter(f => f.status === "en_attente").map(f => f.id));
@@ -273,7 +274,7 @@ export default function DashboardAdminPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
         {[
-          { label: "Total", value: formations.length, icon: "🎬" },
+          { label: "Total", value: formations.filter(f => f.status !== "supprimee").length, icon: "🎬" },
           { label: "En attente", value: pendingCount, icon: "⏳", highlight: pendingCount > 0 },
           { label: "Publiées", value: formations.filter(f => f.status === "publiee").length, icon: "✅" },
           { label: "Webinaires ⏳", value: pendingWebCount, icon: "📡", highlight: pendingWebCount > 0 },
@@ -628,6 +629,7 @@ export default function DashboardAdminPage() {
           { v: "publiee", l: "✅ Publiées" },
           { v: "refusee", l: "✕ Refusées" },
           { v: "all", l: "📋 Toutes" },
+          { v: "supprimee", l: "🗑️ Supprimées" + (deletedCount > 0 ? " (" + deletedCount + ")" : "") },
         ].map(t => (
           <button key={t.v} onClick={() => setFilter(t.v)} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: filter === t.v ? C.surface : "transparent", color: filter === t.v ? C.text : C.textTer, fontSize: 12, fontWeight: filter === t.v ? 700 : 500, cursor: "pointer", boxShadow: filter === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>{t.l}</button>
         ))}
@@ -733,7 +735,12 @@ export default function DashboardAdminPage() {
                       {f.status === "publiee" && (
                         <Link href={`/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>👁️ Voir sur le site</Link>
                       )}
-                      <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>
+                      {f.status !== "supprimee" && <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>}
+                      {f.status !== "supprimee" ? (
+                        <button onClick={() => { if (confirm(`Supprimer "${f.titre}" ? Elle ira dans la corbeille.`)) handleStatus(f.id, "supprimee"); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️ Supprimer</button>
+                      ) : (
+                        <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
+                      )}
                       <button onClick={async () => { const newVal = !f.is_new; await supabase.from("formations").update({ is_new: newVal }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, is_new: newVal } : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.yellowBg, background: f.is_new ? C.yellowBg : C.surface, color: f.is_new ? C.yellowDark : C.textTer, fontSize: 12, fontWeight: f.is_new ? 700 : 400, cursor: "pointer" }}>{f.is_new ? "⭐ Nouvelle (retirer)" : "☆ Marquer nouvelle"}</button>
                     </div>
                   </div>
