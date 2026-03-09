@@ -51,15 +51,21 @@ const GEO_TO_KEY: Record<string, string> = {
 };
 const getKey = (nom: string) => GEO_TO_KEY[nom] || nom;
 
+const normCity = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
+
 function countFormations(
   key: string,
   formations: { sessions?: { lieu: string; session_parties?: { lieu?: string; ville?: string }[] }[] }[]
 ): number {
-  const cities = (REGIONS_CITIES[key] || []).map((c) => c.toLowerCase());
-  const matchesCity = (text: string) => cities.some((c) => text.toLowerCase().includes(c));
+  const cities = (REGIONS_CITIES[key] || []).map((c) => normCity(c));
+  const matchesCity = (text: string) => {
+    const t = normCity(text);
+    return cities.some((c) => t === c || t.includes(c));
+  };
   return formations.filter((f) =>
     (f.sessions || []).some((s) => {
-      if (matchesCity(s.lieu || "")) return true;
+      const parts = (s.lieu || "").split(", ").map((p) => p.trim()).filter(Boolean);
+      if (parts.some((p) => matchesCity(p))) return true;
       return (s.session_parties || []).some((p) => matchesCity(p.lieu || p.ville || ""));
     })
   ).length;

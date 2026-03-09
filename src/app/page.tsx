@@ -208,11 +208,12 @@ export default function HomePage() {
 
   const formationCities = getAllCitiesFromFormations(formations);
   // If admin configured villes, use those; otherwise fall back to formation cities
+  const normCity = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
   const displayCities: { name: string; count: number; image?: string }[] = adminVilles.length > 0
     ? adminVilles.map(v => {
-        // Sum all city keys that exactly match or start with the admin ville name (e.g. "Paris 8ème" → "Paris")
+        const nv = normCity(v.nom);
         const count = formationCities
-          .filter(([c]) => c === v.nom || c.startsWith(v.nom + " "))
+          .filter(([c]) => { const nc = normCity(c); return nc === nv || nc.startsWith(nv + " "); })
           .reduce((sum, [, n]) => sum + n, 0);
         return { name: v.nom, count, image: v.image || undefined };
       })

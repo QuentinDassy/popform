@@ -41,12 +41,13 @@ export default function VillesPage() {
         });
         const cityCount: Record<string, number> = {};
         Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
+        const norm = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
         const adminNames = Object.keys(adminMap);
         if (adminNames.length > 0) {
           setCities(adminNames.map(n => {
-            // Sum all city keys that exactly match or start with the admin name + space (e.g. "Lyon 3ème" → "Lyon")
+            const nn = norm(n);
             const count = Object.entries(cityCount)
-              .filter(([c]) => c === n || c.startsWith(n + " "))
+              .filter(([c]) => { const nc = norm(c); return nc === nn || nc.startsWith(nn + " "); })
               .reduce((sum, [, v]) => sum + v, 0);
             return [n, count] as [string, number];
           }).sort((a, b) => b[1] - a[1]));

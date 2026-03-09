@@ -399,7 +399,7 @@ export default function FormationPage() {
             <div style={{ marginTop: mob ? 24 : 0 }}>
               <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "4/3" }}>
                 {photo ? (
-                  <img src={photo} alt={f.titre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={photo} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}30)` }} />
                 )}

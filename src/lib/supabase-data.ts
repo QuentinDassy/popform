@@ -18,7 +18,7 @@ export type Formation = {
   populations: string[]; mots_cles: string[]; professions: string[];
   effectif: number; video_url: string; url_inscription: string;
   date_fin: string | null; sans_limite: boolean;
-  status: string;
+  status: string; photo_url?: string | null;
   pending_update?: boolean;
   affiche_order: number | null;
   sessions?: Session[];

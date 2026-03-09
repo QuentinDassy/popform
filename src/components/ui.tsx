@@ -56,7 +56,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
         <div style={{ position: "relative", height: compact ? (m ? 130 : 170) : (m ? 160 : 220), overflow: "hidden" }}>
           {photo
-            ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+            ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
             : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
           }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
