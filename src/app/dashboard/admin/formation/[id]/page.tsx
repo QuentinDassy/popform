@@ -96,7 +96,7 @@ export default function AdminFormationEditorPage() {
 
   // Inline creation
   const [showNewFormateur, setShowNewFormateur] = useState(false);
-  const [newFmt, setNewFmt] = useState({ nom: "", sexe: "F", bio: "" });
+  const [newFmt, setNewFmt] = useState({ prenom: "", nom: "", sexe: "Femme", bio: "" });
   const [newFmtPhotoFile, setNewFmtPhotoFile] = useState<File | null>(null);
   const newFmtPhotoRef = useRef<HTMLInputElement>(null);
   const [creatingFmt, setCreatingFmt] = useState(false);
@@ -108,7 +108,7 @@ export default function AdminFormationEditorPage() {
 
   // Edit existing formateur/organisme
   const [editingFmtId, setEditingFmtId] = useState<number | null>(null);
-  const [editFmt, setEditFmt] = useState({ nom: "", sexe: "F", bio: "" });
+  const [editFmt, setEditFmt] = useState({ prenom: "", nom: "", sexe: "Femme", bio: "" });
   const [editFmtPhotoFile, setEditFmtPhotoFile] = useState<File | null>(null);
   const editFmtPhotoRef = useRef<HTMLInputElement>(null);
   const [savingFmt, setSavingFmt] = useState(false);
@@ -228,12 +228,13 @@ export default function AdminFormationEditorPage() {
     setCreatingFmt(true);
     let photoUrl: string | null = null;
     if (newFmtPhotoFile) { try { photoUrl = await uploadImage(newFmtPhotoFile, "formateurs"); } catch {} }
-    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
+    const fullNom = [newFmt.prenom.trim(), newFmt.nom.trim()].filter(Boolean).join(" ");
+    const { data, error } = await supabase.from("formateurs").insert({ nom: fullNom, sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
     if (!error && data) {
       setFormateurs(fmts => [...fmts, data]);
       setF("formateur_id", data.id);
       setShowNewFormateur(false);
-      setNewFmt({ nom: "", sexe: "F", bio: "" });
+      setNewFmt({ prenom: "", nom: "", sexe: "Femme", bio: "" });
       setNewFmtPhotoFile(null);
     }
     setCreatingFmt(false);
@@ -258,7 +259,10 @@ export default function AdminFormationEditorPage() {
   const handleEditFormateur = (id: number) => {
     const fmt = formateurs.find(f => f.id === id);
     if (!fmt) return;
-    setEditFmt({ nom: fmt.nom, sexe: fmt.sexe, bio: fmt.bio || "" });
+    const parts = fmt.nom.split(" ");
+    const prenom = parts.length > 1 ? parts.slice(0, -1).join(" ") : "";
+    const nom = parts.length > 1 ? parts[parts.length - 1] : fmt.nom;
+    setEditFmt({ prenom, nom, sexe: fmt.sexe || "Femme", bio: fmt.bio || "" });
     setEditFmtPhotoFile(null);
     setEditingFmtId(id);
     setShowNewFormateur(false);
@@ -268,9 +272,10 @@ export default function AdminFormationEditorPage() {
     setSavingFmt(true);
     let photoUrl = formateurs.find(f => f.id === editingFmtId)?.photo_url || null;
     if (editFmtPhotoFile) { try { photoUrl = await uploadImage(editFmtPhotoFile, "formateurs"); } catch {} }
-    const { error } = await supabase.from("formateurs").update({ nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim() || "", photo_url: photoUrl }).eq("id", editingFmtId);
+    const fullNom = [editFmt.prenom.trim(), editFmt.nom.trim()].filter(Boolean).join(" ");
+    const { error } = await supabase.from("formateurs").update({ nom: fullNom, sexe: editFmt.sexe, bio: editFmt.bio.trim() || "", photo_url: photoUrl }).eq("id", editingFmtId);
     if (!error) {
-      setFormateurs(fmts => fmts.map(f => f.id === editingFmtId ? { ...f, nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim(), photo_url: photoUrl } : f));
+      setFormateurs(fmts => fmts.map(f => f.id === editingFmtId ? { ...f, nom: fullNom, sexe: editFmt.sexe, bio: editFmt.bio.trim(), photo_url: photoUrl } : f));
       setEditingFmtId(null);
     }
     setSavingFmt(false);
@@ -511,11 +516,14 @@ export default function AdminFormationEditorPage() {
             </div>
             {showNewFormateur && (
               <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <input style={inp} placeholder="Nom du formateur *" value={newFmt.nom} onChange={e => setNewFmt(f => ({ ...f, nom: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input style={{ ...inp, flex: 1 }} placeholder="Prénom" value={newFmt.prenom} onChange={e => setNewFmt(f => ({ ...f, prenom: e.target.value }))} />
+                  <input style={{ ...inp, flex: 1 }} placeholder="Nom *" value={newFmt.nom} onChange={e => setNewFmt(f => ({ ...f, nom: e.target.value }))} />
+                </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <select style={{ ...inp, flex: 1 }} value={newFmt.sexe} onChange={e => setNewFmt(f => ({ ...f, sexe: e.target.value }))}>
-                    <option value="F">Mme</option>
-                    <option value="M">M.</option>
+                    <option value="Femme">Mme</option>
+                    <option value="Homme">M.</option>
                   </select>
                   <input style={{ ...inp, flex: 2 }} placeholder="Bio (optionnel)" value={newFmt.bio} onChange={e => setNewFmt(f => ({ ...f, bio: e.target.value }))} />
                 </div>
@@ -533,11 +541,14 @@ export default function AdminFormationEditorPage() {
             )}
             {editingFmtId && (
               <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <input style={inp} placeholder="Nom *" value={editFmt.nom} onChange={e => setEditFmt(f => ({ ...f, nom: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input style={{ ...inp, flex: 1 }} placeholder="Prénom" value={editFmt.prenom} onChange={e => setEditFmt(f => ({ ...f, prenom: e.target.value }))} />
+                  <input style={{ ...inp, flex: 1 }} placeholder="Nom *" value={editFmt.nom} onChange={e => setEditFmt(f => ({ ...f, nom: e.target.value }))} />
+                </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <select style={{ ...inp, flex: 1 }} value={editFmt.sexe} onChange={e => setEditFmt(f => ({ ...f, sexe: e.target.value }))}>
-                    <option value="F">Mme</option>
-                    <option value="M">M.</option>
+                    <option value="Femme">Mme</option>
+                    <option value="Homme">M.</option>
                   </select>
                   <input style={{ ...inp, flex: 2 }} placeholder="Bio" value={editFmt.bio} onChange={e => setEditFmt(f => ({ ...f, bio: e.target.value }))} />
                 </div>
