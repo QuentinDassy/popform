@@ -15,7 +15,8 @@ type SessionPartieRow = {
   modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string;
 };
 type SessionRow = {
-  id?: number; dates: string; lieu: string; adresse: string; ville: string;
+  id?: number; dates: string; date_debut_session: string; date_fin_session: string;
+  lieu: string; adresse: string; ville: string;
   code_postal: string; modalite_session: string; lien_visio: string; is_visio: boolean;
   parties: SessionPartieRow[];
 };
@@ -39,8 +40,22 @@ const POPULATIONS_OPTS = ["Enfants", "Adolescents", "Adultes", "Personnes âgée
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Médecins", "Infirmiers", "Tous professionnels"];
 const STATUS_OPTS = ["publiee", "en_attente", "refusee", "archivee"];
 
+const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+
+function formatDateRange(debut: string, fin: string): string {
+  if (!debut) return "";
+  const d1 = new Date(debut + "T12:00:00");
+  if (!fin || fin === debut) return `${d1.getDate()} ${MOIS_FR[d1.getMonth()]} ${d1.getFullYear()}`;
+  const d2 = new Date(fin + "T12:00:00");
+  if (d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear()) {
+    return `${d1.getDate()}-${d2.getDate()} ${MOIS_FR[d1.getMonth()]} ${d1.getFullYear()}`;
+  }
+  const y1 = d1.getFullYear() !== d2.getFullYear() ? ` ${d1.getFullYear()}` : "";
+  return `${d1.getDate()} ${MOIS_FR[d1.getMonth()]}${y1} et ${d2.getDate()} ${MOIS_FR[d2.getMonth()]} ${d2.getFullYear()}`;
+}
+
 function emptySession(): SessionRow {
-  return { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
+  return { dates: "", date_debut_session: "", date_fin_session: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
 }
 function emptyForm(): FormState {
   return {
@@ -74,6 +89,14 @@ export default function AdminFormationEditorPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [newPrixLabel, setNewPrixLabel] = useState("");
   const [newPrixValue, setNewPrixValue] = useState("");
+
+  // Inline creation
+  const [showNewFormateur, setShowNewFormateur] = useState(false);
+  const [newFmt, setNewFmt] = useState({ nom: "", sexe: "F", bio: "" });
+  const [creatingFmt, setCreatingFmt] = useState(false);
+  const [showNewOrganisme, setShowNewOrganisme] = useState(false);
+  const [newOrg, setNewOrg] = useState({ nom: "", description: "" });
+  const [creatingOrg, setCreatingOrg] = useState(false);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -126,9 +149,14 @@ export default function AdminFormationEditorPage() {
             });
             setSessions((f.sessions || []).map((s: any) => {
               const sp = s.session_parties || [];
+              // Try to parse existing dates string back to date inputs
+              const allDebuts = sp.map((p: any) => p.date_debut).filter(Boolean).sort();
+              const allFins = sp.map((p: any) => p.date_fin || p.date_debut).filter(Boolean).sort();
               return {
                 id: s.id,
                 dates: s.dates || "",
+                date_debut_session: allDebuts[0] || "",
+                date_fin_session: allFins[allFins.length - 1] || allDebuts[0] || "",
                 lieu: s.lieu || "",
                 adresse: s.adresse || "",
                 ville: s.lieu || "",
@@ -173,6 +201,33 @@ export default function AdminFormationEditorPage() {
       ...s,
       parties: s.parties.map((p, j) => j !== pi ? p : { ...p, [k]: v }),
     }));
+
+  // ── Inline creation ─────────────────────────────────────────────────────────
+  const handleCreateFormateur = async () => {
+    if (!newFmt.nom.trim()) return;
+    setCreatingFmt(true);
+    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || null, organisme_id: form.organisme_id }).select().single();
+    if (!error && data) {
+      setFormateurs(fmts => [...fmts, data]);
+      setF("formateur_id", data.id);
+      setShowNewFormateur(false);
+      setNewFmt({ nom: "", sexe: "F", bio: "" });
+    }
+    setCreatingFmt(false);
+  };
+
+  const handleCreateOrganisme = async () => {
+    if (!newOrg.nom.trim()) return;
+    setCreatingOrg(true);
+    const { data, error } = await supabase.from("organismes").insert({ nom: newOrg.nom.trim(), description: newOrg.description.trim() || null, logo: "" }).select().single();
+    if (!error && data) {
+      setOrganismes(orgs => [...orgs, data]);
+      setF("organisme_id", data.id);
+      setShowNewOrganisme(false);
+      setNewOrg({ nom: "", description: "" });
+    }
+    setCreatingOrg(false);
+  };
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -240,7 +295,7 @@ export default function AdminFormationEditorPage() {
         const { data: insertedSessions } = await supabase.from("sessions").insert(
           validSessions.map(s => ({
             formation_id: formationId,
-            dates: s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
+            dates: (s.date_debut_session ? formatDateRange(s.date_debut_session, s.date_fin_session) : null) || s.dates.trim() || s.parties.map((p, pi) => `${p.titre || ("Partie " + (pi + 1))}: ${p.date_debut}${p.date_fin && p.date_fin !== p.date_debut ? " → " + p.date_fin : ""}`).join(" | "),
             lieu: s.is_visio ? "Visio" : (s.ville.trim() || s.lieu.trim()),
             adresse: s.is_visio ? (s.lien_visio || "") : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", "),
             code_postal: s.code_postal || null,
@@ -372,17 +427,51 @@ export default function AdminFormationEditorPage() {
         <div style={row2}>
           <div>
             <label style={lbl}>Formateur</label>
-            <select style={inp} value={form.formateur_id ?? ""} onChange={e => setF("formateur_id", e.target.value ? Number(e.target.value) : null)}>
-              <option value="">— Aucun / à lier plus tard —</option>
-              {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              <select style={{ ...inp, flex: 1 }} value={form.formateur_id ?? ""} onChange={e => setF("formateur_id", e.target.value ? Number(e.target.value) : null)}>
+                <option value="">— Aucun / à lier plus tard —</option>
+                {formateurs.map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
+              </select>
+              <button onClick={() => setShowNewFormateur(v => !v)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewFormateur ? C.accentBg : C.surface, color: showNewFormateur ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {showNewFormateur ? "✕" : "+ Nouveau"}
+              </button>
+            </div>
+            {showNewFormateur && (
+              <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <input style={inp} placeholder="Nom du formateur *" value={newFmt.nom} onChange={e => setNewFmt(f => ({ ...f, nom: e.target.value }))} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select style={{ ...inp, flex: 1 }} value={newFmt.sexe} onChange={e => setNewFmt(f => ({ ...f, sexe: e.target.value }))}>
+                    <option value="F">Mme</option>
+                    <option value="M">M.</option>
+                  </select>
+                  <input style={{ ...inp, flex: 2 }} placeholder="Bio (optionnel)" value={newFmt.bio} onChange={e => setNewFmt(f => ({ ...f, bio: e.target.value }))} />
+                </div>
+                <button onClick={handleCreateFormateur} disabled={creatingFmt || !newFmt.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !newFmt.nom.trim() ? 0.5 : 1 }}>
+                  {creatingFmt ? "Création…" : "Créer et sélectionner"}
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <label style={lbl}>Organisme</label>
-            <select style={inp} value={form.organisme_id ?? ""} onChange={e => setF("organisme_id", e.target.value ? Number(e.target.value) : null)}>
-              <option value="">— Aucun / à lier plus tard —</option>
-              {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              <select style={{ ...inp, flex: 1 }} value={form.organisme_id ?? ""} onChange={e => setF("organisme_id", e.target.value ? Number(e.target.value) : null)}>
+                <option value="">— Aucun / à lier plus tard —</option>
+                {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+              </select>
+              <button onClick={() => setShowNewOrganisme(v => !v)} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewOrganisme ? C.accentBg : C.surface, color: showNewOrganisme ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {showNewOrganisme ? "✕" : "+ Nouveau"}
+              </button>
+            </div>
+            {showNewOrganisme && (
+              <div style={{ background: C.bgAlt, border: "1px solid " + C.borderLight, borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <input style={inp} placeholder="Nom de l'organisme *" value={newOrg.nom} onChange={e => setNewOrg(o => ({ ...o, nom: e.target.value }))} />
+                <input style={inp} placeholder="Description (optionnel)" value={newOrg.description} onChange={e => setNewOrg(o => ({ ...o, description: e.target.value }))} />
+                <button onClick={handleCreateOrganisme} disabled={creatingOrg || !newOrg.nom.trim()} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !newOrg.nom.trim() ? 0.5 : 1 }}>
+                  {creatingOrg ? "Création…" : "Créer et sélectionner"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -517,10 +606,14 @@ export default function AdminFormationEditorPage() {
               Visioconférence
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
               <div>
-                <label style={lbl}>Dates (texte libre)</label>
-                <input style={inp} value={s.dates} onChange={e => setSession(si, "dates", e.target.value)} placeholder="Ex : 15-16 mars 2025" />
+                <label style={lbl}>Date début</label>
+                <input style={inp} type="date" value={s.date_debut_session} onChange={e => setSession(si, "date_debut_session", e.target.value)} />
+              </div>
+              <div>
+                <label style={lbl}>Date fin</label>
+                <input style={inp} type="date" value={s.date_fin_session} min={s.date_debut_session} onChange={e => setSession(si, "date_fin_session", e.target.value)} />
               </div>
               <div>
                 <label style={lbl}>Modalité session</label>
@@ -529,6 +622,11 @@ export default function AdminFormationEditorPage() {
                 </select>
               </div>
             </div>
+            {s.date_debut_session && (
+              <div style={{ fontSize: 12, color: C.textSec, marginBottom: 8, background: C.bgAlt, borderRadius: 7, padding: "5px 10px", display: "inline-block" }}>
+                📅 {formatDateRange(s.date_debut_session, s.date_fin_session)}
+              </div>
+            )}
 
             {s.is_visio ? (
               <div>
