@@ -228,7 +228,7 @@ export default function AdminFormationEditorPage() {
     setCreatingFmt(true);
     let photoUrl: string | null = null;
     if (newFmtPhotoFile) { try { photoUrl = await uploadImage(newFmtPhotoFile, "formateurs"); } catch {} }
-    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || null, organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
+    const { data, error } = await supabase.from("formateurs").insert({ nom: newFmt.nom.trim(), sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
     if (!error && data) {
       setFormateurs(fmts => [...fmts, data]);
       setF("formateur_id", data.id);
@@ -268,7 +268,7 @@ export default function AdminFormationEditorPage() {
     setSavingFmt(true);
     let photoUrl = formateurs.find(f => f.id === editingFmtId)?.photo_url || null;
     if (editFmtPhotoFile) { try { photoUrl = await uploadImage(editFmtPhotoFile, "formateurs"); } catch {} }
-    const { error } = await supabase.from("formateurs").update({ nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim() || null, photo_url: photoUrl }).eq("id", editingFmtId);
+    const { error } = await supabase.from("formateurs").update({ nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim() || "", photo_url: photoUrl }).eq("id", editingFmtId);
     if (!error) {
       setFormateurs(fmts => fmts.map(f => f.id === editingFmtId ? { ...f, nom: editFmt.nom.trim(), sexe: editFmt.sexe, bio: editFmt.bio.trim(), photo_url: photoUrl } : f));
       setEditingFmtId(null);

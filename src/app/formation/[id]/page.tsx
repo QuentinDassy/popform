@@ -336,6 +336,18 @@ export default function FormationPage() {
                   <span style={{ fontSize: 18 }}>📍</span>
                   <span style={{ fontSize: 14, color: C.textSec }}>{(() => { const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))]; return ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—"); })()}</span>
                 </div>
+                {formateur && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 18 }}>🎤</span>
+                    <span style={{ fontSize: 14, color: C.textSec }}>{formateur.nom}</span>
+                  </div>
+                )}
+                {org && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 18 }}>🏢</span>
+                    <span style={{ fontSize: 14, color: C.textSec }}>{org.nom}</span>
+                  </div>
+                )}
               </div>
 
               {/* Price */}
