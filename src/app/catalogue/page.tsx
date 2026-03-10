@@ -86,13 +86,13 @@ function CatalogueContent() {
   const cities = adminVilles;
   const hasActiveFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
 
+  const normV = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
   let filtered = formations.filter(f => {
     if (search) {
       const q = search.toLowerCase();
       if (![f.titre, f.sous_titre || "", f.domaine, ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
     }
     if (selVilles.length > 0) {
-      const normV = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
       const hasVisio = selVilles.includes("Visio");
       const matchesVille = (f.sessions || []).some(s => selVilles.some(v => {
         if (v === "Visio") return false;
