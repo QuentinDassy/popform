@@ -37,7 +37,7 @@ export default function DashboardFormateurPage() {
   const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
+  const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
   const [saving, setSaving] = useState(false);
   const [formPhotoFile, setFormPhotoFile] = useState<File | null>(null);
   const [extraPrix, setExtraPrix] = useState<{label: string; value: string}[]>([]);
@@ -131,7 +131,7 @@ export default function DashboardFormateurPage() {
     } else {
       setEditId(null);
       setForm(emptyFormation());
-      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }]);
+      setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
       setFormPhotoFile(null);
       setExtraPrix([]);
     }
@@ -175,7 +175,7 @@ export default function DashboardFormateurPage() {
       is_new: true, populations: form.populations,
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
-      effectif: form.effectif || 20, video_url: form.video_url, photo_url: form.photo_url || null,
+      effectif: form.effectif || null, video_url: form.video_url, photo_url: form.photo_url || null,
       url_inscription: form.url_inscription || "",
       formateur_id: formateur.id, organisme_id: form.organisme_id || null,
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,

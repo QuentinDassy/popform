@@ -73,7 +73,11 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
         </div>
         <div style={{ padding: m ? "12px 14px" : "18px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
           <h3 style={{ fontSize: m ? 14 : compact ? 14 : 16, fontWeight: 700, color: C.text, lineHeight: 1.35, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
-          {(f as any).formateur?.nom && <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: 0.1 }}>{(f as any).formateur.nom}</div>}
+          {(() => {
+            const fmts = (f as any).formateurs as any[] | undefined;
+            const nomDisplay = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
+            return nomDisplay ? <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: 0.1 }}>{nomDisplay}</div> : null;
+          })()}
           {f.description && <p style={{ fontSize: m ? 11 : 12, color: C.textSec, lineHeight: 1.5, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.description}</p>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
             <span>📍 {lieuDisplay}</span>

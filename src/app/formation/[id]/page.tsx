@@ -366,10 +366,12 @@ export default function FormationPage() {
                   <span style={{ fontSize: 18 }}>⏱️</span>
                   <span style={{ fontSize: 14, color: C.textSec }}>{f.duree}</span>
                 </div>
+                {f.effectif > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 18 }}>👥</span>
                   <span style={{ fontSize: 14, color: C.textSec }}>{f.effectif} places</span>
                 </div>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 18 }}>📍</span>
                   <span style={{ fontSize: 14, color: C.textSec }}>{(() => { const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))]; return ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—"); })()}</span>
@@ -545,30 +547,30 @@ export default function FormationPage() {
               </div>
             )}
 
-            {/* Formateur card */}
-            {formateur && (
-              <div onClick={() => router.push(`/formateurs?id=${f.formateur_id}`)} style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, cursor: "pointer", marginBottom: 20, transition: "border-color 0.15s" }}
+            {/* Formateur cards (supports multi-formateur) */}
+            {formateurs.length > 0 && formateurs.map((fmt, fi) => fmt && (
+              <div key={fmt.id || fi} onClick={() => router.push(`/formateurs?id=${fmt.id}`)} style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, cursor: "pointer", marginBottom: 12, transition: "border-color 0.15s" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = C.accent + "66")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(formateur)} · <span style={{ color: C.accent }}>Voir ses formations →</span></div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(fmt)} · <span style={{ color: C.accent }}>Voir ses formations →</span></div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ width: 72, height: 72, borderRadius: 36, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", fontWeight: 700, overflow: "hidden", flexShrink: 0 }}>
-                    {(formateur as any).photo_url ? (
-                      <img src={(formateur as any).photo_url} alt={formateur.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {(fmt as any).photo_url ? (
+                      <img src={(fmt as any).photo_url} alt={fmt.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
-                      <span>{formateur.nom?.[0]?.toUpperCase()}</span>
+                      <span>{fmt.nom?.[0]?.toUpperCase()}</span>
                     )}
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{formateur.nom}</div>
-                    {formateur.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{formateur.bio.slice(0, 80)}...</div>}
-                    {(formateur as any).site_url && (
-                      <a href={(formateur as any).site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmt.nom}</div>
+                    {fmt.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{fmt.bio.slice(0, 80)}...</div>}
+                    {(fmt as any).site_url && (
+                      <a href={(fmt as any).site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
                     )}
                   </div>
                 </div>
               </div>
-            )}
+            ))}
 
             {/* Infos */}
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
@@ -605,7 +607,7 @@ export default function FormationPage() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{f.prix_liberal}€</span>
                   </div>
                 )}
-                {(f.prix_extras || []).map((e, i) => (
+                {(f.prix_extras || []).filter((e: any) => e.label !== "__from__").map((e, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 13, color: C.textSec }}>{e.label}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{e.value}€</span>

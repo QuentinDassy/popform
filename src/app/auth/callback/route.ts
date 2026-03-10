@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
       if (type === "recovery") {
         return NextResponse.redirect(`${origin}/compte?reset=1`);
       }
+      if (type === "invite") {
+        return NextResponse.redirect(`${origin}/auth/invite`);
+      }
       return NextResponse.redirect(`${origin}/auth/confirm`);
     }
   } else if (token_hash && type) {
@@ -40,6 +43,9 @@ export async function GET(request: NextRequest) {
     if (!error) {
       if (type === "recovery") {
         return NextResponse.redirect(`${origin}/compte?reset=1`);
+      }
+      if (type === "invite") {
+        return NextResponse.redirect(`${origin}/auth/invite`);
       }
       return NextResponse.redirect(`${origin}/auth/confirm`);
     }

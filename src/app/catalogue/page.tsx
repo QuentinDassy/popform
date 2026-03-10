@@ -92,12 +92,13 @@ function CatalogueContent() {
       if (![f.titre, f.sous_titre || "", f.domaine, ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
     }
     if (selVilles.length > 0) {
+      const normV = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
       const hasVisio = selVilles.includes("Visio");
       const matchesVille = (f.sessions || []).some(s => selVilles.some(v => {
         if (v === "Visio") return false;
-        if (s.lieu.toLowerCase().includes(v.toLowerCase())) return true;
-        const parties = (s as any).parties as Array<{lieu:string}> | null;
-        return parties ? parties.some(p => p.lieu?.toLowerCase().includes(v.toLowerCase())) : false;
+        if (normV(s.lieu).includes(normV(v))) return true;
+        const parties = (s as any).session_parties as Array<{lieu:string; ville?:string}> | null;
+        return parties ? parties.some(p => normV(p.lieu || p.ville || "").includes(normV(v))) : false;
       }));
       const matchesVisio = hasVisio && (f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu.toLowerCase().includes("visio")));
       if (!matchesVille && !matchesVisio) return false;
@@ -112,7 +113,7 @@ function CatalogueContent() {
     if (selRegion) {
       const regionCities = REGIONS_CITIES[selRegion] || [];
       const matches = (f.sessions || []).some(s =>
-        regionCities.some(c => s.lieu.toLowerCase().includes(c.toLowerCase()))
+        regionCities.some(c => normV(s.lieu).includes(normV(c)))
       );
       if (!matches) return false;
     }

@@ -16,7 +16,7 @@ export default function DashboardAdminPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("en_attente");
+  const [filter, setFilter] = useState<string>("publiee");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres">("formations");
 
@@ -625,8 +625,8 @@ export default function DashboardAdminPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
       <div style={{ display: "flex", gap: 4, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         {[
-          { v: "en_attente", l: "⏳ En attente (" + pendingCount + ")" },
           { v: "publiee", l: "✅ Publiées" },
+          { v: "en_attente", l: "⏳ En attente (" + pendingCount + ")" },
           { v: "refusee", l: "✕ Refusées" },
           { v: "all", l: "📋 Toutes" },
           { v: "supprimee", l: "🗑️ Supprimées" + (deletedCount > 0 ? " (" + deletedCount + ")" : "") },

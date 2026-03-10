@@ -48,7 +48,7 @@ export default function VillesPage() {
           setCities(adminNames.map(n => {
             const nn = norm(n);
             const count = Object.entries(cityCount)
-              .filter(([c]) => c === nn || c.includes(nn))
+              .filter(([c]) => c === nn || c.startsWith(nn) || nn.startsWith(c))
               .reduce((sum, [, v]) => sum + v, 0);
             return [n, count] as [string, number];
           }).sort((a, b) => b[1] - a[1]));

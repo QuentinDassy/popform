@@ -86,6 +86,19 @@ async function _fetchAndStore(): Promise<Formation[]> {
     const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(lieu,ville)), formateur:formateurs(id,nom,sexe,bio,organisme_id), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
     if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
+    // Batch-fetch formateurs for multi-formateur formations
+    const multiIds = new Set<number>();
+    result.forEach((f: any) => { if (f.formateur_ids?.length > 1) f.formateur_ids.forEach((id: number) => multiIds.add(id)); });
+    if (multiIds.size > 0) {
+      const { data: fmts } = await supabase.from("formateurs").select("id,nom,sexe,bio,organisme_id").in("id", Array.from(multiIds));
+      if (fmts) {
+        result.forEach((f: any) => {
+          if (f.formateur_ids?.length > 1) {
+            f.formateurs = fmts.filter((fm: any) => f.formateur_ids.includes(fm.id));
+          }
+        });
+      }
+    }
     _formationsCache = result;
     _cacheTime = Date.now();
     lsWrite(result);

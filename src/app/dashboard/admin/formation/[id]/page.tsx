@@ -36,7 +36,7 @@ type FormState = {
 };
 
 const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
-const PRISES = ["DPC", "FIF-PL", "FIFPL", "OPCO", "CPF"];
+const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS_OPTS = ["Enfants", "Adolescents", "Adultes", "Personnes âgées", "Tous publics"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Médecins", "Infirmiers", "Tous professionnels"];
 const STATUS_OPTS = ["publiee", "en_attente", "refusee", "archivee"];
@@ -69,7 +69,7 @@ function emptyForm(): FormState {
     duree: "", formateur_ids: [], organisme_id: null,
     prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [], prix_from: false,
     populations: [], mots_cles: "", professions: ["Orthophonistes"],
-    effectif: 20, url_inscription: "", video_url: "",
+    effectif: 0, url_inscription: "", video_url: "",
     sans_limite: false, status: "publiee", photo_url: "",
   };
 }
@@ -162,7 +162,7 @@ export default function AdminFormationEditorPage() {
               populations: f.populations || [],
               mots_cles: (f.mots_cles || []).join(", "),
               professions: f.professions || [],
-              effectif: f.effectif || 20,
+              effectif: f.effectif ?? 0,
               url_inscription: f.url_inscription || "",
               video_url: f.video_url || "",
               sans_limite: f.sans_limite || false,
@@ -341,7 +341,7 @@ export default function AdminFormationEditorPage() {
       populations: form.populations,
       mots_cles: form.mots_cles.split(",").map(s => s.trim()).filter(Boolean),
       professions: form.professions,
-      effectif: form.effectif || 20,
+      effectif: form.effectif || null,
       url_inscription: form.url_inscription || "",
       video_url: form.video_url || "",
       sans_limite: form.sans_limite,
@@ -767,13 +767,7 @@ export default function AdminFormationEditorPage() {
               <button onClick={() => setSessions(ss => ss.filter((_, i) => i !== si))} style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Supprimer</button>
             </div>
 
-            {/* Mode visio toggle */}
-            <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, fontSize: 13, cursor: "pointer", color: C.textSec }}>
-              <input type="checkbox" checked={s.is_visio} onChange={e => setSession(si, "is_visio", e.target.checked)} />
-              Visioconférence
-            </label>
-
-            <div style={{ marginBottom: 10 }}>
+                       <div style={{ marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <label style={lbl}>Dates</label>
                 <button onClick={() => setSession(si, "date_ranges", [...s.date_ranges, { debut: "", fin: "" }])} style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 11, cursor: "pointer" }}>+ Ajouter date</button>
@@ -801,12 +795,15 @@ export default function AdminFormationEditorPage() {
             </div>
             <div style={{ marginBottom: 10 }}>
               <label style={lbl}>Modalité session</label>
-              <select style={inp} value={s.modalite_session} onChange={e => setSession(si, "modalite_session", e.target.value)}>
+              <select style={inp} value={s.modalite_session} onChange={e => {
+                const val = e.target.value;
+                setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, modalite_session: val, is_visio: val === "Visio" }));
+              }}>
                 {MODALITES.map(m => <option key={m}>{m}</option>)}
               </select>
             </div>
 
-            {s.is_visio ? (
+            {s.modalite_session === "Visio" ? (
               <div>
                 <label style={lbl}>Lien visio</label>
                 <input style={inp} value={s.lien_visio} onChange={e => setSession(si, "lien_visio", e.target.value)} placeholder="https://zoom.us/…" />
