@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import AuthModal from "@/components/AuthModal";
 import { supabase } from "@/lib/supabase-data";
@@ -30,10 +30,21 @@ function useIsMobile() {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, profile, signOut, showAuth, setShowAuth } = useAuth();
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bottomSearch, setBottomSearch] = useState("");
   const mob = useIsMobile();
+
+  const handleBottomSearch = () => {
+    if (bottomSearch.trim()) {
+      router.push("/catalogue?q=" + encodeURIComponent(bottomSearch.trim()));
+      setBottomSearch("");
+    } else {
+      router.push("/catalogue");
+    }
+  };
 
   const [unreadCount, setUnreadCount] = useState(0);
   const openLogin = () => { setAuthMode("login"); setShowAuth(true) };
@@ -67,9 +78,7 @@ export default function Navbar() {
           )}
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {mob ? (
-            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.text }}>☰</button>
-          ) : user ? (
+          {mob ? null : user ? (
             <>
               {profile?.role === "organisme" && (
                 <Link href="/dashboard/organisme" style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + C.yellow + "44", background: C.yellowBg, color: C.yellowDark, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🏢 Dashboard</Link>
@@ -143,6 +152,36 @@ export default function Navbar() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===== BOTTOM NAV (mobile) ===== */}
+      {mob && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, background: "rgba(255,253,247,0.97)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderTop: "1px solid " + C.border, display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
+          {/* Accueil */}
+          <Link href="/" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, textDecoration: "none", color: pathname === "/" ? C.accent : C.textTer, flexShrink: 0, minWidth: 44 }}>
+            <span style={{ fontSize: 20 }}>🏠</span>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2 }}>Accueil</span>
+          </Link>
+          {/* Search bar */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "0 10px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 38 }}>
+            <span style={{ color: C.textTer, fontSize: 14 }}>🔍</span>
+            <input
+              value={bottomSearch}
+              onChange={e => setBottomSearch(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleBottomSearch()}
+              placeholder="Rechercher..."
+              style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 13, fontFamily: "inherit" }}
+            />
+            {bottomSearch ? (
+              <button onClick={handleBottomSearch} style={{ padding: "3px 10px", borderRadius: 7, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>OK</button>
+            ) : null}
+          </div>
+          {/* Menu */}
+          <button onClick={() => setMenuOpen(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, background: "none", border: "none", cursor: "pointer", color: C.textTer, flexShrink: 0, minWidth: 44, padding: 0 }}>
+            <span style={{ fontSize: 20 }}>☰</span>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2 }}>Menu</span>
+          </button>
         </div>
       )}
 

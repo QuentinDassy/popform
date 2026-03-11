@@ -12,7 +12,10 @@
       "Bash(git add src/app/dashboard/admin/formation/[id]/page.tsx)",
       "Bash(git add src/app/formation/[id]/page.tsx)",
       "Bash(git add src/app/compte/page.tsx src/app/catalogue/page.tsx src/app/page.tsx src/components/ui.tsx)",
-      "Bash(git add src/app/api/email/route.ts src/app/dashboard/admin/formation/[id]/page.tsx src/app/dashboard/organisme/page.tsx src/components/AuthModal.tsx src/lib/auth-context.tsx)"
+      "Bash(git add src/app/api/email/route.ts src/app/dashboard/admin/formation/[id]/page.tsx src/app/dashboard/organisme/page.tsx src/components/AuthModal.tsx src/lib/auth-context.tsx)",
+      "Bash(gh run list --limit 5)",
+      "Bash(xargs grep -l \"formateur_ids\")",
+      "Bash(xargs grep -l \"routage\\\\|invitation\\\\|mail.*page\\\\|page.*mail\")"
     ]
   }
 }

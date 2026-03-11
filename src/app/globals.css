@@ -75,6 +75,7 @@ h1, h2, h3, h4 {
 /* Responsive helpers */
 @media (max-width: 768px) {
   .desktop-only { display: none !important; }
+  main { padding-bottom: 68px; }
 }
 @media (min-width: 769px) {
   .mobile-only { display: none !important; }
