@@ -218,17 +218,34 @@ export default function ComptePage() {
               </p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
-              {faitsF.map(f => (
-                <div key={f.id} style={{ position: "relative" }}>
-                  <FormationCard f={f} mob={mob} />
-                  <button onClick={async () => {
-                    await toggleFormationFaite(user!.id, f.id);
-                    setFaitsIds(prev => prev.filter(id => id !== f.id));
-                  }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.green + "55", color: C.green, fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✓ Faite</button>
+            <>
+              <div style={{ padding: "14px 18px", background: C.yellowBg, borderRadius: 12, border: "1px solid " + C.yellow + "55", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 22 }}>⭐</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.yellowDark, marginBottom: 2 }}>Partagez votre expérience !</div>
+                  <div style={{ fontSize: 12, color: C.textSec }}>Pour chaque formation effectuée, votre avis aide la communauté d&apos;orthophonistes. Cliquez sur une formation pour laisser un avis.</div>
                 </div>
-              ))}
-            </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
+                {faitsF.map(f => {
+                  const hasAvis = myAvis.some(a => a.formation_id === f.id);
+                  return (
+                    <div key={f.id} style={{ position: "relative" }}>
+                      <FormationCard f={f} mob={mob} />
+                      {!hasAvis && (
+                        <Link href={`/formation/${f.id}#avis`} style={{ position: "absolute", bottom: 60, left: 10, right: 10, padding: "7px 10px", borderRadius: 9, background: C.yellowBg, border: "1px solid " + C.yellow + "55", color: C.yellowDark, fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+                          ⭐ Laisser un avis
+                        </Link>
+                      )}
+                      <button onClick={async () => {
+                        await toggleFormationFaite(user!.id, f.id);
+                        setFaitsIds(prev => prev.filter(id => id !== f.id));
+                      }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.green + "55", color: C.green, fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✓ Faite</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       )}

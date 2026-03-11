@@ -387,7 +387,7 @@ export default function FormationPage() {
                   const ul = [...new Set(sessions.flatMap((s: any) => {
                     const parts = (s as any).session_parties as any[] | null;
                     if (parts && parts.length > 0) {
-                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || "")).filter(Boolean);
+                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean);
                     }
                     return s.lieu ? [s.lieu] : [];
                   }))];
@@ -492,7 +492,7 @@ export default function FormationPage() {
                       ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
                       : s.dates;
                     const displayLieu = parts && parts.length > 0
-                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || "")).filter(Boolean))].join(", ")
+                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean))].join(", ")
                       : (s.lieu || "");
                     return (
                     <div key={si} style={{ padding: compact ? "10px 14px" : 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
@@ -501,7 +501,7 @@ export default function FormationPage() {
                           {sessions.length > 1 && <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", minWidth: 60 }}>Session {si + 1}</div>}
                           <div style={{ flex: 1, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>📅 {displayDate}</span>
-                            <span style={{ fontSize: 13, color: C.textSec }}>{displayLieu === "Visio" ? "💻 Visio" : "📍 " + displayLieu}</span>
+                            {displayLieu && <span style={{ fontSize: 13, color: C.textSec }}>{displayLieu === "Visio" ? "💻 Visio" : "📍 " + displayLieu}</span>}
                           </div>
                           <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "7px 16px", borderRadius: 9, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 12, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
                             {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
@@ -521,7 +521,7 @@ export default function FormationPage() {
                                       {parts.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
                                       <div>
                                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-                                          {p.modalite === "Visio" ? "💻 En visio" : "📍 " + p.lieu}
+                                          {p.modalite === "Visio" ? "💻 En visio" : ((p as any).ville || p.lieu || p.adresse) ? "📍 " + ((p as any).ville || p.lieu || p.adresse) : null}
                                           {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
                                         </div>
                                       </div>
