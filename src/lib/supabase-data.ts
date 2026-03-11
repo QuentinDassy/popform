@@ -320,3 +320,19 @@ export async function deleteDomaineAdmin(id: number): Promise<boolean> {
   if (error) { console.error("deleteDomaineAdmin error:", error); return false; }
   return true;
 }
+
+export async function fetchFormationsFaites(userId: string): Promise<number[]> {
+  const { data } = await supabase.from("formations_faites").select("formation_id").eq("user_id", userId);
+  return (data || []).map((r: any) => r.formation_id as number);
+}
+
+export async function toggleFormationFaite(userId: string, formationId: number): Promise<boolean> {
+  const { data: existing } = await supabase.from("formations_faites").select("id").eq("user_id", userId).eq("formation_id", formationId).maybeSingle();
+  if (existing) {
+    await supabase.from("formations_faites").delete().eq("id", existing.id);
+    return false;
+  } else {
+    await supabase.from("formations_faites").insert({ user_id: userId, formation_id: formationId });
+    return true;
+  }
+}

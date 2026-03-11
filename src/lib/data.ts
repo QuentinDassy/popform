@@ -7,7 +7,8 @@ export {
   fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs, 
   fetchAvis, addAvis, updateAvis, fetchInscriptions, fetchFavoris, toggleFavori, 
   fetchAdminNotifications, notifyAdmin, invalidateCache,
-  fetchDomainesAdmin, fetchDomainesAccueil, fetchDomainesFiltres, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin
+  fetchDomainesAdmin, fetchDomainesAccueil, fetchDomainesFiltres, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin,
+  fetchFormationsFaites, toggleFormationFaite
 } from "./supabase-data";
 
 export const C = {

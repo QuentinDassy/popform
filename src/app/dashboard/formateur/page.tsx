@@ -367,7 +367,7 @@ export default function DashboardFormateurPage() {
                       {f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
-                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span><span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>
+                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -481,12 +481,6 @@ export default function DashboardFormateurPage() {
               </div>
             </div>
             <div><label style={labelStyle}>Modalité</label><select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>{MODALITES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-            <div><label style={labelStyle}>Organisme (optionnel)</label>
-              <select value={form.organisme_id ?? ""} onChange={e => setForm({ ...form, organisme_id: e.target.value ? Number(e.target.value) : null })} style={inputStyle}>
-                <option value="">Indépendant</option>
-                {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-              </select>
-            </div>
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
             <div>
               <label style={labelStyle}>Prix (€)</label>

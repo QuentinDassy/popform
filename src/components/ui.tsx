@@ -56,13 +56,23 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
   const fmts = (f as any).formateurs as any[] | undefined;
   const formateurNom = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
+  const fmtPhotos = fmts?.filter((fm: any) => fm.photo_url).map((fm: any) => fm.photo_url as string)
+    ?? ((f as any).formateur?.photo_url ? [(f as any).formateur.photo_url as string] : []);
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ cursor: "pointer", transition: "all 0.3s", transform: hov && !m ? "translateY(-3px)" : "none", height: "100%", display: "flex", flexDirection: "column", background: C.surface, borderRadius: m ? 14 : 16, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
 
         {/* ── Photo ── */}
         <div style={{ position: "relative", height: m ? 180 : undefined, aspectRatio: m ? undefined : "4/3", maxHeight: m ? undefined : 260, flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
-          {photo && <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />}
+          {photo ? (
+            <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
+          ) : fmtPhotos.length > 0 ? (
+            <div style={{ display: "flex", width: "100%", height: "100%" }}>
+              {fmtPhotos.map((p, i) => (
+                <img key={i} src={p} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ flex: 1, objectFit: "cover", objectPosition: "top", height: "100%", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
+              ))}
+            </div>
+          ) : null}}
           {onToggleFav && (
             <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
               {favori ? "❤️" : "🤍"}

@@ -102,6 +102,7 @@ export default function HomePage() {
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
   const [searchFmtResults, setSearchFmtResults] = useState<{id: number, nom: string}[]>([]);
   const [searchVilleResults, setSearchVilleResults] = useState<string[]>([]);
+  const [searchDomaineResults, setSearchDomaineResults] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [allFormateurs, setAllFormateurs] = useState<{id: number, nom: string}[]>([]);
 
@@ -132,14 +133,17 @@ export default function HomePage() {
       ).slice(0, 4);
       const matchedFmts = allFormateurs.filter(f => normalize(f.nom).includes(q)).slice(0, 3);
       const matchedVilles = adminVilles.filter(v => normalize(v.nom).includes(q)).slice(0, 3).map(v => v.nom);
+      const matchedDomaines = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => normalize(d).includes(q)).slice(0, 3);
       setSearchSuggestions(matchedFormations);
       setSearchFmtResults(matchedFmts);
       setSearchVilleResults(matchedVilles);
-      setShowSuggestions(matchedFormations.length > 0 || matchedFmts.length > 0 || matchedVilles.length > 0);
+      setSearchDomaineResults(matchedDomaines);
+      setShowSuggestions(matchedFormations.length > 0 || matchedFmts.length > 0 || matchedVilles.length > 0 || matchedDomaines.length > 0);
     } else {
       setSearchSuggestions([]);
       setSearchFmtResults([]);
       setSearchVilleResults([]);
+      setSearchDomaineResults([]);
       setShowSuggestions(false);
     }
   };
@@ -266,7 +270,7 @@ export default function HomePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: mob ? "5px 5px 5px 14px" : "6px 6px 6px 20px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: mob ? 12 : 16, boxShadow: "0 8px 36px rgba(212,43,43,0.07)", position: "relative" }}>
               <span style={{ color: C.textTer, fontSize: mob ? 16 : 18 }}>🔍</span>
               <div style={{ flex: 1, position: "relative", padding: mob ? "9px 0" : "12px 0" }}>
-                <input id="hero-search" value={heroSearch} onChange={e => handleSearchInput(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 16, fontFamily: "inherit" }} />
+                <input id="hero-search" value={heroSearch} onChange={e => handleSearchInput(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit" }} />
                 {!heroSearch && !searchFocused && <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", color: C.textTer, fontSize: mob ? 13 : 16, pointerEvents: "none" }}>{typed}<span style={{ color: C.accent }}>|</span></div>}
               </div>
               <div onClick={handleSearch} style={{ padding: mob ? "10px 16px" : "13px 26px", borderRadius: mob ? 9 : 12, background: C.gradient, color: "#fff", fontSize: mob ? 12 : 14, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer" }}>Rechercher</div>
@@ -292,6 +296,17 @@ export default function HomePage() {
                       <div key={v} onMouseDown={() => { router.push("/catalogue?villes=" + encodeURIComponent(v)); setShowSuggestions(false); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
                         <span style={{ fontSize: 15 }}>📍</span>
                         <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{v}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {searchDomaineResults.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Domaines</div>
+                    {searchDomaineResults.map(d => (
+                      <div key={d} onMouseDown={() => { router.push("/catalogue?domaines=" + encodeURIComponent(d)); setShowSuggestions(false); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                        <span style={{ fontSize: 15 }}>📚</span>
+                        <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{d}</span>
                       </div>
                     ))}
                   </>

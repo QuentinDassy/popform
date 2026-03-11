@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, fetchInscriptions, type Formation, type Avis, type Inscription } from "@/lib/data";
+import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -182,6 +182,7 @@ export default function FormationPage() {
   const [loading, setLoading] = useState(true);
   const [avis, setAvis] = useState<Avis[]>([]);
   const [isFav, setIsFav] = useState(false);
+  const [isFait, setIsFait] = useState(false);
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [inscribing, setInscribing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export default function FormationPage() {
     fetchFormations().then(setFormations);
     if (user) {
       fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === Number(id))));
+      fetchFormationsFaites(user.id).then(ids => setIsFait(ids.includes(Number(id))));
       fetchInscriptions(user.id).then(setInscriptions);
     }
   }, [id, user]);
@@ -209,6 +211,13 @@ export default function FormationPage() {
     const added = await toggleFavori(user.id, Number(id));
     setIsFav(added);
     if (added) showToast("Retrouvez vos favoris dans votre espace PopForm !");
+  };
+
+  const handleFait = async () => {
+    if (!user) { setShowAuth(true); return; }
+    const done = await toggleFormationFaite(user.id, Number(id));
+    setIsFait(done);
+    if (done) showToast("Formation marquée comme effectuée !");
   };
 
   const handleInscription = async (sessionId?: number) => {
@@ -297,6 +306,9 @@ export default function FormationPage() {
             <button onClick={() => window.history.back()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 20, background: C.surface, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               ← Retour
             </button>
+            <button onClick={handleFait} title={isFait ? "Formation effectuée" : "Marquer comme faite"} style={{ padding: "8px 14px", borderRadius: 22, background: isFait ? C.greenBg : C.surface, border: "1.5px solid " + (isFait ? C.green + "55" : C.border), color: isFait ? C.green : C.textTer, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              {isFait ? "✓ Faite" : "Marquer faite"}
+            </button>
             <button onClick={handleFav} style={{ width: 44, height: 44, borderRadius: 22, background: isFav ? C.pinkBg : C.surface, border: "1.5px solid " + (isFav ? C.pink + "44" : C.border), color: isFav ? C.pink : C.textTer, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {isFav ? "❤️" : "🤍"}
             </button>
@@ -373,7 +385,13 @@ export default function FormationPage() {
                 </div>
                 )}
                 {(() => {
-                  const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))];
+                  const ul = [...new Set(sessions.flatMap((s: any) => {
+                    const parts = (s as any).session_parties as any[] | null;
+                    if (parts?.length > 0) {
+                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : (p.ville || p.lieu || "")).filter(Boolean);
+                    }
+                    return s.lieu ? [s.lieu] : [];
+                  }))];
                   const isAllVisio = ul.length > 0 && ul.every((l: string) => /visio/i.test(l));
                   const lieu = ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—");
                   return (
@@ -556,7 +574,7 @@ export default function FormationPage() {
 
             {/* Formateur cards (supports multi-formateur) */}
             {formateurs.length > 0 && formateurs.map((fmt, fi) => fmt && (
-              <div key={fmt.id || fi} onClick={() => router.push(`/formateurs?id=${fmt.id}`)} style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, cursor: "pointer", marginBottom: 12, transition: "border-color 0.15s" }}
+              <div key={fmt.id || fi} onClick={() => { window.scrollTo({ top: 0, behavior: "instant" }); router.push(`/formateurs?id=${fmt.id}`); }} style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, cursor: "pointer", marginBottom: 12, transition: "border-color 0.15s" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = C.accent + "66")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>{fmtTitle(fmt)} · <span style={{ color: C.accent }}>Voir ses formations →</span></div>

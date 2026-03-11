@@ -67,6 +67,7 @@ function CatalogueContent() {
   const [searchDropFormations, setSearchDropFormations] = useState<Formation[]>([]);
   const [searchDropFmts, setSearchDropFmts] = useState<{id: number, nom: string}[]>([]);
   const [searchDropVilles, setSearchDropVilles] = useState<string[]>([]);
+  const [searchDropDomaines, setSearchDropDomaines] = useState<string[]>([]);
   const [showSearchDrop, setShowSearchDrop] = useState(false);
 
   const normS = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -117,7 +118,10 @@ function CatalogueContent() {
     }
     if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
-    if (selPops.length > 0 && !selPops.every(p => (f.populations || []).includes(p))) return false;
+    if (selPops.length > 0) {
+      const fPops = f.populations || [];
+      if (fPops.length > 0 && !selPops.some(p => fPops.includes(p))) return false;
+    }
     if (selRegion) {
       const regionCities = REGIONS_CITIES[selRegion] || [];
       const matches = (f.sessions || []).some(s =>
@@ -166,14 +170,17 @@ function CatalogueContent() {
                 const mf = formations.filter(f => normS(f.titre).includes(q) || normS(f.domaine).includes(q)).slice(0, 3);
                 const mft = allFormateurs.filter(f => normS(f.nom).includes(q)).slice(0, 3);
                 const mv = adminVilles.filter(v => normS(v).includes(q)).slice(0, 3);
+                const md = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => normS(d).includes(q)).slice(0, 3);
                 setSearchDropFormations(mf);
                 setSearchDropFmts(mft);
                 setSearchDropVilles(mv);
-                setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0);
+                setSearchDropDomaines(md);
+                setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0 || md.length > 0);
               } else {
+                setSearchDropDomaines([]);
                 setShowSearchDrop(false);
               }
-            }} onBlur={() => setTimeout(() => setShowSearchDrop(false), 150)} placeholder="Rechercher une formation, un formateur, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit", order: 2 }} />
+            }} onBlur={() => setTimeout(() => setShowSearchDrop(false), 150)} placeholder="Rechercher une formation, un formateur, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit", order: 2 }} />
             <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
           </div>
           {showSearchDrop && (
@@ -196,6 +203,17 @@ function CatalogueContent() {
                     <div key={v} onMouseDown={() => { setShowSearchDrop(false); setSelVilles(prev => prev.includes(v) ? prev : [...prev, v]); setSearch(""); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
                       <span>📍</span>
                       <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{v}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {searchDropDomaines.length > 0 && (
+                <>
+                  <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Domaines</div>
+                  {searchDropDomaines.map(d => (
+                    <div key={d} onMouseDown={() => { setShowSearchDrop(false); addF(selDomaines, d, setSelDomaines); setSearch(""); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                      <span>📚</span>
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{d}</span>
                     </div>
                   ))}
                 </>

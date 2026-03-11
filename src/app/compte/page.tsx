@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, type Formation, type Avis } from "@/lib/data";
+import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis } from "@/lib/data";
 import { FormationCard, StarRow } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -19,6 +19,7 @@ export default function ComptePage() {
   const [inscs, setInscs] = useState<InscRow[]>([]);
   const [inscriptionIds, setInscriptionIds] = useState<number[]>([]);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
+  const [faitsIds, setFaitsIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [editProfile, setEditProfile] = useState(false);
   const [pName, setPName] = useState("");
@@ -61,6 +62,8 @@ export default function ComptePage() {
       setInscs(inscRows);
       setInscriptionIds(active.map(i => i.formation_id));
       setFavoriIds(favs.map(fv => fv.formation_id));
+      const faits = await fetchFormationsFaites(user.id);
+      setFaitsIds(faits);
 
       // Fetch session_parties to get ALL dates (incl. middle dates lost in the denormalized `dates` string)
       const sessionIds = inscRows.filter(i => i.session_id != null).map(i => i.session_id as number);
@@ -108,6 +111,7 @@ export default function ComptePage() {
 
   const inscF = formations.filter(f => inscriptionIds.includes(f.id));
   const favF = formations.filter(f => favoriIds.includes(f.id));
+  const faitsF = formations.filter(f => faitsIds.includes(f.id));
   const myAvis = avis.filter(a => a.user_id === user.id);
 
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
@@ -181,6 +185,7 @@ export default function ComptePage() {
         <button onClick={() => setTab("calendrier")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "calendrier" ? "rgba(46,124,230,0.1)" : "transparent", color: tab === "calendrier" ? "#2E7CE6" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "calendrier" ? 700 : 500, cursor: "pointer" }}>📅 Calendrier</button>
         <button onClick={() => setTab("avis")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "avis" ? "rgba(232,123,53,0.1)" : "transparent", color: tab === "avis" ? "#E87B35" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "avis" ? 700 : 500, cursor: "pointer" }}>⭐ Avis ({myAvis.length})</button>
         <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
+        <button onClick={() => setTab("faites")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "faites" ? C.greenBg : "transparent", color: tab === "faites" ? C.green : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "faites" ? 700 : 500, cursor: "pointer" }}>✅ Faites ({faitsF.length})</button>
       </div>
 
       {tab === "favoris" && (
@@ -196,6 +201,31 @@ export default function ComptePage() {
                 <div key={f.id} style={{ position: "relative" }}>
                   <FormationCard f={f} mob={mob} />
                   <button onClick={() => handleToggleFav(f.id)} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>❤️</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "faites" && (
+        <div>
+          {faitsF.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+              <p>Aucune formation marquée comme effectuée.<br />
+                <span style={{ fontSize: 12 }}>Sur la page d&apos;une formation, cliquez sur &quot;Marquer faite&quot;.</span>
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
+              {faitsF.map(f => (
+                <div key={f.id} style={{ position: "relative" }}>
+                  <FormationCard f={f} mob={mob} />
+                  <button onClick={async () => {
+                    await toggleFormationFaite(user!.id, f.id);
+                    setFaitsIds(prev => prev.filter(id => id !== f.id));
+                  }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1px solid " + C.green + "55", color: C.green, fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✓ Faite</button>
                 </div>
               ))}
             </div>

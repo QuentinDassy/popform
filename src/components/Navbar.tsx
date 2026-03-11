@@ -292,7 +292,7 @@ export default function Navbar() {
       {mob && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, background: "rgba(255,253,247,0.97)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderTop: "1px solid " + C.border, display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
           {/* Accueil */}
-          <Link href="/" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, textDecoration: "none", color: pathname === "/" ? C.accent : C.textTer, flexShrink: 0, minWidth: 44 }}>
+          <Link href="/" onClick={e => { if (pathname === "/") { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); } }} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, textDecoration: "none", color: pathname === "/" ? C.accent : C.textTer, flexShrink: 0, minWidth: 44 }}>
             <span style={{ fontSize: 20 }}>🏠</span>
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2 }}>Accueil</span>
           </Link>
