@@ -100,7 +100,10 @@ export default function HomePage() {
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
+  const [searchFmtResults, setSearchFmtResults] = useState<{id: number, nom: string}[]>([]);
+  const [searchVilleResults, setSearchVilleResults] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [allFormateurs, setAllFormateurs] = useState<{id: number, nom: string}[]>([]);
 
   const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -119,17 +122,24 @@ export default function HomePage() {
 
   const handleSearchInput = (val: string) => {
     setHeroSearch(val);
-    if (val.length >= 2 && formations.length > 0) {
-      const norm = normalize(val);
-      const matches = formations.filter(f =>
-        normalize(f.titre).includes(norm) ||
-        normalize(f.domaine).includes(norm) ||
-        (f.mots_cles || []).some((m: string) => normalize(m).includes(norm)) ||
-        (f.sessions || []).some(s => normalize(s.lieu).includes(norm))
-      ).slice(0, 6);
-      setSearchSuggestions(matches);
-      setShowSuggestions(matches.length > 0);
+    if (val.length >= 2) {
+      const q = normalize(val);
+      const matchedFormations = formations.filter(f =>
+        normalize(f.titre).includes(q) ||
+        normalize(f.domaine).includes(q) ||
+        (f.mots_cles || []).some((m: string) => normalize(m).includes(q)) ||
+        (f.sessions || []).some(s => normalize(s.lieu).includes(q))
+      ).slice(0, 4);
+      const matchedFmts = allFormateurs.filter(f => normalize(f.nom).includes(q)).slice(0, 3);
+      const matchedVilles = adminVilles.filter(v => normalize(v.nom).includes(q)).slice(0, 3).map(v => v.nom);
+      setSearchSuggestions(matchedFormations);
+      setSearchFmtResults(matchedFmts);
+      setSearchVilleResults(matchedVilles);
+      setShowSuggestions(matchedFormations.length > 0 || matchedFmts.length > 0 || matchedVilles.length > 0);
     } else {
+      setSearchSuggestions([]);
+      setSearchFmtResults([]);
+      setSearchVilleResults([]);
       setShowSuggestions(false);
     }
   };
@@ -193,6 +203,11 @@ export default function HomePage() {
         try {
           const { data: villes } = await supabase.from("villes_admin").select("*").order("nom");
           if (villes) setAdminVilles(villes.map((v: Record<string, string>) => ({ nom: v.nom, image: v.image || "" })));
+        } catch (e) {}
+
+        try {
+          const { data: fmts } = await supabase.from("formateurs").select("id, nom");
+          if (fmts) setAllFormateurs(fmts);
         } catch (e) {}
       };
       
@@ -258,14 +273,41 @@ export default function HomePage() {
             </div>
             {/* Autocomplete suggestions */}
             {showSuggestions && (
-              <div style={{ position: "absolute", left: 0, right: 0, marginTop: 4, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, boxShadow: "0 8px 32px rgba(45,27,6,0.12)", zIndex: 100, overflow: "hidden", maxWidth: mob ? "calc(100% - 32px)" : 600, marginLeft: "auto", marginRight: "auto" }}>
-                {searchSuggestions.map(f => (
-                  <div key={f.id} onMouseDown={() => { router.push("/formation/" + f.id); setShowSuggestions(false) }} style={{ padding: "10px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight }}>
-                    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.accentBg, color: C.accent, fontWeight: 600, flexShrink: 0 }}>{f.domaine}</span>
-                    <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
-                    {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer }}>📍 {f.sessions?.[0]?.lieu}</span>}
-                  </div>
-                ))}
+              <div style={{ position: "absolute", left: 0, right: 0, marginTop: 6, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, boxShadow: "0 8px 32px rgba(45,27,6,0.12)", zIndex: 100, maxWidth: mob ? "100%" : 600, marginLeft: "auto", marginRight: "auto", maxHeight: 400, overflowY: "auto" }}>
+                {searchFmtResults.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Formateurs</div>
+                    {searchFmtResults.map(f => (
+                      <div key={f.id} onMouseDown={() => { router.push("/formateurs?id=" + f.id); setShowSuggestions(false); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                        <span style={{ fontSize: 15 }}>🎤</span>
+                        <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{f.nom}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {searchVilleResults.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Villes</div>
+                    {searchVilleResults.map(v => (
+                      <div key={v} onMouseDown={() => { router.push("/catalogue?villes=" + encodeURIComponent(v)); setShowSuggestions(false); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                        <span style={{ fontSize: 15 }}>📍</span>
+                        <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{v}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {searchSuggestions.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Formations</div>
+                    {searchSuggestions.map(f => (
+                      <div key={f.id} onMouseDown={() => { router.push("/formation/" + f.id); setShowSuggestions(false); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.accentBg, color: C.accent, fontWeight: 600, flexShrink: 0 }}>{f.domaine}</span>
+                        <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
+                        {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer, flexShrink: 0 }}>📍 {f.sessions?.[0]?.lieu}</span>}
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>

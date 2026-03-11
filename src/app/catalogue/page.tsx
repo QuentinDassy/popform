@@ -63,6 +63,13 @@ function CatalogueContent() {
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
+  const [allFormateurs, setAllFormateurs] = useState<{id: number, nom: string}[]>([]);
+  const [searchDropFormations, setSearchDropFormations] = useState<Formation[]>([]);
+  const [searchDropFmts, setSearchDropFmts] = useState<{id: number, nom: string}[]>([]);
+  const [searchDropVilles, setSearchDropVilles] = useState<string[]>([]);
+  const [showSearchDrop, setShowSearchDrop] = useState(false);
+
+  const normS = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   useEffect(() => {
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(d); setLoading(false); });
@@ -70,6 +77,7 @@ function CatalogueContent() {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
     fetchDomainesFiltres().then(d => { setDomainesFiltres(d); }).catch(() => {});
+    supabase.from("formateurs").select("id, nom").then(({ data }: { data: {id: number, nom: string}[] | null }) => { if (data) setAllFormateurs(data); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -147,10 +155,64 @@ function CatalogueContent() {
 
       {/* Search bar */}
       <div style={{ display: "flex", gap: mob ? 6 : 10, marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: mob ? "100%" : 280, display: "flex", alignItems: "center", gap: 8, padding: mob ? "0 12px" : "0 16px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, height: mob ? 44 : 50, boxShadow: "0 2px 10px rgba(212,43,43,0.04)", boxSizing: "border-box" }}>
-          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14, order: 1 }}>✕</button>}
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une formation, un mot-clé, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit", order: 2 }} />
-          <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
+        <div style={{ flex: 1, minWidth: mob ? "100%" : 280, position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: mob ? "0 12px" : "0 16px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, height: mob ? 44 : 50, boxShadow: "0 2px 10px rgba(212,43,43,0.04)", boxSizing: "border-box" }}>
+            {search && <button onClick={() => { setSearch(""); setShowSearchDrop(false); }} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14, order: 1 }}>✕</button>}
+            <input value={search} onChange={e => {
+              const val = e.target.value;
+              setSearch(val);
+              if (val.length >= 2) {
+                const q = normS(val);
+                const mf = formations.filter(f => normS(f.titre).includes(q) || normS(f.domaine).includes(q)).slice(0, 3);
+                const mft = allFormateurs.filter(f => normS(f.nom).includes(q)).slice(0, 3);
+                const mv = adminVilles.filter(v => normS(v).includes(q)).slice(0, 3);
+                setSearchDropFormations(mf);
+                setSearchDropFmts(mft);
+                setSearchDropVilles(mv);
+                setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0);
+              } else {
+                setShowSearchDrop(false);
+              }
+            }} onBlur={() => setTimeout(() => setShowSearchDrop(false), 150)} placeholder="Rechercher une formation, un formateur, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: mob ? 13 : 14, fontFamily: "inherit", order: 2 }} />
+            <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
+          </div>
+          {showSearchDrop && (
+            <div style={{ position: "absolute", left: 0, right: 0, top: "100%", marginTop: 6, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 14, boxShadow: "0 8px 32px rgba(45,27,6,0.12)", zIndex: 100, maxHeight: 400, overflowY: "auto" }}>
+              {searchDropFmts.length > 0 && (
+                <>
+                  <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Formateurs</div>
+                  {searchDropFmts.map(f => (
+                    <div key={f.id} onMouseDown={() => { window.location.href = "/formateurs?id=" + f.id; }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                      <span>🎤</span>
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{f.nom}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {searchDropVilles.length > 0 && (
+                <>
+                  <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Villes</div>
+                  {searchDropVilles.map(v => (
+                    <div key={v} onMouseDown={() => { setShowSearchDrop(false); setSelVilles(prev => prev.includes(v) ? prev : [...prev, v]); setSearch(""); }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                      <span>📍</span>
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{v}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {searchDropFormations.length > 0 && (
+                <>
+                  <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Formations</div>
+                  {searchDropFormations.map(f => (
+                    <div key={f.id} onMouseDown={() => { window.location.href = "/formation/" + f.id; }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.accentBg, color: C.accent, fontWeight: 600, flexShrink: 0 }}>{f.domaine}</span>
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...sel(mob), flex: "none", width: mob ? "100%" : "auto", minWidth: 140, boxSizing: "border-box" }}>
           <option value="pertinence">Pertinence</option>

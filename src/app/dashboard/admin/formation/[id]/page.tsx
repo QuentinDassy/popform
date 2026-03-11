@@ -186,7 +186,7 @@ export default function AdminFormationEditorPage() {
                 modalite_session: s.modalite_session || "Présentiel",
                 lien_visio: s.lien_visio || "",
                 is_visio: s.lieu === "Visio" || !!s.lien_visio,
-                parties: sp.map((p: any) => ({
+                parties: sp.filter((p: any) => !!p.titre).map((p: any) => ({
                   titre: p.titre || "",
                   date_debut: p.date_debut || "",
                   date_fin: p.date_fin || "",
