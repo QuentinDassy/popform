@@ -37,6 +37,8 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [searchVilles, setSearchVilles] = useState<string[]>([]);
+  const [searchFormateurs, setSearchFormateurs] = useState<{ id: number; nom: string }[]>([]);
+  const [searchFormations, setSearchFormations] = useState<{ id: number; titre: string; domaine: string }[]>([]);
   const mob = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,15 +56,24 @@ export default function Navbar() {
     }
   }, [user, pathname]);
 
-  // Fetch villes when search panel opens
+  // Fetch data when search panel opens
   useEffect(() => {
-    if (searchOpen && searchVilles.length === 0) {
+    if (!searchOpen) return;
+    setTimeout(() => searchInputRef.current?.focus(), 80);
+    if (searchVilles.length === 0) {
       supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setSearchVilles(data.map(v => v.nom));
       }).catch(() => {});
     }
-    if (searchOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 80);
+    if (searchFormateurs.length === 0) {
+      supabase.from("formateurs").select("id, nom").order("nom").then(({ data }: { data: { id: number; nom: string }[] | null }) => {
+        if (data) setSearchFormateurs(data);
+      }).catch(() => {});
+    }
+    if (searchFormations.length === 0) {
+      supabase.from("formations").select("id, titre, domaine").eq("status", "publiee").order("titre").then(({ data }: { data: { id: number; titre: string; domaine: string }[] | null }) => {
+        if (data) setSearchFormations(data);
+      }).catch(() => {});
     }
   }, [searchOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -79,9 +90,17 @@ export default function Navbar() {
     setSearchText("");
   };
 
-  const filteredVilles = searchText.length >= 1
-    ? searchVilles.filter(v => v.toLowerCase().includes(searchText.toLowerCase())).slice(0, 6)
-    : searchVilles.slice(0, 10);
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const q = norm(searchText);
+  const filteredVilles = q.length >= 1
+    ? searchVilles.filter(v => norm(v).includes(q)).slice(0, 4)
+    : searchVilles.slice(0, 8);
+  const filteredFormateurs = q.length >= 2
+    ? searchFormateurs.filter(f => norm(f.nom).includes(q)).slice(0, 3)
+    : [];
+  const filteredFormations = q.length >= 2
+    ? searchFormations.filter(f => norm(f.titre).includes(q) || norm(f.domaine).includes(q)).slice(0, 3)
+    : [];
 
   return (
     <>
@@ -206,15 +225,45 @@ export default function Navbar() {
                   <span style={{ fontSize: 16 }}>🔍</span>
                   <span>Rechercher <strong>&ldquo;{searchText}&rdquo;</strong></span>
                 </button>
-                {filteredVilles.map(ville => (
-                  <button key={ville} onClick={() => handleVilleSearch(ville)} style={{ width: "100%", padding: "12px 16px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", marginBottom: 8, textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
-                    <span style={{ width: 32, height: 32, borderRadius: 10, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>📍</span>
-                    <div>
-                      <div style={{ fontSize: 11, color: C.textTer, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>Ville</div>
-                      <div style={{ fontWeight: 700 }}>{ville}</div>
-                    </div>
-                  </button>
-                ))}
+                {filteredFormateurs.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 6 }}>Formateur·rice·s</div>
+                    {filteredFormateurs.map(fmt => (
+                      <button key={fmt.id} onClick={() => { router.push("/formateurs?id=" + fmt.id); setSearchOpen(false); setSearchText(""); }} style={{ width: "100%", padding: "11px 14px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", marginBottom: 7, textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                        <span style={{ width: 32, height: 32, borderRadius: 16, background: C.accentBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🎤</span>
+                        <span style={{ fontWeight: 600 }}>{fmt.nom}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {filteredFormations.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 6, marginTop: filteredFormateurs.length > 0 ? 10 : 0 }}>Formations</div>
+                    {filteredFormations.map(fo => (
+                      <button key={fo.id} onClick={() => { router.push("/formation/" + fo.id); setSearchOpen(false); setSearchText(""); }} style={{ width: "100%", padding: "11px 14px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 13, cursor: "pointer", marginBottom: 7, textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                        <span style={{ width: 32, height: 32, borderRadius: 10, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🎬</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 10, color: C.textTer, fontWeight: 600 }}>{fo.domaine}</div>
+                          <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{fo.titre}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {filteredVilles.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 6, marginTop: (filteredFormateurs.length > 0 || filteredFormations.length > 0) ? 10 : 0 }}>Villes</div>
+                    {filteredVilles.map(ville => (
+                      <button key={ville} onClick={() => handleVilleSearch(ville)} style={{ width: "100%", padding: "11px 14px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", marginBottom: 7, textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                        <span style={{ width: 32, height: 32, borderRadius: 10, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>📍</span>
+                        <span style={{ fontWeight: 600 }}>{ville}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {filteredFormateurs.length === 0 && filteredFormations.length === 0 && filteredVilles.length === 0 && (
+                  <div style={{ padding: "20px 0", textAlign: "center", color: C.textTer, fontSize: 13 }}>Aucun résultat — essayez le catalogue</div>
+                )}
               </>
             ) : (
               <>

@@ -52,53 +52,49 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   const uniqueLieux = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))];
   const lieuDisplay = uniqueLieux.length > 1 ? "Plusieurs lieux" : (uniqueLieux[0] || "—");
   const isVisioOnly = uniqueLieux.length > 0 && uniqueLieux.every((l: string) => /visio/i.test(l));
+  const domaines: string[] = (f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine];
+  const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
+  const fmts = (f as any).formateurs as any[] | undefined;
+  const formateurNom = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
-      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", height: m ? 170 : 220, overflow: "hidden" }}>
-          {photo
-            ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.6s", transform: hov && !m ? "scale(1.04)" : "scale(1)" }} />
-            : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
-          }
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
+      <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ cursor: "pointer", transition: "all 0.3s", transform: hov && !m ? "translateY(-3px)" : "none", height: "100%", display: "flex", flexDirection: "column" }}>
+
+        {/* ── Photo ── */}
+        <div style={{ position: "relative", aspectRatio: "4/3", maxHeight: m ? 200 : 260, borderRadius: m ? 14 : 16, overflow: "hidden", flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
+          {photo && <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />}
           {onToggleFav && (
-            <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
+            <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
               {favori ? "❤️" : "🤍"}
             </button>
           )}
-          {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, ...(onToggleFav ? { right: 48 } : { right: 8 }), padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
-          <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {((f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine]).map((d: string) => {
-              const ddc = getDC(d);
-              return <span key={d} style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: ddc.color }}>{d}</span>;
-            })}
-            <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
-          </div>
+          {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
         </div>
-        <div style={{ padding: m ? "12px 14px" : "18px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
-          <h3 style={{ fontSize: m ? 14 : compact ? 14 : 16, fontWeight: 700, color: C.text, lineHeight: 1.35, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
-          {(() => {
-            const fmts = (f as any).formateurs as any[] | undefined;
-            const nomDisplay = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
-            return nomDisplay ? <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: 0.1 }}>{nomDisplay}</div> : null;
-          })()}
-          {f.description && <p style={{ fontSize: m ? 11 : 12, color: C.textSec, lineHeight: 1.5, marginBottom: 8, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.description}</p>}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 10.5, color: C.textSec, borderTop: "1px solid " + C.borderLight, paddingTop: 8, marginTop: "auto" }}>
-            <span>{isVisioOnly ? "💻" : "📍"} {lieuDisplay}</span>
+
+        {/* ── Info ── */}
+        <div style={{ paddingTop: m ? 8 : 10, flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* Domain + modalite */}
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: m ? 5 : 6 }}>
+            {domaines.map((d: string) => {
+              const ddc = getDC(d);
+              return <span key={d} style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: ddc.bg, color: ddc.color }}>{d}</span>;
+            })}
+            <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 500, background: C.bgAlt, color: C.textSec }}>{f.modalite}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10.5, color: C.textSec }}>{f.note}</span></div>
-            {f.prix > 0 && (() => {
-              const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
-              return (
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1 }}>Prix</div>
-                  <div style={{ fontSize: m ? 13 : 15, fontWeight: 800, color: C.text, marginTop: 2 }}>
-                    {isPrixFrom && <span style={{ fontSize: m ? 10 : 11, fontWeight: 700, color: C.accent }}>à partir de </span>}{f.prix}€
-                  </div>
-                </div>
-              );
-            })()}
+          {/* Title */}
+          <h3 style={{ fontSize: m ? 13 : compact ? 13 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
+          {/* Formateur */}
+          {formateurNom && <div style={{ fontSize: 11, fontWeight: 600, color: C.accent, marginBottom: 4 }}>{formateurNom}</div>}
+          {/* Location */}
+          <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isVisioOnly ? "💻" : "📍"} {lieuDisplay}</div>
+          {/* Price + rating */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10, color: C.textSec }}>{f.note}</span></div>
+            {f.prix > 0 && (
+              <div style={{ fontSize: m ? 12 : 14, fontWeight: 800, color: C.text }}>
+                {isPrixFrom && <span style={{ fontSize: 10, fontWeight: 600, color: C.accent }}>dès </span>}{f.prix}€
+              </div>
+            )}
           </div>
         </div>
       </div>
