@@ -234,7 +234,7 @@ export default function ComptePage() {
                   <div style={{ fontSize: 12, color: C.textSec }}>Votre avis aide la communauté d&apos;orthophonistes à choisir les meilleures formations.</div>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(260px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {faitsF.map(f => {
                   const hasAvis = myAvis.some(a => a.formation_id === f.id);
                   const isOpen = avisFormId === f.id;

@@ -133,7 +133,7 @@ function FormateursContent() {
 
         {/* ── Panneau détail formateur sélectionné ── */}
         {selectedId && selected && (
-          <div ref={detailRef} style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start", scrollMarginTop: 60 }}>
+          <div ref={detailRef} style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start", scrollMarginTop: 60, minWidth: 0, overflow: "hidden" }}>
             <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
                 <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
@@ -150,7 +150,7 @@ function FormateursContent() {
             {selectedFormations.length === 0 ? (
               <p style={{ color: C.textTer, fontSize: 13 }}>Aucune formation publiée pour l&apos;instant.</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(260px,1fr))", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }} onClick={() => window.scrollTo({ top: 0, behavior: "instant" })}>
                 {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
               </div>
             )}

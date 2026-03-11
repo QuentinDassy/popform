@@ -219,6 +219,12 @@ export async function updateAvis(avisId: number, note: number, texte: string): P
   return true;
 }
 
+export async function deleteAvis(avisId: number): Promise<boolean> {
+  const { error } = await supabase.from("avis").delete().eq("id", avisId);
+  if (error) { console.error(error); return false; }
+  return true;
+}
+
 export async function fetchInscriptions(userId: string): Promise<Inscription[]> {
   const { data, error } = await supabase.from("inscriptions").select("*").eq("user_id", userId);
   if (error) { console.error(error); return []; }

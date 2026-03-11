@@ -5,7 +5,7 @@ import type { Formation as FormationType } from "./supabase-data";
 export type { Formation, Formateur, Organisme, Avis, Session, Inscription, Favori, AdminNotification, DomaineAdmin } from "./supabase-data";
 export { 
   fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs, 
-  fetchAvis, addAvis, updateAvis, fetchInscriptions, fetchFavoris, toggleFavori, 
+  fetchAvis, addAvis, updateAvis, deleteAvis, fetchInscriptions, fetchFavoris, toggleFavori,
   fetchAdminNotifications, notifyAdmin, invalidateCache,
   fetchDomainesAdmin, fetchDomainesAccueil, fetchDomainesFiltres, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin,
   fetchFormationsFaites, toggleFormationFaite

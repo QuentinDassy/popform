@@ -599,24 +599,29 @@ export default function DashboardOrganismePage() {
             {/* Formateur */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Formateur(s) *</label>
-              {formateurs.length === 0 ? (
-                <p style={{ fontSize: 12, color: C.textTer }}>Aucun formateur — <button type="button" onClick={() => setTab("formateurs")} style={{ background: "none", border: "none", color: C.accent, fontSize: 12, cursor: "pointer", fontWeight: 600, padding: 0 }}>en créer un d'abord →</button></p>
-              ) : (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {formateurs.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
                   {formateurs.map(f => {
                     const isSelected = selFormateurIds.includes(f.id);
                     return (
-                      <button key={f.id} type="button" onClick={() => setSelFormateurIds(prev => isSelected ? prev.filter(id => id !== f.id) : [...prev, f.id])}
-                        style={{ padding: "6px 12px", borderRadius: 9, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.border), background: isSelected ? C.accentBg : C.bgAlt, color: isSelected ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: isSelected ? 700 : 400 }}>
-                        {f.nom}
-                      </button>
+                      <div key={f.id} onClick={() => setSelFormateurIds(prev => isSelected ? prev.filter(id => id !== f.id) : [...prev, f.id])}
+                        style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.border), background: isSelected ? C.accentBg : C.bgAlt, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 16, background: C.gradient, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700 }}>
+                          {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (f.nom?.[0]?.toUpperCase() || "?")}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? C.accent : C.text }}>{f.nom}</div>
+                          <div style={{ fontSize: 11, color: C.textTer }}>{f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice"}</div>
+                        </div>
+                        <div style={{ width: 18, height: 18, borderRadius: 9, border: "2px solid " + (isSelected ? C.accent : C.border), background: isSelected ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", flexShrink: 0 }}>
+                          {isSelected ? "✓" : ""}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
               )}
-              <div style={{ marginTop: 8 }}>
-                <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un formateur</button>
-              </div>
+              <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un·e formateur·rice</button>
               {inlineNewFmt && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, padding: 12, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
                   <div style={{ display: "flex", gap: 6 }}>

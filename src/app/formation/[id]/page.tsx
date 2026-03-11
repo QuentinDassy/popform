@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
+import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, deleteAvis as deleteAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -47,7 +47,7 @@ function AvisBar({ label, value, max = 5 }: { label: string; value: number; max?
 }
 
 /* ===== AVIS SECTION ===== */
-function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => Promise<void>; onEdit: (aId: number, note: number, texte: string) => Promise<void>; mob: boolean; userId?: string }) {
+function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => Promise<void>; onEdit: (aId: number, note: number, texte: string) => Promise<void>; onDelete: (aId: number) => Promise<void>; mob: boolean; userId?: string }) {
   const fAvis = avis.filter(a => a.formation_id === formationId);
   const myAvis = userId ? fAvis.find(a => a.user_id === userId) : undefined;
   const [showForm, setShowForm] = useState(false);
@@ -121,7 +121,10 @@ function AvisSection({ formationId, avis, onAdd, onEdit, mob, userId }: { format
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h3 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text }}>Avis des participants</h3>
         {!showForm && (myAvis ? (
-          <button onClick={startEdit} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Modifier mon avis</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={startEdit} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Modifier mon avis</button>
+            <button onClick={async () => { if (!confirm("Supprimer votre avis ?")) return; await onDelete(myAvis.id); }} style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Supprimer</button>
+          </div>
         ) : (
           <button onClick={() => setShowForm(true)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Donner mon avis</button>
         ))}
@@ -249,6 +252,11 @@ export default function FormationPage() {
     const ok = await updateAvisDB(aId, note, texte);
     if (!ok) throw new Error("Erreur mise à jour");
     setAvis(prev => prev.map(a => a.id === aId ? { ...a, note, texte } : a));
+  };
+
+  const handleDeleteAvis = async (aId: number): Promise<void> => {
+    await deleteAvisDB(aId);
+    setAvis(prev => prev.filter(a => a.id !== aId));
   };
 
   if (loading) return <PageSkeleton mob={mob} />;
@@ -387,7 +395,8 @@ export default function FormationPage() {
                   const ul = [...new Set(sessions.flatMap((s: any) => {
                     const parts = (s as any).session_parties as any[] | null;
                     if (parts && parts.length > 0) {
-                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean);
+                      const lieux = parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean);
+                      if (lieux.length > 0) return lieux;
                     }
                     return s.lieu ? [s.lieu] : [];
                   }))];
@@ -491,9 +500,13 @@ export default function FormationPage() {
                     const displayDate = parts && parts.length > 0
                       ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
                       : s.dates;
-                    const displayLieu = parts && parts.length > 0
-                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean))].join(", ")
-                      : (s.lieu || "");
+                    const displayLieu = (() => {
+                      if (parts && parts.length > 0) {
+                        const lieux = [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean))];
+                        if (lieux.length > 0) return lieux.join(", ");
+                      }
+                      return s.lieu || "";
+                    })();
                     return (
                     <div key={si} style={{ padding: compact ? "10px 14px" : 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
                       {compact ? (
@@ -514,26 +527,36 @@ export default function FormationPage() {
                           )}
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                             <div style={{ flex: 1 }}>
-                              {parts && parts.length > 0 ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                  {parts.map((p, pi) => (
-                                    <div key={pi} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                                      {parts.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
-                                      <div>
-                                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-                                          {p.modalite === "Visio" ? "💻 En visio" : ((p as any).ville || p.lieu || p.adresse) ? "📍 " + ((p as any).ville || p.lieu || p.adresse) : null}
-                                          {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
+                              {(() => {
+                                const hasMeaningfulParts = parts && parts.length > 0 && parts.some((p: any) => p.titre || p.ville || p.lieu || p.adresse || p.modalite);
+                                if (hasMeaningfulParts) {
+                                  return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                      {parts!.map((p, pi) => (
+                                        <div key={pi} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                          {parts!.length > 1 && <div style={{ minWidth: 60, fontSize: 11, fontWeight: 700, color: C.accent, paddingTop: 2 }}>{p.titre || ("Partie " + (pi + 1))}</div>}
+                                          <div>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                                              {p.modalite === "Visio" ? "💻 En visio" : ((p as any).ville || p.lieu || p.adresse) ? "📍 " + ((p as any).ville || p.lieu || p.adresse) : null}
+                                              {(p.jours || p.date_debut) && <span style={{ fontSize: 12, color: C.textTer, marginLeft: 8 }}>📅 {p.jours ? p.jours.split(",").filter(Boolean).map(fmtDateFr).join(", ") : (fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : ""))}</span>}
+                                            </div>
+                                          </div>
                                         </div>
-                                      </div>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <>
-                                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {s.dates}</div>
-                                  <div style={{ fontSize: 13, color: C.textSec }}>{s.lieu === "Visio" ? "💻 Visio" : "📍 " + s.lieu}</div>
-                                </>
-                              )}
+                                  );
+                                }
+                                const dateStr = parts && parts.length > 0
+                                  ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
+                                  : s.dates;
+                                const lieuStr = s.lieu || "";
+                                return (
+                                  <>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {dateStr}</div>
+                                    {lieuStr && <div style={{ fontSize: 13, color: C.textSec }}>{lieuStr === "Visio" ? "💻 Visio" : "📍 " + lieuStr}</div>}
+                                  </>
+                                );
+                              })()}
                             </div>
                             <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
                               {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
@@ -549,7 +572,7 @@ export default function FormationPage() {
             </section>}
 
             {/* Avis */}
-            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} mob={mob} userId={user?.id} />
+            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} onDelete={handleDeleteAvis} mob={mob} userId={user?.id} />
           </div>
 
           {/* RIGHT COLUMN - Sidebar */}
