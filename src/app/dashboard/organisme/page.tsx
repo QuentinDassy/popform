@@ -50,6 +50,7 @@ export default function DashboardOrganismePage() {
   const [selFormateurIds, setSelFormateurIds] = useState<number[]>([]);
   const [inlineNewFmt, setInlineNewFmt] = useState(false);
   const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "Non genré" });
+  const [inlineFmtPhotoFile, setInlineFmtPhotoFile] = useState<File | null>(null);
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
@@ -621,12 +622,24 @@ export default function DashboardOrganismePage() {
                   })}
                 </div>
               )}
-              <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un·e formateur·rice</button>
+              <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); setInlineFmtPhotoFile(null); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un·e formateur·rice</button>
               {inlineNewFmt && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, padding: 12, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8, padding: 14, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                  {/* Photo */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <label style={{ cursor: "pointer", flexShrink: 0 }}>
+                      <div style={{ width: 52, height: 52, borderRadius: 26, background: C.gradient, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 700, border: "2px dashed " + C.border }}>
+                        {inlineFmtPhotoFile
+                          ? <img src={URL.createObjectURL(inlineFmtPhotoFile)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <span style={{ fontSize: 20 }}>📷</span>}
+                      </div>
+                      <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setInlineFmtPhotoFile(e.target.files[0]); }} />
+                    </label>
+                    <span style={{ fontSize: 11, color: C.textTer }}>Photo (optionnel)</span>
+                  </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input value={inlineFmt.prenom} onChange={e => setInlineFmt({ ...inlineFmt, prenom: e.target.value })} placeholder="Prénom" style={{ ...inputStyle, flex: 1 }} />
-                    <input value={inlineFmt.nom} onChange={e => setInlineFmt({ ...inlineFmt, nom: e.target.value })} placeholder="Nom" style={{ ...inputStyle, flex: 1 }} />
+                    <input value={inlineFmt.nom} onChange={e => setInlineFmt({ ...inlineFmt, nom: e.target.value })} placeholder="Nom *" style={{ ...inputStyle, flex: 1 }} />
                   </div>
                   <select value={inlineFmt.sexe} onChange={e => setInlineFmt({ ...inlineFmt, sexe: e.target.value })} style={inputStyle}>
                     <option value="Non genré">Formateur·rice</option>
@@ -634,15 +647,17 @@ export default function DashboardOrganismePage() {
                     <option value="Femme">Formatrice</option>
                   </select>
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                    <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                    <button type="button" onClick={() => { setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); setInlineFmtPhotoFile(null); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer" }}>Annuler</button>
                     <button type="button" onClick={async () => {
                       const fullName = [inlineFmt.prenom.trim(), inlineFmt.nom.trim()].filter(Boolean).join(" ");
                       if (!fullName || !organisme) return;
                       const sexeVal = inlineFmt.sexe === "Non genré" ? null : inlineFmt.sexe || null;
-                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: sexeVal }).select().single();
+                      let photoUrl: string | null = null;
+                      if (inlineFmtPhotoFile) { try { const { uploadImage } = await import("@/lib/upload"); photoUrl = await uploadImage(inlineFmtPhotoFile, "profils"); } catch {} }
+                      const { data, error } = await supabase.from("formateurs").insert({ nom: fullName, organisme_id: organisme.id, bio: "", sexe: sexeVal, photo_url: photoUrl }).select().single();
                       if (error) { setMsg("Erreur création formateur : " + error.message); return; }
                       if (data) { setFormateurs(prev => [...prev, data]); setSelFormateurIds(prev => [...prev, data.id]); }
-                      setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "" });
+                      setInlineNewFmt(false); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); setInlineFmtPhotoFile(null);
                     }} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Créer et sélectionner</button>
                   </div>
                 </div>
