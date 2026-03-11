@@ -52,10 +52,13 @@ const sel = (mob: boolean): React.CSSProperties => ({
 function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav, alt }: { title: string; formations: Formation[]; mob: boolean; max?: number; link?: string; favoriIds?: number[]; onToggleFav?: (id: number) => void; alt?: boolean }) {
   const show = formations.slice(0, max || (mob ? 4 : 8));
   return (
-    <div style={{ background: alt ? "#FFF8EC" : "transparent", borderTop: "1px solid #F0E4CC" }}>
-    <section style={{ padding: mob ? "28px 16px 16px" : "36px 40px 20px", maxWidth: 1240, margin: "0 auto" }}>
+    <div style={{ background: alt ? "#FFF8EC" : "#FFFFFF", borderTop: mob ? "5px solid #F0E4CC" : "1px solid #F0E4CC" }}>
+    <section style={{ padding: mob ? "20px 16px 16px" : "36px 40px 20px", maxWidth: 1240, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
-        <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text }}>{title}</h2>
+        <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
+          {mob && <span style={{ display: "inline-block", width: 4, height: 20, borderRadius: 3, background: C.gradient, flexShrink: 0 }} />}
+          {title}
+        </h2>
         <Link href={link || "/catalogue"} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tout →</Link>
       </div>
       {show.length > 0 ? (
@@ -87,6 +90,7 @@ export default function HomePage() {
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [heroSearch, setHeroSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [showStickySearch, setShowStickySearch] = useState(false);
   const [selDomaines, setSelDomaines] = useState<string[]>([]);
   const [selModalites, setSelModalites] = useState<string[]>([]);
   const [selPrises, setSelPrises] = useState<string[]>([]);
@@ -202,6 +206,13 @@ export default function HomePage() {
     fetchFavoris(user.id).then(favs => setFavoriIds(favs.map(fv => fv.formation_id))).catch(() => {});
   }, [user]);
 
+  useEffect(() => {
+    if (!mob) return;
+    const handler = () => setShowStickySearch(window.scrollY > 260);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, [mob]);
+
   const handleToggleFav = async (formationId: number) => {
     if (!user) return;
     const added = await toggleFavori(user.id, formationId);
@@ -232,6 +243,24 @@ export default function HomePage() {
 
   return (
     <>
+      {/* ===== STICKY SEARCH (mobile) ===== */}
+      {mob && showStickySearch && (
+        <div style={{ position: "fixed", top: 44, left: 0, right: 0, zIndex: 45, padding: "8px 16px", background: "rgba(255,253,247,0.96)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid " + C.borderLight, boxShadow: "0 2px 16px rgba(0,0,0,0.06)" } as React.CSSProperties}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 40 }}>
+            <span style={{ color: C.textTer, fontSize: 15 }}>🔍</span>
+            <input
+              value={heroSearch}
+              onChange={e => handleSearchInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="Rechercher une formation..."
+              style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 13, fontFamily: "inherit" }}
+            />
+            {heroSearch && <button onClick={() => setHeroSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14 }}>✕</button>}
+            <div onClick={handleSearch} style={{ padding: "5px 14px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>OK</div>
+          </div>
+        </div>
+      )}
+
       {/* ===== HERO ===== */}
       <section style={{ position: "relative", padding: mob ? "36px 16px 32px" : "70px 40px 56px", overflow: "hidden", background: C.gradientHero }}>
         <div style={{ position: "absolute", top: -100, left: -60, width: 400, height: 400, background: "radial-gradient(circle, rgba(212,43,43,0.08), transparent 70%)", pointerEvents: "none" }} />

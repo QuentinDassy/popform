@@ -19,6 +19,7 @@ function FormateursContent() {
   const [selectedId, setSelectedId] = useState<number | null>(idParam ? Number(idParam) : null);
   const [search, setSearch] = useState("");
   const loadingRef = useRef(false);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     if (loadingRef.current) return;
@@ -59,6 +60,12 @@ function FormateursContent() {
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (mob && selectedId != null && detailRef.current) {
+      setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
+  }, [selectedId, mob]);
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -126,7 +133,7 @@ function FormateursContent() {
 
         {/* ── Panneau détail formateur sélectionné ── */}
         {selectedId && selected && (
-          <div style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start" }}>
+          <div ref={detailRef} style={{ position: mob ? "static" : "sticky", top: 80, alignSelf: "start", scrollMarginTop: 60 }}>
             <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
                 <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>

@@ -372,10 +372,17 @@ export default function FormationPage() {
                   <span style={{ fontSize: 14, color: C.textSec }}>{f.effectif} places</span>
                 </div>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 18 }}>📍</span>
-                  <span style={{ fontSize: 14, color: C.textSec }}>{(() => { const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))]; return ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—"); })()}</span>
-                </div>
+                {(() => {
+                  const ul = [...new Set(sessions.map((s: any) => s.lieu).filter(Boolean))];
+                  const isAllVisio = ul.length > 0 && ul.every((l: string) => /visio/i.test(l));
+                  const lieu = ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—");
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
+                      <span style={{ fontSize: 14, color: C.textSec }}>{lieu}</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Price */}
@@ -408,7 +415,7 @@ export default function FormationPage() {
 
             {/* RIGHT: Image */}
             <div style={{ marginTop: mob ? 24 : 0 }}>
-              <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "4/3" }}>
+              <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "1/1" }}>
                 {photo ? (
                   <img src={photo} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (

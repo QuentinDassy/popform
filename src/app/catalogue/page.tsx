@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -63,6 +63,14 @@ function CatalogueContent() {
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
+  const [showStickySearch, setShowStickySearch] = useState(false);
+
+  useEffect(() => {
+    if (!mob) return;
+    const handler = () => setShowStickySearch(window.scrollY > 160);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, [mob]);
 
   useEffect(() => {
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(d); setLoading(false); });
@@ -135,6 +143,24 @@ function CatalogueContent() {
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   return (
+    <>
+      {/* ===== STICKY SEARCH (mobile) ===== */}
+      {mob && showStickySearch && (
+        <div style={{ position: "fixed", top: 44, left: 0, right: 0, zIndex: 45, padding: "8px 16px", background: "rgba(255,253,247,0.96)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" as string, borderBottom: "1px solid " + C.borderLight, boxShadow: "0 2px 16px rgba(0,0,0,0.06)" } as React.CSSProperties}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 40 }}>
+            <span style={{ color: C.textTer, fontSize: 15 }}>🔍</span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher une formation..."
+              style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 13, fontFamily: "inherit" }}
+            />
+            {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 14 }}>✕</button>}
+            {hasActiveFilters && <button onClick={() => setShowFilterPanel(true)} style={{ padding: "4px 10px", borderRadius: 7, background: C.accentBg, border: "1.5px solid " + C.accent + "44", color: C.accent, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Filtres</button>}
+          </div>
+        </div>
+      )}
+
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
       {/* Header */}
       <div style={{ padding: "18px 0 10px" }}>
@@ -281,6 +307,7 @@ function CatalogueContent() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
