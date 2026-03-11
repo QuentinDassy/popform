@@ -186,6 +186,7 @@ export default function FormationPage() {
   const [inscriptions, setInscriptions] = useState<Inscription[]>([]);
   const [inscribing, setInscribing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [toastScrollAvis, setToastScrollAvis] = useState(false);
   const { user, profile, setShowAuth } = useAuth();
 
   const showToast = (msg: string) => {
@@ -217,7 +218,8 @@ export default function FormationPage() {
     if (!user) { setShowAuth(true); return; }
     const done = await toggleFormationFaite(user.id, Number(id));
     setIsFait(done);
-    if (done) showToast("Formation marquée comme effectuée !");
+    if (done) { setToastScrollAvis(true); showToast("✅ Formation effectuée ! Cliquez ici pour laisser un avis 📝"); }
+    else { setToastScrollAvis(false); showToast("Formation retirée de vos formations faites."); }
   };
 
   const handleInscription = async (sessionId?: number) => {
@@ -292,7 +294,7 @@ export default function FormationPage() {
     <>
       <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } } @keyframes slideUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }`}</style>
       {toast && (
-        <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#2D1B06", color: "#fff", padding: "13px 20px", borderRadius: 14, fontSize: 13, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease", pointerEvents: "none", maxWidth: "calc(100vw - 32px)", width: "max-content", textAlign: "center" }}>
+        <div onClick={toastScrollAvis ? () => { setToast(null); setToastScrollAvis(false); document.getElementById("avis")?.scrollIntoView({ behavior: "smooth" }); } : undefined} style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#2D1B06", color: "#fff", padding: "13px 20px", borderRadius: 14, fontSize: 13, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease", pointerEvents: "auto", maxWidth: "calc(100vw - 32px)", width: "max-content", textAlign: "center", cursor: toastScrollAvis ? "pointer" : "default" }}>
           🍿 {toast}
         </div>
       )}
@@ -305,9 +307,6 @@ export default function FormationPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
             <button onClick={() => window.history.back()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 20, background: C.surface, border: "1.5px solid " + C.border, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               ← Retour
-            </button>
-            <button onClick={handleFait} title={isFait ? "Formation effectuée" : "Marquer comme faite"} style={{ padding: "8px 14px", borderRadius: 22, background: isFait ? C.greenBg : C.surface, border: "1.5px solid " + (isFait ? C.green + "55" : C.border), color: isFait ? C.green : C.textTer, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-              {isFait ? "✓ Faite" : "Marquer faite"}
             </button>
             <button onClick={handleFav} style={{ width: 44, height: 44, borderRadius: 22, background: isFav ? C.pinkBg : C.surface, border: "1.5px solid " + (isFav ? C.pink + "44" : C.border), color: isFav ? C.pink : C.textTer, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {isFav ? "❤️" : "🤍"}
@@ -384,16 +383,17 @@ export default function FormationPage() {
                   <span style={{ fontSize: 14, color: C.textSec }}>{f.effectif} places</span>
                 </div>
                 )}
-                {(() => {
+                {f.modalite !== "E-learning" && (() => {
                   const ul = [...new Set(sessions.flatMap((s: any) => {
                     const parts = (s as any).session_parties as any[] | null;
                     if (parts && parts.length > 0) {
-                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : (p.ville || p.lieu || "")).filter(Boolean);
+                      return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || "")).filter(Boolean);
                     }
                     return s.lieu ? [s.lieu] : [];
                   }))];
-                  const isAllVisio = ul.length > 0 && ul.every((l: string) => /visio/i.test(l));
-                  const lieu = ul.length > 1 ? "Plusieurs lieux" : (ul[0] || "—");
+                  if (ul.length === 0) return null;
+                  const isAllVisio = ul.every((l: string) => /visio/i.test(l));
+                  const lieu = ul.length > 1 ? "Plusieurs lieux" : ul[0];
                   return (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
@@ -428,6 +428,9 @@ export default function FormationPage() {
                     Accéder à la formation →
                   </a>
                 )}
+                <button onClick={handleFait} style={{ padding: "14px 20px", borderRadius: 12, background: isFait ? C.greenBg : C.surface, border: "2px solid " + (isFait ? C.green : C.borderLight), color: isFait ? C.green : C.textSec, fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                  {isFait ? "✅ Formation faite" : "☐ J'ai suivi cette formation"}
+                </button>
               </div>
             </div>
 
@@ -450,6 +453,15 @@ export default function FormationPage() {
         <div style={{ display: mob ? "block" : "grid", gridTemplateColumns: "2fr 1fr", gap: 40 }}>
           {/* LEFT COLUMN */}
           <div>
+            {/* E-learning info box — at top */}
+            {f.modalite === "E-learning" && (
+              <section style={{ marginBottom: 28, padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
+                <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1A5FA8", marginBottom: 4 }}>Formation en ligne</div>
+                <p style={{ fontSize: 14, color: "#3A6EA0", margin: 0 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</p>
+              </section>
+            )}
+
             {/* Description */}
             <section style={{ marginBottom: 40 }}>
               <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>À propos de cette formation</h2>
@@ -463,15 +475,6 @@ export default function FormationPage() {
                 <div style={{ position: "relative", paddingBottom: "56.25%", borderRadius: 16, overflow: "hidden" }}>
                   <iframe src={embedUrl} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} allowFullScreen />
                 </div>
-              </section>
-            )}
-
-            {/* Sessions — masquées pour E-learning */}
-            {f.modalite === "E-learning" && (
-              <section style={{ marginBottom: 40, padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
-                <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#1A5FA8", marginBottom: 4 }}>Formation en ligne</div>
-                <p style={{ fontSize: 14, color: "#3A6EA0", margin: 0 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</p>
               </section>
             )}
             {f.modalite !== "E-learning" && <section id="sessions" style={{ marginBottom: 40 }}>
@@ -489,8 +492,8 @@ export default function FormationPage() {
                       ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
                       : s.dates;
                     const displayLieu = parts && parts.length > 0
-                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : p.lieu).filter(Boolean))].join(", ")
-                      : s.lieu;
+                      ? [...new Set(parts.map(p => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || "")).filter(Boolean))].join(", ")
+                      : (s.lieu || "");
                     return (
                     <div key={si} style={{ padding: compact ? "10px 14px" : 16, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.border }}>
                       {compact ? (

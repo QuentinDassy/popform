@@ -119,8 +119,8 @@ function CatalogueContent() {
     if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
     if (selPops.length > 0) {
-      const fPops = f.populations || [];
-      if (fPops.length > 0 && !selPops.some(p => fPops.includes(p))) return false;
+      const fPops = (f.populations || []).map(p => p.toLowerCase().trim());
+      if (fPops.length > 0 && !selPops.some(p => fPops.some(fp => fp === p.toLowerCase() || fp.startsWith(p.toLowerCase()) || p.toLowerCase().startsWith(fp)))) return false;
     }
     if (selRegion) {
       const regionCities = REGIONS_CITIES[selRegion] || [];
