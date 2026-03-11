@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -34,23 +34,17 @@ export default function Navbar() {
   const { user, profile, signOut, showAuth, setShowAuth } = useAuth();
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [bottomSearch, setBottomSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [searchVilles, setSearchVilles] = useState<string[]>([]);
   const mob = useIsMobile();
-
-  const handleBottomSearch = () => {
-    if (bottomSearch.trim()) {
-      router.push("/catalogue?q=" + encodeURIComponent(bottomSearch.trim()));
-      setBottomSearch("");
-    } else {
-      router.push("/catalogue");
-    }
-  };
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const openLogin = () => { setAuthMode("login"); setShowAuth(true) };
   const openRegister = () => { setAuthMode("register"); setShowAuth(true) };
 
-  useEffect(() => { setMenuOpen(false) }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (profile?.role === "admin") {
@@ -59,6 +53,35 @@ export default function Navbar() {
       });
     }
   }, [user, pathname]);
+
+  // Fetch villes when search panel opens
+  useEffect(() => {
+    if (searchOpen && searchVilles.length === 0) {
+      supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
+        if (data) setSearchVilles(data.map(v => v.nom));
+      }).catch(() => {});
+    }
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 80);
+    }
+  }, [searchOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSearch = (q?: string) => {
+    const query = (q ?? searchText).trim();
+    router.push(query ? "/catalogue?q=" + encodeURIComponent(query) : "/catalogue");
+    setSearchOpen(false);
+    setSearchText("");
+  };
+
+  const handleVilleSearch = (ville: string) => {
+    router.push("/catalogue?villes=" + encodeURIComponent(ville));
+    setSearchOpen(false);
+    setSearchText("");
+  };
+
+  const filteredVilles = searchText.length >= 1
+    ? searchVilles.filter(v => v.toLowerCase().includes(searchText.toLowerCase())).slice(0, 6)
+    : searchVilles.slice(0, 10);
 
   return (
     <>
@@ -155,6 +178,67 @@ export default function Navbar() {
         </div>
       )}
 
+      {/* ===== SEARCH PANEL (mobile) ===== */}
+      {mob && searchOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 80, background: C.bg, display: "flex", flexDirection: "column" }}>
+          {/* Top bar */}
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid " + C.border, display: "flex", gap: 10, alignItems: "center", background: C.surface }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "0 14px", background: C.bgAlt, border: "1.5px solid " + C.accent + "55", borderRadius: 14, height: 46 }}>
+              <span style={{ color: C.accent, fontSize: 16 }}>🔍</span>
+              <input
+                ref={searchInputRef}
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSearch()}
+                placeholder="Ville, domaine, formateur..."
+                style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit" }}
+              />
+              {searchText && <button onClick={() => setSearchText("")} style={{ background: "none", border: "none", color: C.textTer, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>}
+            </div>
+            <button onClick={() => setSearchOpen(false)} style={{ background: "none", border: "none", color: C.accent, fontSize: 14, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", padding: "4px 0" }}>Annuler</button>
+          </div>
+
+          {/* Results */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px" }}>
+            {searchText.trim().length >= 1 ? (
+              <>
+                <button onClick={() => handleSearch()} style={{ width: "100%", padding: "13px 16px", background: C.gradient, border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 14, textAlign: "left" as const, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>🔍</span>
+                  <span>Rechercher <strong>&ldquo;{searchText}&rdquo;</strong></span>
+                </button>
+                {filteredVilles.map(ville => (
+                  <button key={ville} onClick={() => handleVilleSearch(ville)} style={{ width: "100%", padding: "12px 16px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", marginBottom: 8, textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                    <span style={{ width: 32, height: 32, borderRadius: 10, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>📍</span>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.textTer, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>Ville</div>
+                      <div style={{ fontWeight: 700 }}>{ville}</div>
+                    </div>
+                  </button>
+                ))}
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 12 }}>Suggestions</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {filteredVilles.map(ville => (
+                    <button key={ville} onClick={() => handleVilleSearch(ville)} style={{ width: "100%", padding: "12px 16px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                      <span style={{ width: 32, height: 32, borderRadius: 10, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>📍</span>
+                      <div>
+                        <div style={{ fontSize: 10, color: C.textTer, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>Ville</div>
+                        <div style={{ fontWeight: 700 }}>{ville}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { router.push("/catalogue"); setSearchOpen(false); }} style={{ width: "100%", marginTop: 20, padding: "14px", background: C.gradient, border: "none", borderRadius: 13, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                  Voir tout le catalogue →
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ===== BOTTOM NAV (mobile) ===== */}
       {mob && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 60, background: "rgba(255,253,247,0.97)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderTop: "1px solid " + C.border, display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
@@ -163,20 +247,11 @@ export default function Navbar() {
             <span style={{ fontSize: 20 }}>🏠</span>
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.2 }}>Accueil</span>
           </Link>
-          {/* Search bar */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "0 10px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 38 }}>
+          {/* Search tap-to-open (no input = no iOS zoom) */}
+          <button onClick={() => setSearchOpen(true)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "0 12px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 38, cursor: "pointer", fontFamily: "inherit" }}>
             <span style={{ color: C.textTer, fontSize: 14 }}>🔍</span>
-            <input
-              value={bottomSearch}
-              onChange={e => setBottomSearch(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleBottomSearch()}
-              placeholder="Rechercher..."
-              style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 13, fontFamily: "inherit" }}
-            />
-            {bottomSearch ? (
-              <button onClick={handleBottomSearch} style={{ padding: "3px 10px", borderRadius: 7, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>OK</button>
-            ) : null}
-          </div>
+            <span style={{ color: C.textTer, fontSize: 13 }}>Rechercher...</span>
+          </button>
           {/* Menu */}
           <button onClick={() => setMenuOpen(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, background: "none", border: "none", cursor: "pointer", color: C.textTer, flexShrink: 0, minWidth: 44, padding: 0 }}>
             <span style={{ fontSize: 20 }}>☰</span>

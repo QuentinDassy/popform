@@ -341,7 +341,7 @@ export default function AdminFormationEditorPage() {
       populations: form.populations,
       mots_cles: form.mots_cles.split(",").map(s => s.trim()).filter(Boolean),
       professions: form.professions,
-      effectif: form.effectif || null,
+      effectif: (form.effectif != null && form.effectif > 0) ? form.effectif : null,
       url_inscription: form.url_inscription || "",
       video_url: form.video_url || "",
       sans_limite: form.sans_limite,
@@ -470,7 +470,7 @@ export default function AdminFormationEditorPage() {
           </div>
           <div>
             <label style={lbl}>Effectif max</label>
-            <input style={inp} type="number" value={form.effectif || ""} onChange={e => setF("effectif", Number(e.target.value))} placeholder="20" />
+            <input style={inp} type="number" min="0" value={form.effectif || ""} onChange={e => setF("effectif", e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} placeholder="20" />
           </div>
         </div>
       </div>

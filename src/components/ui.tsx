@@ -55,9 +55,9 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ background: C.surface, border: "1px solid " + C.borderLight, borderRadius: m ? 14 : 18, overflow: "hidden", cursor: "pointer", transition: "all 0.35s", transform: hov && !m ? "translateY(-6px)" : "none", boxShadow: hov && !m ? "0 20px 50px rgba(212,43,43,0.1)" : "0 2px 12px rgba(212,43,43,0.03)", height: "100%", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", aspectRatio: "1/1", maxHeight: m ? 170 : 240, overflow: "hidden" }}>
+        <div style={{ position: "relative", height: m ? 170 : 220, overflow: "hidden" }}>
           {photo
-            ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", transition: "transform 0.6s", transform: hov ? "scale(1.06)" : "scale(1)" }} />
+            ? <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.6s", transform: hov && !m ? "scale(1.04)" : "scale(1)" }} />
             : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }} />
           }
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(45,27,6,0.7) 0%, transparent 55%)" }} />
@@ -68,7 +68,10 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
           )}
           {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, ...(onToggleFav ? { right: 48 } : { right: 8 }), padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
           <div style={{ position: "absolute", bottom: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
-            <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: dc.color }}>{f.domaine}</span>
+            {((f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine]).map((d: string) => {
+              const ddc = getDC(d);
+              return <span key={d} style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.92)", color: ddc.color }}>{d}</span>;
+            })}
             <span style={{ padding: "3px 8px", borderRadius: 7, fontSize: 10, background: "rgba(255,255,255,0.75)", color: "#2D1B06" }}>{f.modalite}</span>
           </div>
         </div>

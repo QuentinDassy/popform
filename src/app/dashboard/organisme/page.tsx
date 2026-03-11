@@ -197,7 +197,7 @@ export default function DashboardOrganismePage() {
       populations: form.populations,
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
-      effectif: form.effectif ?? 0, photo_url: form.photo_url || null,
+      effectif: (form.effectif != null && form.effectif > 0) ? form.effectif : null, photo_url: form.photo_url || null,
       video_url: form.video_url,
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
