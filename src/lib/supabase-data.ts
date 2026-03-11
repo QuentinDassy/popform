@@ -47,7 +47,7 @@ let _formationsCache: Formation[] | null = null;
 let _cacheTime = 0;
 const MEM_TTL = 2 * 60 * 1000;        // 2 min in-memory
 const LS_TTL  = 4 * 60 * 60 * 1000;  // 4h localStorage (survives long inactivity)
-const LS_KEY  = "pf_formations_v5";
+const LS_KEY  = "pf_formations_v6";
 
 function lsRead(): { data: Formation[]; t: number } | null {
   try {
@@ -83,7 +83,7 @@ export async function fetchFormations(): Promise<Formation[]> {
 
 async function _fetchAndStore(): Promise<Formation[]> {
   try {
-    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(lieu,ville,modalite,adresse)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
+    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
     if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
     // Batch-fetch formateurs for multi-formateur formations

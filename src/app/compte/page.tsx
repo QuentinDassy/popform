@@ -23,6 +23,10 @@ export default function ComptePage() {
   const [avisFormId, setAvisFormId] = useState<number | null>(null);
   const [avisNote, setAvisNote] = useState(5);
   const [avisTexte, setAvisTexte] = useState("");
+  const [avisSubContenu, setAvisSubContenu] = useState(5);
+  const [avisSubOrganisation, setAvisSubOrganisation] = useState(5);
+  const [avisSubSupports, setAvisSubSupports] = useState(5);
+  const [avisSubPertinence, setAvisSubPertinence] = useState(5);
   const [avisSubmitting, setAvisSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editProfile, setEditProfile] = useState(false);
@@ -230,49 +234,64 @@ export default function ComptePage() {
                   <div style={{ fontSize: 12, color: C.textSec }}>Votre avis aide la communauté d&apos;orthophonistes à choisir les meilleures formations.</div>
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 40 }}>
+              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {faitsF.map(f => {
                   const hasAvis = myAvis.some(a => a.formation_id === f.id);
                   const isOpen = avisFormId === f.id;
                   return (
-                    <div key={f.id} style={{ background: C.surface, borderRadius: 16, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
-                      <div style={{ display: "flex", gap: 12, padding: "12px 14px", alignItems: "center" }}>
-                        {(f as any).photo_url && <img src={(f as any).photo_url} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titre}</div>
-                          <div style={{ fontSize: 11, color: C.textTer, marginTop: 2 }}>{f.modalite} · {f.duree}</div>
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                          {!hasAvis && (
-                            <button onClick={() => { setAvisFormId(isOpen ? null : f.id); setAvisNote(5); setAvisTexte(""); }} style={{ padding: "6px 12px", borderRadius: 9, border: "1.5px solid " + C.yellow + "55", background: isOpen ? C.yellowBg : C.surface, color: C.yellowDark, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                              {isOpen ? "Annuler" : "⭐ Avis"}
-                            </button>
-                          )}
-                          {hasAvis && <span style={{ padding: "6px 12px", borderRadius: 9, background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700 }}>✓ Avis donné</span>}
-                          <button onClick={async () => { await toggleFormationFaite(user!.id, f.id); setFaitsIds(prev => prev.filter(id => id !== f.id)); }} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.green + "44", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✓ Faite</button>
-                        </div>
+                    <div key={f.id} style={{ display: "flex", flexDirection: "column" }}>
+                      <div style={{ position: "relative" }}>
+                        <FormationCard f={f} mob={mob} />
+                        <button onClick={async () => { await toggleFormationFaite(user!.id, f.id); setFaitsIds(prev => prev.filter(id => id !== f.id)); }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1.5px solid " + C.green + "44", color: C.green, fontSize: 10, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✅ Faite</button>
                       </div>
+                      {!hasAvis && !isOpen && (
+                        <button onClick={() => { setAvisFormId(f.id); setAvisNote(5); setAvisTexte(""); setAvisSubContenu(5); setAvisSubOrganisation(5); setAvisSubSupports(5); setAvisSubPertinence(5); }} style={{ marginTop: 6, padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.yellow + "55", background: C.yellowBg, color: C.yellowDark, fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "center" }}>
+                          ⭐ Donner mon avis sur cette formation
+                        </button>
+                      )}
+                      {hasAvis && (
+                        <div style={{ marginTop: 6, padding: "8px 14px", borderRadius: 10, background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, textAlign: "center" }}>✓ Avis publié</div>
+                      )}
                       {isOpen && (
-                        <div style={{ padding: "12px 14px", borderTop: "1px solid " + C.borderLight, background: C.bgAlt }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <span style={{ fontSize: 12, color: C.textSec, fontWeight: 600 }}>Note :</span>
+                        <div style={{ marginTop: 6, padding: "14px 16px", background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Votre avis</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Note globale</span>
                             <div style={{ display: "flex", gap: 2 }}>{[1,2,3,4,5].map(i => (
-                              <button key={i} onClick={() => setAvisNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, opacity: avisNote >= i ? 1 : 0.25, padding: 0 }}>⭐</button>
+                              <button key={i} type="button" onClick={() => setAvisNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, opacity: avisNote >= i ? 1 : 0.25, padding: 0 }}>⭐</button>
                             ))}</div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{avisNote}/5</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{avisNote}/5</span>
                           </div>
-                          <textarea value={avisTexte} onChange={e => setAvisTexte(e.target.value)} placeholder="Partagez votre expérience... (optionnel)" style={{ width: "100%", minHeight: 70, padding: "8px 10px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
-                          <button onClick={async () => {
-                            if (!user) return;
-                            setAvisSubmitting(true);
-                            await addAvis(f.id, user.id, profile?.full_name || "Anonyme", avisNote, avisTexte.trim());
-                            const fresh = await fetchAvis();
-                            setAvis(fresh);
-                            setAvisFormId(null);
-                            setAvisSubmitting(false);
-                          }} disabled={avisSubmitting} style={{ marginTop: 8, padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: avisSubmitting ? 0.6 : 1 }}>
-                            {avisSubmitting ? "Envoi..." : "Publier mon avis"}
-                          </button>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 8 }}>Détaillez votre expérience :</div>
+                          {([
+                            { label: "Contenu pédagogique", val: avisSubContenu, set: setAvisSubContenu },
+                            { label: "Organisation", val: avisSubOrganisation, set: setAvisSubOrganisation },
+                            { label: "Supports fournis", val: avisSubSupports, set: setAvisSubSupports },
+                            { label: "Pertinence pratique", val: avisSubPertinence, set: setAvisSubPertinence },
+                          ] as { label: string; val: number; set: (v: number) => void }[]).map(({ label, val, set }) => (
+                            <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 12, color: C.textSec, width: 140, flexShrink: 0 }}>{label}</span>
+                              <div style={{ display: "flex", gap: 2 }}>{[1,2,3,4,5].map(i => (
+                                <button key={i} type="button" onClick={() => set(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, opacity: val >= i ? 1 : 0.25, padding: 0 }}>⭐</button>
+                              ))}</div>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{val}/5</span>
+                            </div>
+                          ))}
+                          <textarea value={avisTexte} onChange={e => setAvisTexte(e.target.value)} placeholder="Partagez votre expérience..." style={{ width: "100%", minHeight: 80, padding: 10, borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, resize: "vertical", marginTop: 12, boxSizing: "border-box", fontFamily: "inherit" }} />
+                          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                            <button onClick={async () => {
+                              if (!user) return;
+                              setAvisSubmitting(true);
+                              await addAvis(f.id, user.id, profile?.full_name || "Anonyme", avisNote, avisTexte.trim(), { contenu: avisSubContenu, organisation: avisSubOrganisation, supports: avisSubSupports, pertinence: avisSubPertinence });
+                              const fresh = await fetchAvis();
+                              setAvis(fresh);
+                              setAvisFormId(null);
+                              setAvisSubmitting(false);
+                            }} disabled={avisSubmitting} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: avisSubmitting ? 0.6 : 1 }}>
+                              {avisSubmitting ? "⏳..." : "Publier"}
+                            </button>
+                            <button onClick={() => setAvisFormId(null)} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                          </div>
                         </div>
                       )}
                     </div>
