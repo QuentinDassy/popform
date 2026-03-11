@@ -528,7 +528,7 @@ export default function FormationPage() {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                             <div style={{ flex: 1 }}>
                               {(() => {
-                                const hasMeaningfulParts = parts && parts.length > 0 && parts.some((p: any) => p.titre || p.ville || p.lieu || p.adresse || p.modalite);
+                                const hasMeaningfulParts = parts && parts.length > 0 && parts.some((p: any) => p.titre || p.ville || p.lieu || p.adresse || p.modalite === "Visio");
                                 if (hasMeaningfulParts) {
                                   return (
                                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
