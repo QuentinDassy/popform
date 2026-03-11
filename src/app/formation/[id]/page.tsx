@@ -387,7 +387,7 @@ export default function FormationPage() {
                 {(() => {
                   const ul = [...new Set(sessions.flatMap((s: any) => {
                     const parts = (s as any).session_parties as any[] | null;
-                    if (parts?.length > 0) {
+                    if (parts && parts.length > 0) {
                       return parts.map((p: any) => p.modalite === "Visio" ? "Visio" : (p.ville || p.lieu || "")).filter(Boolean);
                     }
                     return s.lieu ? [s.lieu] : [];
