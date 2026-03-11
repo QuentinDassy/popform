@@ -72,7 +72,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
                 <img key={i} src={p} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ flex: 1, objectFit: "cover", objectPosition: "top", height: "100%", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
               ))}
             </div>
-          ) : null}}
+          ) : null}
           {onToggleFav && (
             <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
               {favori ? "❤️" : "🤍"}
