@@ -551,10 +551,10 @@ export default function FormationPage() {
                                   : s.dates;
                                 const lieuStr = s.lieu || "";
                                 return (
-                                  <>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>📅 {dateStr}</div>
-                                    {lieuStr && <div style={{ fontSize: 13, color: C.textSec }}>{lieuStr === "Visio" ? "💻 Visio" : "📍 " + lieuStr}</div>}
-                                  </>
+                                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>📅 {dateStr}</span>
+                                    {lieuStr && <span style={{ fontSize: 13, color: C.textSec }}>{lieuStr === "Visio" ? "💻 Visio" : "📍 " + lieuStr}</span>}
+                                  </div>
                                 );
                               })()}
                             </div>
