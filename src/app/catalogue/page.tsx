@@ -69,6 +69,7 @@ function CatalogueContent() {
   const [searchDropVilles, setSearchDropVilles] = useState<string[]>([]);
   const [searchDropDomaines, setSearchDropDomaines] = useState<string[]>([]);
   const [showSearchDrop, setShowSearchDrop] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(9);
 
   const normS = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -85,6 +86,9 @@ function CatalogueContent() {
     if (!user) { setFavoriIds([]); return; }
     fetchFavoris(user.id).then(favs => setFavoriIds(favs.map(fv => fv.formation_id))).catch(() => {});
   }, [user]);
+
+  // Reset visible count when search/filters change
+  useEffect(() => { setVisibleCount(9); }, [search, selDomaines, selModalites, selPrises, selPops, selVilles, selRegion, organismeParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleFav = async (formationId: number) => {
     if (!user) return;
@@ -177,8 +181,22 @@ function CatalogueContent() {
                 setSearchDropDomaines(md);
                 setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0 || md.length > 0);
               } else {
+                setSearchDropFormations([]);
+                setSearchDropFmts([]);
                 setSearchDropDomaines([]);
+                setSearchDropVilles([]);
                 setShowSearchDrop(false);
+              }
+            }} onFocus={() => {
+              if (!search) {
+                const sugVilles = adminVilles.slice(0, 5);
+                const sugDomaines = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).slice(0, 4);
+                const sugFmts = allFormateurs.slice(0, 3);
+                setSearchDropVilles(sugVilles);
+                setSearchDropDomaines(sugDomaines);
+                setSearchDropFmts(sugFmts);
+                setSearchDropFormations([]);
+                setShowSearchDrop(sugVilles.length > 0 || sugDomaines.length > 0);
               }
             }} onBlur={() => setTimeout(() => setShowSearchDrop(false), 150)} placeholder="Rechercher une formation, un formateur, une ville..." style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit", order: 2 }} />
             <span style={{ color: C.textTer, fontSize: 16, order: 3 }}>🔍</span>
@@ -356,9 +374,19 @@ function CatalogueContent() {
           {hasActiveFilters && <button onClick={clearAll} style={{ marginTop: 12, padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Réinitialiser les filtres</button>}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: mob ? 10 : 16, paddingBottom: 40 }}>
-          {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
-        </div>
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: mob ? 10 : 16 }}>
+            {filtered.slice(0, visibleCount).map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
+          </div>
+          {filtered.length > visibleCount && (
+            <div style={{ textAlign: "center", marginTop: 24, paddingBottom: 40 }}>
+              <button onClick={() => setVisibleCount(v => v + 9)} style={{ padding: "12px 32px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                Voir plus ({filtered.length - visibleCount} restante{filtered.length - visibleCount > 1 ? "s" : ""})
+              </button>
+            </div>
+          )}
+          {filtered.length <= visibleCount && <div style={{ paddingBottom: 40 }} />}
+        </>
       )}
     </div>
   );

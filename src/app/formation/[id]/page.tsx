@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, getDC, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, deleteAvis as deleteAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
+import { C, getDC, getPhoto, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, deleteAvis as deleteAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -263,7 +263,7 @@ export default function FormationPage() {
   if (!f) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>Formation non trouvée.</div>;
 
   const dc = getDC(f.domaine);
-  const photo = (f as any).photo_url || null;
+  const photo = (f as any).photo_url || getPhoto(f.domaine) || null;
   const sessions = f.sessions || [];
   const org = f.organisme;
   const formateur = f.formateur;
@@ -445,12 +445,8 @@ export default function FormationPage() {
 
             {/* RIGHT: Image */}
             <div style={{ marginTop: mob ? 24 : 0 }}>
-              <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "1/1" }}>
-                {photo ? (
-                  <img src={photo} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}30)` }} />
-                )}
+              <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", aspectRatio: "4/3" }}>
+                <img src={photo} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
             </div>
           </div>

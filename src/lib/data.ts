@@ -3,8 +3,8 @@
 
 import type { Formation as FormationType } from "./supabase-data";
 export type { Formation, Formateur, Organisme, Avis, Session, Inscription, Favori, AdminNotification, DomaineAdmin } from "./supabase-data";
-export { 
-  fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs, 
+export {
+  fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs,
   fetchAvis, addAvis, updateAvis, deleteAvis, fetchInscriptions, fetchFavoris, toggleFavori,
   fetchAdminNotifications, notifyAdmin, invalidateCache,
   fetchDomainesAdmin, fetchDomainesAccueil, fetchDomainesFiltres, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin,
@@ -29,14 +29,31 @@ export const C = {
 };
 
 export const PHOTOS: Record<string, string> = {
-  "Langage oral": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&h=400&fit=crop",
-  "Langage écrit": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&h=400&fit=crop",
-  "Cognition mathématique": "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&h=400&fit=crop",
-  "Neurologie": "https://images.unsplash.com/photo-1559757175-5700dde675bc?w=600&h=400&fit=crop",
-  "Pratique professionnelle": "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=600&h=400&fit=crop",
-  "OMF": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&h=400&fit=crop",
-  "default": "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&h=400&fit=crop",
+  "Langage oral": "/LO.png",
+  "Langage écrit": "/LE.png",
+  "Cognition mathématique": "/CM.png",
+  "Neurologie": "/Neurologie.png",
+  "Pratique professionnelle": "/Pratique professionnelle.png",
+  "OMF": "/OMF.png",
+  "Oralité": "/Oralité.png",
+  "Voix": "/Voix.png",
+  "Bégaiement": "/Bégaiement.png",
+  "Handicap": "/Handicap.png",
+  "default": "/LE.png",
 };
+
+export const DOMAIN_PHOTO_CHOICES = [
+  { label: "Langage oral", src: "/LO.png" },
+  { label: "Langage écrit", src: "/LE.png" },
+  { label: "Cognition math.", src: "/CM.png" },
+  { label: "Neurologie", src: "/Neurologie.png" },
+  { label: "Pratique prof.", src: "/Pratique professionnelle.png" },
+  { label: "OMF", src: "/OMF.png" },
+  { label: "Oralité", src: "/Oralité.png" },
+  { label: "Voix", src: "/Voix.png" },
+  { label: "Bégaiement", src: "/Bégaiement.png" },
+  { label: "Handicap", src: "/Handicap.png" },
+];
 
 export const CITY_PHOTOS: Record<string, string> = {};
 

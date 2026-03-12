@@ -105,7 +105,7 @@ function FormateursContent() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : selectedId ? "340px 1fr" : "1fr", gap: 16, paddingBottom: 40 }}>
+      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : selectedId ? "320px 1fr" : "1fr", gap: 16, paddingBottom: 40 }}>
         {/* ── Liste en ligne (grille) ── */}
         <div>
           <div style={{ display: "grid", gridTemplateColumns: selectedId ? "1fr" : mob ? "1fr" : "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
@@ -154,8 +154,8 @@ function FormateursContent() {
             {selectedFormations.length === 0 ? (
               <p style={{ color: C.textTer, fontSize: 13 }}>Aucune formation publiée pour l&apos;instant.</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-                {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
+              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(260px,1fr))", gap: 10 }}>
+                {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} compact />)}
               </div>
             )}
           </div>

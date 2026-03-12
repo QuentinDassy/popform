@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES } from "@/lib/data";
 import { supabase, fetchOrganismes, fetchFormateurs, type Organisme, type Formateur } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 
@@ -720,21 +720,38 @@ export default function AdminFormationEditorPage() {
       {/* ── Photo ── */}
       <div style={section}>
         <div style={{ fontWeight: 700, color: C.text, marginBottom: 16, fontSize: 15 }}>Photo</div>
-        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          {(photoFile ? URL.createObjectURL(photoFile) : form.photo_url) && (
-            <img src={photoFile ? URL.createObjectURL(photoFile) : form.photo_url} alt="" style={{ width: 120, height: 80, borderRadius: 10, objectFit: "cover", border: "1px solid " + C.border }} />
+        {/* Domain photo picker */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={lbl}>Images de domaine</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {DOMAIN_PHOTO_CHOICES.map(p => {
+              const isSelected = !photoFile && form.photo_url === p.src;
+              return (
+                <button key={p.src} onClick={() => { setF("photo_url", p.src); setPhotoFile(null); }}
+                  title={p.label}
+                  style={{ padding: 0, border: "2.5px solid " + (isSelected ? C.accent : C.borderLight), borderRadius: 10, cursor: "pointer", background: "none", overflow: "hidden", flexShrink: 0, transition: "border-color 0.15s" }}>
+                  <img src={p.src} alt={p.label} style={{ width: 76, height: 50, objectFit: "cover", display: "block" }} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Upload or URL */}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          {(photoFile ? URL.createObjectURL(photoFile) : (!DOMAIN_PHOTO_CHOICES.some(p => p.src === form.photo_url) ? form.photo_url : null)) && (
+            <img src={photoFile ? URL.createObjectURL(photoFile) : form.photo_url} alt="" style={{ width: 100, height: 66, borderRadius: 10, objectFit: "cover", border: "1px solid " + C.border }} />
           )}
           <div>
             <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => setPhotoFile(e.target.files?.[0] || null)} />
             <button onClick={() => photoInputRef.current?.click()} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 13, cursor: "pointer" }}>
-              📷 {photoFile ? photoFile.name.slice(0, 24) : (form.photo_url ? "Changer la photo" : "Ajouter une photo")}
+              📷 {photoFile ? photoFile.name.slice(0, 24) : "Importer une photo"}
             </button>
             {(photoFile || form.photo_url) && (
-              <button onClick={() => { setPhotoFile(null); setF("photo_url", ""); }} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>Supprimer</button>
+              <button onClick={() => { setPhotoFile(null); setF("photo_url", ""); }} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 9, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>✕ Supprimer</button>
             )}
           </div>
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div>
           <label style={lbl}>Ou URL directe</label>
           <input style={inp} value={form.photo_url} onChange={e => { setF("photo_url", e.target.value); setPhotoFile(null); }} placeholder="https://…" />
         </div>

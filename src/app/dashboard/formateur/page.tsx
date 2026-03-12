@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, DOMAIN_PHOTO_CHOICES, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
@@ -516,14 +516,27 @@ export default function DashboardFormateurPage() {
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Photo de la formation</label>
+              {/* Domain photo picker */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                {DOMAIN_PHOTO_CHOICES.map(p => {
+                  const isSelected = !formPhotoFile && form.photo_url === p.src;
+                  return (
+                    <button key={p.src} type="button" onClick={() => { setForm({ ...form, photo_url: p.src }); setFormPhotoFile(null); }}
+                      title={p.label}
+                      style={{ padding: 0, border: "2.5px solid " + (isSelected ? C.accent : C.borderLight), borderRadius: 8, cursor: "pointer", background: "none", overflow: "hidden", flexShrink: 0 }}>
+                      <img src={p.src} alt={p.label} style={{ width: 68, height: 44, objectFit: "cover", display: "block" }} />
+                    </button>
+                  );
+                })}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <label style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
-                  📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : form.photo_url ? "Changer la photo" : "Ajouter une photo"}
+                  📷 {formPhotoFile ? "✓ " + formPhotoFile.name.slice(0, 24) : "Importer une photo"}
                   <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) setFormPhotoFile(e.target.files[0]); }} />
                 </label>
                 {formPhotoFile
                   ? <img src={URL.createObjectURL(formPhotoFile)} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} />
-                  : form.photo_url ? <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : null}
+                  : (!DOMAIN_PHOTO_CHOICES.some(p => p.src === form.photo_url) && form.photo_url) ? <img src={form.photo_url} alt="" style={{ width: 80, height: 50, borderRadius: 8, objectFit: "cover" }} /> : null}
                 {(form.photo_url || formPhotoFile) && <button type="button" onClick={() => { setForm({ ...form, photo_url: "" }); setFormPhotoFile(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>✕ Supprimer</button>}
               </div>
             </div>

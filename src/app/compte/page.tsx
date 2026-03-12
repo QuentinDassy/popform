@@ -204,10 +204,10 @@ export default function ComptePage() {
               <p>Aucun favori. Explorez le <Link href="/catalogue" style={{ color: C.accent, fontWeight: 600 }}>catalogue</Link> !</p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40 }}>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40 }}>
               {favF.map(f => (
                 <div key={f.id} style={{ position: "relative" }}>
-                  <FormationCard f={f} mob={mob} />
+                  <FormationCard f={f} mob={mob} compact />
                   <button onClick={() => handleToggleFav(f.id)} style={{ position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>❤️</button>
                 </div>
               ))}
@@ -234,14 +234,14 @@ export default function ComptePage() {
                   <div style={{ fontSize: 12, color: C.textSec }}>Votre avis aide la communauté d&apos;orthophonistes à choisir les meilleures formations.</div>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(260px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {faitsF.map(f => {
                   const hasAvis = myAvis.some(a => a.formation_id === f.id);
                   const isOpen = avisFormId === f.id;
                   return (
                     <div key={f.id} style={{ display: "flex", flexDirection: "column" }}>
                       <div style={{ position: "relative" }}>
-                        <FormationCard f={f} mob={mob} />
+                        <FormationCard f={f} mob={mob} compact />
                         <button onClick={async () => { await toggleFormationFaite(user!.id, f.id); setFaitsIds(prev => prev.filter(id => id !== f.id)); }} style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(255,255,255,0.95)", border: "1.5px solid " + C.green + "44", color: C.green, fontSize: 10, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>✅ Faite</button>
                       </div>
                       {!hasAvis && !isOpen && (
@@ -342,7 +342,7 @@ export default function ComptePage() {
             };
             return filtered.length === 0
               ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div>
-              : <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
+              : <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {filtered.map(f => {
                   const inscRows = inscs.filter(i => i.formation_id === f.id);
                   // Une bande par session inscrite (gère 2 sessions de la même formation)
@@ -375,7 +375,7 @@ export default function ComptePage() {
                   }).filter(Boolean);
                   return (
                     <div key={f.id} style={{ position: "relative" }}>
-                      <FormationCard f={f} mob={mob} />
+                      <FormationCard f={f} mob={mob} compact />
                       {strips}
                       <button onClick={async () => {
                         if (!confirm("Se désinscrire de cette formation ?")) return;
@@ -401,8 +401,6 @@ export default function ComptePage() {
           ) : (
             <div style={{ paddingBottom: 40 }}>
               {(() => {
-                // Groupe par date — une entrée par session inscrite (pas par formation)
-                // → permet d'afficher 2 sessions de la même formation le même jour
                 type CalEvt = { date: string; entries: { formation: Formation; sessionId: number }[] };
                 const events: CalEvt[] = [];
                 inscs.forEach(({ formation_id, session_id }) => {
@@ -430,7 +428,6 @@ export default function ComptePage() {
                       if (s.dates) (s.dates.match(/\d{4}-\d{2}-\d{2}/g) || []).forEach(d => { if (!allDates.includes(d)) allDates.push(d); });
                     });
                   }
-                  // Clé de déduplication = session_id (pas formation_id) pour gérer 2 sessions même formation
                   const sid = session_id ?? -formation_id;
                   allDates.forEach(dateKey => {
                     let ev = events.find(e => e.date === dateKey);
@@ -440,46 +437,74 @@ export default function ComptePage() {
                 });
                 events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-                const mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-                const jours = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+                const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+                const JOURS_SHORT = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+                const now = new Date();
 
-                return events.map((event, i) => {
-                  const date = new Date(event.date + "T12:00:00");
-                  const jour = jours[date.getDay()];
-                  const jourNum = date.getDate();
-                  const moisNom = mois[date.getMonth()];
-                  const annee = date.getFullYear();
-                  const isPast = date < new Date();
-
-                  return (
-                    <div key={i} style={{ display: "flex", gap: 16, marginBottom: 20, opacity: isPast ? 0.6 : 1 }}>
-                      <div style={{ flexShrink: 0, width: 70, textAlign: "center" }}>
-                        <div style={{ fontSize: 11, color: C.textTer, textTransform: "uppercase" }}>{jour}</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: isPast ? C.textTer : C.accent, lineHeight: 1 }}>{jourNum}</div>
-                        <div style={{ fontSize: 11, color: C.textTer }}>{moisNom} {annee}</div>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        {event.entries.map(({ formation: f, sessionId }) => {
-                          const sessionIdx = (f.sessions || []).findIndex(s => s.id === sessionId);
-                          return (
-                            <Link key={sessionId} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-                              <div style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.border, marginBottom: 8, cursor: "pointer" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                                  <div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>{f.titre}</div>
-                                    {sessionIdx >= 0 && <div style={{ fontSize: 11, color: C.textTer, marginBottom: 2 }}>Session {sessionIdx + 1}</div>}
-                                    <div style={{ fontSize: 12, color: C.textSec }}>{f.domaine} · {f.duree}</div>
-                                  </div>
-                                  <span style={{ fontSize: 18 }}>→</span>
-                                </div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
+                // Grouper par mois
+                type MonthGroup = { key: string; label: string; events: CalEvt[] };
+                const monthGroups: MonthGroup[] = [];
+                events.forEach(evt => {
+                  const d = new Date(evt.date + "T12:00:00");
+                  const key = `${d.getFullYear()}-${d.getMonth()}`;
+                  let g = monthGroups.find(g => g.key === key);
+                  if (!g) { g = { key, label: `${MOIS[d.getMonth()]} ${d.getFullYear()}`, events: [] }; monthGroups.push(g); }
+                  g.events.push(evt);
                 });
+
+                if (monthGroups.length === 0) return <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune date à afficher.</div>;
+
+                return monthGroups.map(group => (
+                  <div key={group.key} style={{ marginBottom: 28 }}>
+                    {/* Month header */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.textSec, textTransform: "uppercase", letterSpacing: "0.07em" }}>{group.label}</div>
+                      <div style={{ flex: 1, height: 1, background: C.borderLight }} />
+                    </div>
+                    {/* Events */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {group.events.map((event, i) => {
+                        const date = new Date(event.date + "T12:00:00");
+                        const isPast = date < now;
+                        const jourNom = JOURS_SHORT[date.getDay()];
+                        const jourNum = date.getDate();
+                        return (
+                          <div key={i} style={{ opacity: isPast ? 0.5 : 1 }}>
+                            {event.entries.map(({ formation: f, sessionId }) => {
+                              const session = (f.sessions || []).find(s => s.id === sessionId);
+                              const sessionIdx = (f.sessions || []).findIndex(s => s.id === sessionId);
+                              const lieu = session?.lieu;
+                              return (
+                                <Link key={sessionId} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                                  <div style={{ display: "flex", gap: 0, background: C.surface, borderRadius: 12, border: "1.5px solid " + (isPast ? C.borderLight : C.border), overflow: "hidden", transition: "box-shadow 0.15s" }}>
+                                    {/* Date pill */}
+                                    <div style={{ width: 56, flexShrink: 0, background: isPast ? C.bgAlt : C.accentBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
+                                      <div style={{ fontSize: 10, fontWeight: 700, color: isPast ? C.textTer : C.accent, textTransform: "uppercase" }}>{jourNom}</div>
+                                      <div style={{ fontSize: 22, fontWeight: 800, color: isPast ? C.textTer : C.accent, lineHeight: 1.1 }}>{jourNum}</div>
+                                    </div>
+                                    {/* Content */}
+                                    <div style={{ flex: 1, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 }}>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: mob ? 12 : 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.titre}</div>
+                                        <div style={{ fontSize: 11, color: C.textTer, marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                          <span>{f.domaine}</span>
+                                          {sessionIdx >= 0 && <span>· Session {sessionIdx + 1}</span>}
+                                          {lieu && !/visio/i.test(lieu) && <span>· 📍 {lieu}</span>}
+                                          {lieu && /visio/i.test(lieu) && <span>· 💻 Visio</span>}
+                                        </div>
+                                      </div>
+                                      <span style={{ fontSize: 14, color: C.textTer, flexShrink: 0 }}>→</span>
+                                    </div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
               })()}
             </div>
           )}

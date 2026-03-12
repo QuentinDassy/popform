@@ -46,7 +46,7 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
 export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: Formation; compact?: boolean; mob?: boolean; favori?: boolean; onToggleFav?: () => void }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
-  const photo = (f as any).photo_url || null;
+  const photo = (f as any).photo_url || getPhoto(f.domaine) || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const uniqueLieux = [...new Set(sessions.flatMap((s: any) => {
@@ -69,7 +69,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ cursor: "pointer", transition: "all 0.3s", transform: hov && !m ? "translateY(-3px)" : "none", height: "100%", display: "flex", flexDirection: "column", background: C.surface, borderRadius: m ? 14 : 16, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
 
         {/* ── Photo ── */}
-        <div style={{ position: "relative", height: m ? 180 : undefined, aspectRatio: m ? undefined : "4/3", maxHeight: m ? undefined : 260, flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
+        <div style={{ position: "relative", height: m ? (compact ? 130 : 155) : undefined, aspectRatio: m ? undefined : "4/3", maxHeight: m ? undefined : (compact ? 160 : 210), flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
           {photo ? (
             <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
           ) : null}
