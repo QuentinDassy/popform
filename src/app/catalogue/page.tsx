@@ -373,7 +373,7 @@ function CatalogueContent() {
         </div>
       ) : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: mob ? 10 : 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16 }}>
             {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
           </div>
           <div style={{ paddingBottom: 40 }} />

@@ -115,7 +115,7 @@ function FormateursContent() {
         {selectedFormations.length === 0 ? (
           <p style={{ color: C.textTer, fontSize: 13 }}>Aucune formation publiée pour l&apos;instant.</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(280px,100%),1fr))", gap: 14 }}>
             {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
           </div>
         )}
@@ -144,7 +144,7 @@ function FormateursContent() {
       </div>
 
       {/* Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 10, paddingBottom: 40 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))", gap: 10, paddingBottom: 40 }}>
         {filtered.map(f => {
           const count = fmtCounts[f.id] || 0;
           return (

@@ -62,7 +62,7 @@ function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav
         <Link href={link || "/catalogue"} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tout →</Link>
       </div>
       {show.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: mob ? 12 : 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 12 : 16 }}>
           {show.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds?.includes(f.id)} onToggleFav={onToggleFav ? () => onToggleFav(f.id) : undefined} />)}
         </div>
       ) : (

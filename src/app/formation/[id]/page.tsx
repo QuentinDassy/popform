@@ -699,7 +699,7 @@ export default function FormationPage() {
                 <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>
                   {formateur?.sexe === "Femme" ? "D'autres formations de cette formatrice" : formateur?.sexe === "Homme" ? "D'autres formations de ce formateur" : "D'autres formations de ce·tte formateur·rice"}
                 </h2>
-                <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(260px,100%),1fr))", gap: 16 }}>
                   {autresFmt.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
                 </div>
               </section>
@@ -707,7 +707,7 @@ export default function FormationPage() {
             {autresOrg.length > 0 && (
               <section>
                 <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 16 }}>D&apos;autres formations de cet organisme</h2>
-                <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(260px,100%),1fr))", gap: 16 }}>
                   {autresOrg.map(ff => <FormationCard key={ff.id} f={ff} mob={mob} />)}
                 </div>
               </section>

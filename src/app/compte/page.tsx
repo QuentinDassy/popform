@@ -204,7 +204,7 @@ export default function ComptePage() {
               <p>Aucun favori. Explorez le <Link href="/catalogue" style={{ color: C.accent, fontWeight: 600 }}>catalogue</Link> !</p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(240px,100%),1fr))", gap: 10, paddingBottom: 40 }}>
               {favF.map(f => (
                 <div key={f.id} style={{ position: "relative" }}>
                   <FormationCard f={f} mob={mob} compact />
@@ -234,7 +234,7 @@ export default function ComptePage() {
                   <div style={{ fontSize: 12, color: C.textSec }}>Votre avis aide la communauté d&apos;orthophonistes à choisir les meilleures formations.</div>
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(240px,100%),1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {faitsF.map(f => {
                   const hasAvis = myAvis.some(a => a.formation_id === f.id);
                   const isOpen = avisFormId === f.id;
@@ -342,7 +342,7 @@ export default function ComptePage() {
             };
             return filtered.length === 0
               ? <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucune inscription.</div>
-              : <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(240px,1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
+              : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(240px,100%),1fr))", gap: 10, paddingBottom: 40, alignItems: "start" }}>
                 {filtered.map(f => {
                   const inscRows = inscs.filter(i => i.formation_id === f.id);
                   // Une bande par session inscrite (gère 2 sessions de la même formation)

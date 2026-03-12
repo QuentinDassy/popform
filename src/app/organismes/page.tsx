@@ -101,7 +101,7 @@ export default function OrganismesPage() {
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Organismes</h1>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12, paddingBottom: 40 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 12, paddingBottom: 40 }}>
         {orgs.map(o => <OrgCard key={o.id} o={o} count={orgCounts[o.id] || 0} mob={mob} />)}
       </div>
     </div>
