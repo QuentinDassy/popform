@@ -27,7 +27,6 @@ function FormateursContent() {
     try {
       const [f, fo] = await Promise.all([fetchFormateurs(), fetchFormations()]);
 
-      // Deduplicate by name only (same name = same person)
       const seen = new Set<string>();
       const unique = f.filter((fmt: any) => {
         const nameKey = fmt.nom?.toLowerCase().trim();
@@ -36,7 +35,6 @@ function FormateursContent() {
         return true;
       });
 
-      // Fetch total formation count per formateur (all non-refused), counting formateur_ids too
       const { data: allFmtFormations } = await supabase
         .from("formations")
         .select("formateur_id, formateur_ids, status")
@@ -62,14 +60,10 @@ function FormateursContent() {
   }, []);
 
   useEffect(() => {
-    if (selectedId != null) {
-      if (mob && detailRef.current) {
-        setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-      } else {
-        setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
-      }
+    if (selectedId != null && detailRef.current) {
+      setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     }
-  }, [selectedId, mob]);
+  }, [selectedId]);
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
@@ -85,13 +79,14 @@ function FormateursContent() {
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
+      {/* Header */}
       <div style={{ padding: "18px 0 14px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🎤 Formateur·rice·s</h1>
         <p style={{ fontSize: 13, color: C.textTer, marginTop: 2 }}>{fmts.length} formateur·rice·s</p>
       </div>
 
-      {/* Barre de recherche */}
+      {/* Search */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 42, maxWidth: 400 }}>
           <span style={{ color: C.textTer, fontSize: 16 }}>🔍</span>
@@ -105,62 +100,67 @@ function FormateursContent() {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: mob ? "column" : "row", gap: 16, paddingBottom: 40, alignItems: "flex-start" }}>
-        {/* ── Liste en ligne (grille) ── */}
-        <div style={!mob && selectedId ? { flexGrow: 0, flexShrink: 0, flexBasis: 320, minWidth: 0, width: 320 } : { flex: 1, minWidth: 0 }}>
-          <div style={{ display: "grid", gridTemplateColumns: selectedId ? "1fr" : mob ? "1fr" : "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
-            {filtered.map(f => {
-              const count = fmtCounts[f.id] || 0;
-              const isSelected = selectedId === f.id;
-              return (
-                <div key={f.id} onClick={() => setSelectedId(isSelected ? null : f.id)}
-                  style={{ padding: mob ? 14 : 16, background: isSelected ? C.accentBg : C.surface, borderRadius: 14, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.2s", display: "flex", gap: 12, alignItems: "center" }}>
-                  {/* Avatar */}
-                  <div style={{ width: 80, height: 80, borderRadius: 40, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
-                    {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                  </div>
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: isSelected ? C.accent : C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.nom}</div>
-                    <div style={{ fontSize: 12, color: C.textTer }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
-                    {f.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, overflow: "hidden", maxHeight: "2.6em", lineHeight: "1.3em" }}>{f.bio}</div>}
-                  </div>
-                  <span style={{ fontSize: 11, color: isSelected ? C.accent : C.textTer, flexShrink: 0 }}>{isSelected ? "▲" : "▶"}</span>
-                </div>
-              );
-            })}
-          </div>
-          {filtered.length === 0 && (
-            <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucun formateur·rice trouvé·e.</div>
-          )}
-        </div>
+      {/* Grid of cards */}
+      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 10, marginBottom: selectedId ? 16 : 0 }}>
+        {filtered.map(f => {
+          const count = fmtCounts[f.id] || 0;
+          const isSelected = selectedId === f.id;
+          return (
+            <div key={f.id} onClick={() => setSelectedId(isSelected ? null : f.id)}
+              style={{ padding: 14, background: isSelected ? C.accentBg : C.surface, borderRadius: 14, border: "1.5px solid " + (isSelected ? C.accent + "55" : C.borderLight), cursor: "pointer", transition: "all 0.15s", display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 60, height: 60, borderRadius: 30, background: C.gradientSoft, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 800 }}>
+                {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? C.accent : C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
+                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
+                {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{f.bio}</div>}
+              </div>
+              <span style={{ fontSize: 10, color: isSelected ? C.accent : C.textTer, flexShrink: 0 }}>{isSelected ? "▼" : "▶"}</span>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* ── Panneau détail formateur sélectionné ── */}
-        {selectedId && selected && (
-          <div ref={detailRef} style={{ flex: 1, minWidth: 0, overflow: "hidden", scrollMarginTop: 60 }}>
-            <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
-              <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
-                <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>Aucun formateur·rice trouvé·e.</div>
+      )}
+
+      {/* Detail panel — full width, below the grid */}
+      {selectedId && selected && (
+        <div ref={detailRef} style={{ marginTop: 8, marginBottom: 40, scrollMarginTop: 80 }}>
+          {/* Profile card */}
+          <div style={{ background: C.surface, borderRadius: 16, border: "1.5px solid " + C.accent + "33", padding: mob ? 16 : 24, marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ display: "flex", gap: 16, alignItems: "center", minWidth: 0 }}>
+                <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800 }}>
                   {selected.photo_url ? <img src={selected.photo_url} alt={selected.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : selected.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                 </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: C.text }}>{selected.nom}</div>
-                  <div style={{ fontSize: 12, color: C.textTer }}>{fmtTitle(selected)}{selected.organisme ? " · " + selected.organisme.nom : ""}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: mob ? 16 : 20, fontWeight: 800, color: C.text }}>{selected.nom}</div>
+                  <div style={{ fontSize: 12, color: C.textTer, marginTop: 2 }}>{fmtTitle(selected)}{selected.organisme ? " · " + selected.organisme.nom : ""}</div>
                 </div>
               </div>
-              {selected.bio && <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6, borderTop: "1px solid " + C.borderLight, paddingTop: 12 }}>{selected.bio}</p>}
+              <button onClick={() => setSelectedId(null)} style={{ flexShrink: 0, background: "none", border: "1.5px solid " + C.border, borderRadius: 8, cursor: "pointer", color: C.textTer, fontSize: 12, padding: "5px 10px", fontFamily: "inherit" }}>✕ Fermer</button>
             </div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 }}>Formations ({selectedFormations.length})</h3>
-            {selectedFormations.length === 0 ? (
-              <p style={{ color: C.textTer, fontSize: 13 }}>Aucune formation publiée pour l&apos;instant.</p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill,minmax(260px,1fr))", gap: 10 }}>
-                {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} compact />)}
-              </div>
+            {selected.bio && (
+              <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.7, borderTop: "1px solid " + C.borderLight, paddingTop: 12, marginTop: 14, marginBottom: 0 }}>{selected.bio}</p>
             )}
           </div>
-        )}
-      </div>
+
+          {/* Formations */}
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 12 }}>Formations ({selectedFormations.length})</h3>
+          {selectedFormations.length === 0 ? (
+            <p style={{ color: C.textTer, fontSize: 13, paddingBottom: 20 }}>Aucune formation publiée pour l&apos;instant.</p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!selectedId && <div style={{ paddingBottom: 40 }} />}
     </div>
   );
 }
