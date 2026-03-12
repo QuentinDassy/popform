@@ -91,13 +91,14 @@ export default function Navbar() {
   };
 
   const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const randomSample = <T,>(arr: T[], n: number): T[] => { const copy = [...arr]; for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy.slice(0, n); };
   const q = norm(searchText);
   const filteredVilles = q.length >= 1
     ? searchVilles.filter(v => norm(v).includes(q)).slice(0, 4)
-    : searchVilles.slice(0, 8);
+    : randomSample(searchVilles, 3);
   const filteredFormateurs = q.length >= 2
     ? searchFormateurs.filter(f => norm(f.nom).includes(q)).slice(0, 3)
-    : [];
+    : randomSample(searchFormateurs, 2);
   const filteredFormations = q.length >= 2
     ? searchFormations.filter(f => norm(f.titre).includes(q) || norm(f.domaine).includes(q)).slice(0, 3)
     : [];
@@ -275,6 +276,15 @@ export default function Navbar() {
                       <div>
                         <div style={{ fontSize: 10, color: C.textTer, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>Ville</div>
                         <div style={{ fontWeight: 700 }}>{ville}</div>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredFormateurs.map(fmt => (
+                    <button key={fmt.id} onClick={() => { router.push("/formateurs?id=" + fmt.id); setSearchOpen(false); setSearchText(""); }} style={{ width: "100%", padding: "12px 16px", background: C.surface, border: "1px solid " + C.borderLight, borderRadius: 12, color: C.text, fontSize: 14, cursor: "pointer", textAlign: "left" as const, display: "flex", gap: 12, alignItems: "center" }}>
+                      <span style={{ width: 32, height: 32, borderRadius: 16, background: C.accentBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🎤</span>
+                      <div>
+                        <div style={{ fontSize: 10, color: C.textTer, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>Formateur</div>
+                        <div style={{ fontWeight: 700 }}>{fmt.nom}</div>
                       </div>
                     </button>
                   ))}

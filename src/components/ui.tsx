@@ -69,7 +69,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ cursor: "pointer", transition: "all 0.3s", transform: hov && !m ? "translateY(-3px)" : "none", height: "100%", display: "flex", flexDirection: "column", background: C.surface, borderRadius: m ? 14 : 16, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
 
         {/* ── Photo ── */}
-        <div style={{ position: "relative", height: m ? (compact ? 130 : 155) : undefined, aspectRatio: m ? undefined : "4/3", maxHeight: m ? undefined : (compact ? 160 : 210), flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
+        <div style={{ position: "relative", height: compact ? 150 : (m ? 170 : 200), flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
           {photo ? (
             <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
           ) : null}

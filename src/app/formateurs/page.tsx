@@ -105,9 +105,9 @@ function FormateursContent() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : selectedId ? "320px 1fr" : "1fr", gap: 16, paddingBottom: 40 }}>
+      <div style={{ display: mob ? "block" : "flex", gap: 16, paddingBottom: 40, alignItems: "flex-start" }}>
         {/* ── Liste en ligne (grille) ── */}
-        <div>
+        <div style={mob ? {} : { flex: selectedId ? "0 0 320px" : 1, minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: selectedId ? "1fr" : mob ? "1fr" : "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
             {filtered.map(f => {
               const count = fmtCounts[f.id] || 0;
@@ -137,7 +137,7 @@ function FormateursContent() {
 
         {/* ── Panneau détail formateur sélectionné ── */}
         {selectedId && selected && (
-          <div ref={detailRef} style={{ position: "static", scrollMarginTop: 60, minWidth: 0, overflow: "hidden" }}>
+          <div ref={detailRef} style={{ flex: 1, minWidth: 0, overflow: "hidden", scrollMarginTop: 60 }}>
             <div style={{ padding: mob ? 16 : 24, background: C.surface, borderRadius: 16, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
               <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 12 }}>
                 <div style={{ width: 88, height: 88, borderRadius: 44, background: C.gradientSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>

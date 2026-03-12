@@ -107,6 +107,11 @@ export default function HomePage() {
   const [allFormateurs, setAllFormateurs] = useState<{id: number, nom: string}[]>([]);
 
   const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const randomSample = <T,>(arr: T[], n: number): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
+    return copy.slice(0, n);
+  };
 
   const handleSearch = () => {
     setShowSuggestions(false);
@@ -270,7 +275,7 @@ export default function HomePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: mob ? "5px 5px 5px 14px" : "6px 6px 6px 20px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: mob ? 12 : 16, boxShadow: "0 8px 36px rgba(212,43,43,0.07)", position: "relative" }}>
               <span style={{ color: C.textTer, fontSize: mob ? 16 : 18 }}>🔍</span>
               <div style={{ flex: 1, position: "relative", padding: mob ? "9px 0" : "12px 0" }}>
-                <input id="hero-search" value={heroSearch} onChange={e => handleSearchInput(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit" }} />
+                <input id="hero-search" value={heroSearch} onChange={e => handleSearchInput(e.target.value)} onFocus={() => { setSearchFocused(true); if (!heroSearch) { const sugVilles = randomSample(adminVilles.map(v => v.nom), 3); const domNames = domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]; const sugDomaines = randomSample(domNames, 3); const sugFmts = randomSample(allFormateurs, 2); setSearchVilleResults(sugVilles); setSearchDomaineResults(sugDomaines); setSearchFmtResults(sugFmts); setSearchSuggestions([]); setShowSuggestions(sugVilles.length > 0 || sugDomaines.length > 0 || sugFmts.length > 0); } }} onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} onKeyDown={e => e.key === "Enter" && handleSearch()} placeholder="" style={{ width: "100%", background: "none", border: "none", outline: "none", color: C.text, fontSize: 16, fontFamily: "inherit" }} />
                 {!heroSearch && !searchFocused && <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", color: C.textTer, fontSize: mob ? 13 : 16, pointerEvents: "none" }}>{typed}<span style={{ color: C.accent }}>|</span></div>}
               </div>
               <div onClick={handleSearch} style={{ padding: mob ? "10px 16px" : "13px 26px", borderRadius: mob ? 9 : 12, background: C.gradient, color: "#fff", fontSize: mob ? 12 : 14, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer" }}>Rechercher</div>
@@ -322,6 +327,11 @@ export default function HomePage() {
                       </div>
                     ))}
                   </>
+                )}
+                {heroSearch.length >= 2 && (
+                  <div onMouseDown={() => { handleSearch(); }} style={{ padding: "10px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, borderTop: "1px solid " + C.borderLight }}>
+                    <span style={{ fontSize: 13, color: C.accent, fontWeight: 700 }}>Voir tous les résultats dans le catalogue →</span>
+                  </div>
                 )}
               </div>
             )}
