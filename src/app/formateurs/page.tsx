@@ -105,9 +105,9 @@ function FormateursContent() {
         </div>
       </div>
 
-      <div style={{ display: mob ? "block" : "flex", gap: 16, paddingBottom: 40, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: mob ? "column" : "row", gap: 16, paddingBottom: 40, alignItems: "flex-start" }}>
         {/* ── Liste en ligne (grille) ── */}
-        <div style={mob ? {} : { flex: selectedId ? "0 0 320px" : 1, minWidth: 0 }}>
+        <div style={!mob && selectedId ? { flexGrow: 0, flexShrink: 0, flexBasis: 320, minWidth: 0, width: 320 } : { flex: 1, minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: selectedId ? "1fr" : mob ? "1fr" : "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
             {filtered.map(f => {
               const count = fmtCounts[f.id] || 0;
