@@ -76,6 +76,17 @@ interface GeoFeature {
   geometry: { type: string; coordinates: unknown };
 }
 
+// Contour géographique de la Belgique (lon, lat) — sens horaire
+const BELGIUM_RING: number[][] = [
+  [2.54, 51.09], [2.75, 51.16], [2.92, 51.23], [3.19, 51.34], [3.36, 51.37],
+  [4.17, 51.37], [4.53, 51.47], [5.48, 51.47],
+  [5.69, 50.77], [6.14, 50.50], [6.40, 50.35], [6.35, 50.16],
+  [6.03, 49.97], [5.82, 49.54],
+  [5.15, 49.55], [4.83, 49.56], [4.14, 49.74],
+  [3.68, 50.07], [3.52, 50.32], [3.21, 50.71], [2.83, 50.87],
+  [2.54, 51.09],
+];
+
 const DOM_REGIONS = ["Guadeloupe", "Martinique", "Guyane", "Réunion", "Mayotte"];
 
 export default function FranceMap({
@@ -130,11 +141,10 @@ export default function FranceMap({
           {(() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
-            // Contour Belgique projeté avec la même projection Mercator (SCALE=1800, CENTER=2.5/46.5)
-            const d = "M301,61 L308,57 L313,54 L322,48 L327,47 L346,47 L363,43 L394,43 L400,78 L422,101 L403,138 L351,129 L331,102 L321,81 L309,73 Z";
+            const d = ringToPath(BELGIUM_RING);
             return (
-              <g>
-                <path d={d} fill="none" stroke="white" strokeWidth={3} style={{ pointerEvents: "none" }} />
+              <g transform="translate(0,-14)">
+                <path d={d} fill="none" stroke="white" strokeWidth={4} style={{ pointerEvents: "none" }} />
                 <path
                   d={d}
                   fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
@@ -166,30 +176,18 @@ export default function FranceMap({
             );
           })}
 
-          {/* Belgique — zone cliquable + label dessinés APRÈS la France (visibilité et interactivité) */}
+          {/* Belgique — zone cliquable dessinée APRÈS la France */}
           {(() => {
-            const count = countFormations("Belgique", formations);
-            const isHov = hovered === "Belgique";
-            const hitD = "M301,61 L308,57 L313,54 L322,48 L327,47 L346,47 L363,43 L394,43 L400,78 L422,101 L403,138 L351,129 L331,102 L321,81 L309,73 Z";
+            const d = ringToPath(BELGIUM_RING);
             return (
-              <g style={{ cursor: "pointer" }}
+              <g
+                transform="translate(0,-14)"
+                style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHovered("Belgique")}
                 onMouseLeave={() => setHovered(null)}
                 onClick={() => go("Belgique")}
               >
-                <path d={hitD} fill="transparent" stroke="none" />
-                <text x="355" y="57" textAnchor="middle" fontSize={9} fontWeight={600}
-                  fill={isHov ? "white" : "#6B4F2D"}
-                  style={{ pointerEvents: "none", userSelect: "none" as const }}>
-                  Belgique
-                </text>
-                {count > 0 && (
-                  <text x="355" y="67" textAnchor="middle" fontSize={7.5}
-                    fill={isHov ? "white" : C.accent}
-                    style={{ pointerEvents: "none", userSelect: "none" as const }}>
-                    {count} form.
-                  </text>
-                )}
+                <path d={d} fill="transparent" stroke="none" />
               </g>
             );
           })()}
