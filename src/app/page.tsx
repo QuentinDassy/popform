@@ -97,6 +97,7 @@ export default function HomePage() {
   const [selVilles, setSelVilles] = useState<string[]>([]);
   const [selRegion, setSelRegion] = useState<string>("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [featTab, setFeatTab] = useState<"ortho" | "pro">("ortho");
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
@@ -444,14 +445,28 @@ export default function HomePage() {
 
 
       {/* ===== FONCTIONNALITÉS ===== */}
-      <section style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "24px 16px 8px" : "36px 40px 8px" }}>
+      <section style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "24px 16px 32px" : "36px 40px 48px" }}>
+        {/* Toggle */}
+        <div style={{ display: "flex", gap: 6, marginBottom: mob ? 14 : 18, background: C.bgAlt, borderRadius: 12, padding: 4, width: "fit-content" }}>
+          {([["ortho", "👩‍⚕️ Orthophonistes"], ["pro", "🏢 Formateurs & organismes"]] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setFeatTab(key)} style={{ padding: mob ? "7px 14px" : "8px 18px", borderRadius: 9, border: "none", background: featTab === key ? C.surface : "transparent", color: featTab === key ? C.text : C.textSec, fontSize: mob ? 12 : 13, fontWeight: featTab === key ? 700 : 500, cursor: "pointer", boxShadow: featTab === key ? "0 1px 4px rgba(45,27,6,0.08)" : "none", transition: "all 0.15s", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {/* Cards */}
         <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: mob ? 10 : 16 }}>
-          {[
+          {(featTab === "ortho" ? [
             { icon: "❤️", title: "Favoris", desc: "Sauvegardez les formations qui vous intéressent en un clic" },
             { icon: "📋", title: "Mes inscriptions", desc: "Retrouvez toutes vos formations au même endroit, sans chercher" },
             { icon: "📅", title: "Calendrier", desc: "Visualisez vos sessions à venir sur un calendrier personnel" },
             { icon: "⭐", title: "Avis vérifiés", desc: "Déposez et consultez des retours d'expérience honnêtes" },
-          ].map(({ icon, title, desc }) => (
+          ] : [
+            { icon: "📣", title: "Visibilité", desc: "Touchez des milliers d'orthophonistes qui cherchent activement à se former" },
+            { icon: "🔍", title: "Référencement", desc: "Vos formations apparaissent dans les recherches par domaine, ville et modalité" },
+            { icon: "🗂️", title: "Gestion simple", desc: "Créez et modifiez vos formations en quelques minutes depuis votre dashboard" },
+            { icon: "👥", title: "Vos formateurs", desc: "Centralisez tous vos formateurs et leurs formations au sein d'un seul espace" },
+          ]).map(({ icon, title, desc }) => (
             <div key={title} style={{ background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, padding: mob ? "16px 14px" : "20px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
               <span style={{ fontSize: mob ? 24 : 28 }}>{icon}</span>
               <div style={{ fontSize: mob ? 13 : 14, fontWeight: 800, color: C.text }}>{title}</div>
