@@ -111,12 +111,11 @@ export default function FranceMap({
         style={{
           position: "relative",
           borderRadius: 16,
-          overflow: "hidden",
           background: "transparent",
         }}
       >
         <svg
-          viewBox={`0 0 ${W} ${H}`}
+          viewBox={`0 -60 ${W} ${H + 60}`}
           style={{ width: "100%", height: "auto", display: "block" }}
           aria-label="Carte des régions de France"
         >
@@ -131,14 +130,13 @@ export default function FranceMap({
               Chargement…
             </text>
           )}
-          {/* Belgique — dessinée AVANT la France pour que la France couvre le chevauchement sud */}
+          {/* Belgique — entièrement au-dessus de la France grâce au translate */}
           {belgiumGeo && (() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
             const d = featureToPath(belgiumGeo.geometry);
             return (
-              <g transform="translate(0,-16)">
-                <path d={d} fill="none" stroke="white" strokeWidth={4} style={{ pointerEvents: "none" }} />
+              <g transform="translate(0,-90)">
                 <path
                   d={d}
                   fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
@@ -170,10 +168,10 @@ export default function FranceMap({
             );
           })}
 
-          {/* Belgique — zone cliquable dessinée APRÈS la France */}
+          {/* Belgique — zone cliquable */}
           {belgiumGeo && (
             <g
-              transform="translate(0,-16)"
+              transform="translate(0,-90)"
               style={{ cursor: "pointer" }}
               onMouseEnter={() => setHovered("Belgique")}
               onMouseLeave={() => setHovered(null)}
