@@ -314,7 +314,7 @@ function CatalogueContent() {
                   </div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>International</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    <button onClick={() => setSelRegion(selRegion === "Belgique" ? "" : "Belgique")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Belgique" ? C.accent : C.border), background: selRegion === "Belgique" ? C.accentBg : C.surface, color: selRegion === "Belgique" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Belgique" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>🇧🇪 Belgique</button>
+                    <button onClick={() => setSelRegion(selRegion === "Belgique" ? "" : "Belgique")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Belgique" ? C.accent : C.border), background: selRegion === "Belgique" ? C.accentBg : C.surface, color: selRegion === "Belgique" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Belgique" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Belgique</button>
                   </div>
                 </div>
 
@@ -357,7 +357,7 @@ function CatalogueContent() {
               {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
             </optgroup>
             <optgroup label="International">
-              <option value="Belgique">🇧🇪 Belgique</option>
+              <option value="Belgique">Belgique</option>
             </optgroup>
           </select>
           {hasActiveFilters && (

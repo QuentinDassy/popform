@@ -361,7 +361,7 @@ export default function HomePage() {
                       { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
                       { label: "Population", options: POPULATIONS, sel: selPops, set: setSelPops },
                       { label: "Ville", options: adminVilles.map(v => v.nom), sel: selVilles, set: setSelVilles },
-                      { label: "Région", options: [...FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)), ...DOM_REGIONS_LIST, "Belgique 🇧🇪"], sel: selRegion ? [selRegion === "Belgique" ? "Belgique 🇧🇪" : selRegion] : [], set: (v: string[]) => setSelRegion((v[v.length - 1] || "").replace(" 🇧🇪", "")) },
+                      { label: "Région", options: [...FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)), ...DOM_REGIONS_LIST, "Belgique"], sel: selRegion ? [selRegion] : [], set: (v: string[]) => setSelRegion(v[v.length - 1] || "") },
                     ].map(({ label, options, sel: selected, set }) => (
                       <div key={label} style={{ marginBottom: 20 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
@@ -412,7 +412,7 @@ export default function HomePage() {
                   {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
                 </optgroup>
                 <optgroup label="─────────────">
-                  <option value="Belgique">🇧🇪 Belgique</option>
+                  <option value="Belgique">Belgique</option>
                 </optgroup>
               </select>
               {hasFilters && <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
