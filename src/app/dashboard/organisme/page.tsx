@@ -90,18 +90,6 @@ export default function DashboardOrganismePage() {
       let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
       let myOrg = myOrgs?.[0] || null;
 
-      // If no organisme linked, create one for this user
-      if (!myOrg && profile?.role === "organisme") {
-        const orgNomFromMeta = (profile as any).organisme_nom as string | null;
-        const nom = orgNomFromMeta || profile.full_name || "Mon organisme";
-        const { data: newOrg } = await supabase.from("organismes").insert({
-          nom,
-          logo: nom.slice(0, 2).toUpperCase(),
-          description: "",
-          user_id: user.id,
-        }).select().single();
-        myOrg = newOrg;
-      }
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");
       setOrgNom(myOrg?.nom || "");
@@ -346,6 +334,13 @@ export default function DashboardOrganismePage() {
   if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile && profile.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
+  if (!organisme) return (
+    <div style={{ textAlign: "center", padding: 80 }}>
+      <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Votre espace est en cours de configuration</div>
+      <div style={{ fontSize: 14, color: C.textSec }}>L&apos;administrateur doit lier votre compte à votre organisme. Revenez dans quelques instants.</div>
+    </div>
+  );
 
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };

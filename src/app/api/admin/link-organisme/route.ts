@@ -30,6 +30,15 @@ export async function POST(req: NextRequest) {
   const target = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
   if (!target) return NextResponse.json({ error: "Aucun compte trouvé avec cet email" }, { status: 404 });
 
+  // Supprimer l'éventuel organisme vide auto-créé pour cet utilisateur (doublon)
+  const { data: existingOrgs } = await admin.from("organismes").select("id").eq("user_id", target.id).neq("id", organisme_id);
+  if (existingOrgs?.length) {
+    const idsToDelete = existingOrgs.map((o: any) => o.id);
+    await admin.from("formations").update({ organisme_id: organisme_id }).in("organisme_id", idsToDelete);
+    await admin.from("formateurs").update({ organisme_id: organisme_id }).in("organisme_id", idsToDelete);
+    await admin.from("organismes").delete().in("id", idsToDelete);
+  }
+
   // Lier l'organisme au user_id
   const { error: orgErr } = await admin.from("organismes").update({ user_id: target.id }).eq("id", organisme_id);
   if (orgErr) return NextResponse.json({ error: "Erreur mise à jour organisme" }, { status: 500 });
