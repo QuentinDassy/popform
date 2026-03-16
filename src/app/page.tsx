@@ -446,6 +446,9 @@ export default function HomePage() {
 
       {/* ===== FONCTIONNALITÉS ===== */}
       <section style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "24px 16px 32px" : "36px 40px 48px" }}>
+        <div style={{ marginBottom: mob ? 14 : 18 }}>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, margin: 0 }}>Pourquoi utiliser PopForm ?</h2>
+        </div>
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: mob ? 14 : 18, background: C.bgAlt, borderRadius: 12, padding: 4, width: "fit-content" }}>
           {([["ortho", "👩‍⚕️ Orthophonistes"], ["pro", "🏢 Formateurs & organismes"]] as const).map(([key, label]) => (
