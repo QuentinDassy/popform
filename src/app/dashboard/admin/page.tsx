@@ -20,6 +20,9 @@ export default function DashboardAdminPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs">("formations");
   const [utilisateurs, setUtilisateurs] = useState<{ organismes: any[]; formateurs: any[] }>({ organismes: [], formateurs: [] });
+  const [linkingOrg, setLinkingOrg] = useState<number | null>(null);
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkMsg, setLinkMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -774,9 +777,44 @@ export default function DashboardAdminPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
-                    <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé"}</div>
+                    <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé — sans accès"}</div>
                   </div>
                 </div>
+                {!o.user_id && linkingOrg !== o.id && (
+                  <button onClick={() => { setLinkingOrg(o.id); setLinkEmail(""); setLinkMsg(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    🔗 Lier un compte
+                  </button>
+                )}
+                {linkingOrg === o.id && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <input
+                      type="email"
+                      placeholder="Email du compte à lier"
+                      value={linkEmail}
+                      onChange={e => setLinkEmail(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none" }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={async () => {
+                          setLinkMsg(null);
+                          const res = await fetch("/api/admin/link-organisme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organisme_id: o.id, email: linkEmail }) });
+                          const data = await res.json();
+                          if (res.ok) {
+                            setLinkMsg({ id: o.id, msg: "✓ Compte lié avec succès", ok: true });
+                            setLinkingOrg(null);
+                            setUtilisateurs(prev => ({ ...prev, organismes: prev.organismes.map(x => x.id === o.id ? { ...x, user_id: data.user_id } : x) }));
+                          } else {
+                            setLinkMsg({ id: o.id, msg: data.error || "Erreur", ok: false });
+                          }
+                        }}
+                        style={{ flex: 1, padding: "6px", borderRadius: 8, background: C.accent, color: "#fff", border: "none", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      >Confirmer</button>
+                      <button onClick={() => setLinkingOrg(null)} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>✕</button>
+                    </div>
+                  </div>
+                )}
+                {linkMsg?.id === o.id && <div style={{ fontSize: 11, color: linkMsg.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg.msg}</div>}
                 <Link href={`/dashboard/admin/formation/new?organisme_id=${o.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
               </div>
             ))}
