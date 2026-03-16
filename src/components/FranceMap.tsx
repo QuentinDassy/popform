@@ -145,6 +145,55 @@ export default function FranceMap({
               />
             );
           })}
+
+          {/* Belgique — forme géographique, légèrement décollée (−8 px vertical) */}
+          {(() => {
+            const count = countFormations("Belgique", formations);
+            const isHov = hovered === "Belgique";
+            // Polygon computed with same Mercator projection (SCALE=1800, CENTER_LON=2.5, CENTER_LAT=46.5)
+            // Key points (lon°E, lat°N) → (x, y) shifted −8px vertically for visual gap:
+            // SW ~(2.5,50.0)→(300,113), SE Lux ~(4.0,49.8)→(347,128), Bastogne ~(5.9,49.5)→(406,151)
+            // SE corner ~(6.4,49.6)→(422,143), E mid ~(6.2,50.3)→(418,100), NE ~(6.4,51.2)→(422,32)
+            // N ~(5.5,51.3)→(394,28), Antwerp ~(4.5,51.5)→(363,14), Ghent ~(3.2,51.4)→(322,21)
+            // Coast ~(2.5,51.1)→(300,34)
+            const d = "M300,113 L347,128 L406,151 L422,143 L418,100 L422,32 L394,28 L363,14 L322,21 L300,34 Z";
+            return (
+              <g>
+                <path
+                  d={d}
+                  fill={isHov ? "#2E7CE6" : count > 0 ? "#C8E4FF" : "#DDE8F5"}
+                  stroke="white"
+                  strokeWidth={2.5}
+                  style={{ cursor: "pointer", transition: "fill 0.15s" }}
+                  onMouseEnter={() => setHovered("Belgique")}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => go("Belgique")}
+                />
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={isHov ? "#1A5CB0" : "#8BBAD8"}
+                  strokeWidth={0.8}
+                  style={{ pointerEvents: "none" }}
+                />
+                <text
+                  x="355" y="82"
+                  textAnchor="middle"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill={isHov ? "white" : "#2E7CE6"}
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  🇧🇪 Belgique
+                </text>
+                {count > 0 && (
+                  <text x="355" y="92" textAnchor="middle" fontSize={7.5} fill={isHov ? "white" : C.accent} style={{ pointerEvents: "none", userSelect: "none" }}>
+                    {count} form.
+                  </text>
+                )}
+              </g>
+            );
+          })()}
         </svg>
       </div>
 
@@ -188,6 +237,7 @@ export default function FranceMap({
         {[
           { color: "#FFE8C0", label: "Formations disponibles" },
           { color: "#E8DFCF", label: "Aucune formation" },
+          { color: "#C8E4FF", label: "Belgique 🇧🇪" },
         ].map(({ color, label }) => (
           <div
             key={label}
@@ -259,27 +309,6 @@ export default function FranceMap({
         </div>
       </div>
 
-      {/* Belgique */}
-      {(() => {
-        const count = countFormations("Belgique", formations);
-        const isHov = hovered === "Belgique";
-        return (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10, textAlign: "center" }}>
-              Belgique 🇧🇪
-            </div>
-            <button
-              onMouseEnter={() => setHovered("Belgique")}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => go("Belgique")}
-              style={{ width: "100%", padding: "10px 6px", borderRadius: 12, border: "1.5px solid " + (isHov ? C.accent : C.borderLight), background: isHov ? C.accentBg : count > 0 ? "#FFF8EC" : C.surface, color: isHov ? C.accent : C.textSec, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "center" as const, transition: "all 0.15s" }}
-            >
-              <div>Belgique</div>
-              {count > 0 && <div style={{ fontSize: 9, color: C.accent, marginTop: 3 }}>{count} form.</div>}
-            </button>
-          </div>
-        );
-      })()}
     </div>
   );
 }
