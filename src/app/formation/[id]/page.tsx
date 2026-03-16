@@ -190,6 +190,7 @@ export default function FormationPage() {
   const [inscribing, setInscribing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [toastScrollAvis, setToastScrollAvis] = useState(false);
+  const [photo, setPhoto] = useState<string>("");
   const { user, profile, setShowAuth } = useAuth();
 
   const showToast = (msg: string) => {
@@ -200,7 +201,7 @@ export default function FormationPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   useEffect(() => {
     if (!id) return;
-    fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); }).catch(() => setLoading(false));
+    fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); if (d) setPhoto((d as any).photo_url || getPhoto(d.domaine)); }).catch(() => setLoading(false));
     fetchAvis().then(setAvis);
     fetchFormations().then(setFormations);
     if (user) {
@@ -264,7 +265,6 @@ export default function FormationPage() {
 
   const dc = getDC(f.domaine);
   const domainPhoto = getPhoto(f.domaine);
-  const [photo, setPhoto] = useState<string>((f as any).photo_url || domainPhoto);
   const sessions = f.sessions || [];
   const org = f.organisme;
   const formateur = f.formateur;
