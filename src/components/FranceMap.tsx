@@ -76,17 +76,6 @@ interface GeoFeature {
   geometry: { type: string; coordinates: unknown };
 }
 
-// Contour géographique de la Belgique (lon, lat) — sens horaire
-const BELGIUM_RING: number[][] = [
-  [2.54, 51.09], [2.75, 51.16], [2.92, 51.23], [3.19, 51.34], [3.36, 51.37],
-  [4.17, 51.37], [4.53, 51.47], [5.48, 51.47],
-  [5.69, 50.77], [6.14, 50.50], [6.40, 50.35], [6.35, 50.16],
-  [6.03, 49.97], [5.82, 49.54],
-  [5.15, 49.55], [4.83, 49.56], [4.14, 49.74],
-  [3.68, 50.07], [3.52, 50.32], [3.21, 50.71], [2.83, 50.87],
-  [2.54, 51.09],
-];
-
 const DOM_REGIONS = ["Guadeloupe", "Martinique", "Guyane", "Réunion", "Mayotte"];
 
 export default function FranceMap({
@@ -95,6 +84,7 @@ export default function FranceMap({
   formations?: { sessions?: { lieu: string }[] }[];
 }) {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
+  const [belgiumGeo, setBelgiumGeo] = useState<GeoFeature | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const router = useRouter();
 
@@ -102,6 +92,10 @@ export default function FranceMap({
     fetch(GEO_URL)
       .then((r) => r.json())
       .then((data) => setFeatures(data.features || []))
+      .catch(console.error);
+    fetch("/belgium.geojson")
+      .then((r) => r.json())
+      .then((data) => setBelgiumGeo(data.features?.[0] || null))
       .catch(console.error);
   }, []);
 
@@ -138,12 +132,12 @@ export default function FranceMap({
             </text>
           )}
           {/* Belgique — dessinée AVANT la France pour que la France couvre le chevauchement sud */}
-          {(() => {
+          {belgiumGeo && (() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
-            const d = ringToPath(BELGIUM_RING);
+            const d = featureToPath(belgiumGeo.geometry);
             return (
-              <g transform="translate(0,-14)">
+              <g transform="translate(0,-16)">
                 <path d={d} fill="none" stroke="white" strokeWidth={4} style={{ pointerEvents: "none" }} />
                 <path
                   d={d}
@@ -177,20 +171,17 @@ export default function FranceMap({
           })}
 
           {/* Belgique — zone cliquable dessinée APRÈS la France */}
-          {(() => {
-            const d = ringToPath(BELGIUM_RING);
-            return (
-              <g
-                transform="translate(0,-14)"
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => setHovered("Belgique")}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => go("Belgique")}
-              >
-                <path d={d} fill="transparent" stroke="none" />
-              </g>
-            );
-          })()}
+          {belgiumGeo && (
+            <g
+              transform="translate(0,-16)"
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHovered("Belgique")}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => go("Belgique")}
+            >
+              <path d={featureToPath(belgiumGeo.geometry)} fill="transparent" stroke="none" />
+            </g>
+          )}
         </svg>
       </div>
 
