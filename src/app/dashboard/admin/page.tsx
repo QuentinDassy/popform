@@ -18,7 +18,8 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("publiee");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs" | "clics">("formations");
+  const [clickStats, setClickStats] = useState<{ formation_id: number; titre: string; nb: number }[]>([]);
   const [utilisateurs, setUtilisateurs] = useState<{ organismes: any[]; formateurs: any[] }>({ organismes: [], formateurs: [] });
   const [linkingOrg, setLinkingOrg] = useState<number | null>(null);
   const [linkEmail, setLinkEmail] = useState("");
@@ -304,6 +305,7 @@ export default function DashboardAdminPage() {
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
         <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer" }}>👥 Utilisateurs</button>
+        <button onClick={async () => { setAdminTab("clics"); if (clickStats.length === 0) { const { data } = await supabase.rpc("formation_click_stats"); if (data) setClickStats(data); } }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "clics" ? C.surface : "transparent", color: adminTab === "clics" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "clics" ? 700 : 500, cursor: "pointer" }}>📊 Clics</button>
         <Link href="/dashboard/admin/import" style={{ padding: "7px 14px", borderRadius: 9, background: "transparent", color: C.textTer, fontSize: 12, fontWeight: 500, textDecoration: "none", display: "flex", alignItems: "center" }}>📥 Import Excel</Link>
       </div>
 
@@ -841,6 +843,26 @@ export default function DashboardAdminPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {/* ===== CLICS TAB ===== */}
+      {adminTab === "clics" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Nombre de clics sur "Voir la formation" par fiche. Données depuis l'activation du tracking.</p>
+          {clickStats.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: C.textTer, fontSize: 13 }}>Aucun clic enregistré pour l'instant.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {clickStats.map((s, i) => (
+                <div key={s.formation_id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.textTer, width: 24, textAlign: "right", flexShrink: 0 }}>#{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.titre}</span>
+                  <span style={{ padding: "3px 10px", borderRadius: 8, background: C.accentBg, color: C.accent, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{s.nb} clic{s.nb > 1 ? "s" : ""}</span>
+                  <Link href={`/dashboard/admin/formation/${s.formation_id}`} style={{ fontSize: 11, color: C.textTer, textDecoration: "none", flexShrink: 0 }}>→</Link>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
