@@ -11,27 +11,37 @@ export default function InvitePage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [hasInviteHash, setHasInviteHash] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Detect if URL contains an invite token in the hash (Supabase implicit flow)
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash;
-      if (hash.includes("access_token") || hash.includes("type=invite")) {
-        setHasInviteHash(true);
-      }
+    // Parse hash fragment and establish session manually
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const params = new URLSearchParams(hash);
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+    if (access_token && refresh_token) {
+      supabase.auth.setSession({ access_token, refresh_token }).then(() => {
+        setSessionReady(true);
+        // Clean the hash from the URL without triggering a reload
+        window.history.replaceState(null, "", window.location.pathname);
+      });
+    } else {
+      setSessionReady(true);
     }
   }, []);
 
   useEffect(() => {
-    // Don't redirect if we have an invite hash — the client is processing it
-    if (!loading && !user && !hasInviteHash) {
+    if (!loading && !user && sessionReady) {
       router.replace("/?auth=1");
     }
-  }, [loading, user, router, hasInviteHash]);
+  }, [loading, user, router, sessionReady]);
 
   const handleSetPassword = async () => {
     if (!password.trim()) { setMsg("Veuillez saisir un mot de passe."); return; }
@@ -45,13 +55,12 @@ export default function InvitePage() {
       setSaving(false);
       return;
     }
-    // Lier automatiquement l'organisme si l'invitation en portait un
     await fetch("/api/auth/complete-invite", { method: "POST" });
     setDone(true);
     setSaving(false);
   };
 
-  if (loading) {
+  if (loading && !sessionReady) {
     return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>Chargement…</div>;
   }
 
@@ -62,11 +71,11 @@ export default function InvitePage() {
           <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 8 }}>Bienvenue sur PopForm !</h1>
           <p style={{ fontSize: 15, color: C.textSec, lineHeight: 1.6, marginBottom: 28 }}>
-            Votre compte est activé. Vous pouvez maintenant accéder à toutes les formations.
+            Votre compte est activé. Vous pouvez maintenant accéder à votre dashboard.
           </p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/compte" style={{ padding: "12px 24px", borderRadius: 10, background: C.gradient, color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none", display: "inline-block" }}>
-              Mon espace
+            <Link href="/dashboard/organisme" style={{ padding: "12px 24px", borderRadius: 10, background: C.gradient, color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none", display: "inline-block" }}>
+              Mon dashboard
             </Link>
             <Link href="/catalogue" style={{ padding: "12px 24px", borderRadius: 10, background: C.surface, border: "1.5px solid " + C.border, color: C.text, fontWeight: 600, fontSize: 14, textDecoration: "none", display: "inline-block" }}>
               Explorer les formations
@@ -76,6 +85,9 @@ export default function InvitePage() {
       </div>
     );
   }
+
+  const inputStyle: React.CSSProperties = { flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 0 };
+  const wrapStyle: React.CSSProperties = { display: "flex", alignItems: "center", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bg, boxSizing: "border-box" };
 
   return (
     <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
@@ -93,25 +105,35 @@ export default function InvitePage() {
             <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Mot de passe
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Au moins 8 caractères"
-              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bg, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-            />
+            <div style={wrapStyle}>
+              <input
+                type={showPwd ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Au moins 8 caractères"
+                style={inputStyle}
+              />
+              <button type="button" onClick={() => setShowPwd(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 16, padding: "0 0 0 8px", lineHeight: 1 }}>
+                {showPwd ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: C.textTer, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Confirmer le mot de passe
             </label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              placeholder="Répétez votre mot de passe"
-              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bg, color: C.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-            />
+            <div style={wrapStyle}>
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                placeholder="Répétez votre mot de passe"
+                style={inputStyle}
+              />
+              <button type="button" onClick={() => setShowConfirm(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 16, padding: "0 0 0 8px", lineHeight: 1 }}>
+                {showConfirm ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
 
           {msg && <p style={{ color: C.pink, fontSize: 13, marginBottom: 12 }}>{msg}</p>}
