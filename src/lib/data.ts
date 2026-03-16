@@ -39,7 +39,7 @@ export const PHOTOS: Record<string, string> = {
   "Voix": "/Voix.png",
   "Bégaiement": "/begaiement.png",
   "Handicap": "/handicappf.png",
-  "TSA": "/tsa.png",
+  "TSA": "/tsa2.png",
   "Relation orthophonique": "/relationortho.png",
   "default": "/langageoral.png",
 };
@@ -55,7 +55,7 @@ export const DOMAIN_PHOTO_CHOICES = [
   { label: "Voix", src: "/Voix.png" },
   { label: "Bégaiement", src: "/begaiement.png" },
   { label: "Handicap", src: "/handicappf.png" },
-  { label: "TSA", src: "/tsa.png" },
+  { label: "TSA", src: "/tsa2.png" },
   { label: "Relation ortho.", src: "/relationortho.png" },
 ];
 

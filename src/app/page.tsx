@@ -177,7 +177,8 @@ export default function HomePage() {
             fetchFormations(),
             new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000)),
           ]);
-          setFormations(formationsData);
+          const shuffled = [...formationsData]; for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+          setFormations(shuffled);
         } catch (e) {
           console.error("Error loading formations:", e);
         } finally {

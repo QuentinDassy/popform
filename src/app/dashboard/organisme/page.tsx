@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 
 const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
+const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
 
 type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[] };
@@ -727,6 +728,19 @@ export default function DashboardOrganismePage() {
                 {["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"].map(p => (
                   <button key={p} onClick={() => setForm({ ...form, populations: form.populations.includes(p) ? form.populations.filter(x => x !== p) : [...form.populations, p] })}
                     style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.populations.includes(p) ? C.blue + "55" : C.border), background: form.populations.includes(p) ? C.blueBg : C.bgAlt, color: form.populations.includes(p) ? C.blue : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.populations.includes(p) ? 700 : 400 }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Professions ciblées */}
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Professions ciblées</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {PROFESSIONS_OPTS.map(p => (
+                  <button key={p} onClick={() => setForm({ ...form, professions: form.professions.includes(p) ? form.professions.filter(x => x !== p) : [...form.professions, p] })}
+                    style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.professions.includes(p) ? C.green + "55" : C.border), background: form.professions.includes(p) ? C.greenBg : C.bgAlt, color: form.professions.includes(p) ? C.green : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.professions.includes(p) ? 700 : 400 }}>
                     {p}
                   </button>
                 ))}
