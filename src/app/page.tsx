@@ -443,6 +443,24 @@ export default function HomePage() {
       </section>
 
 
+      {/* ===== FONCTIONNALITÉS ===== */}
+      <section style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "24px 16px 8px" : "36px 40px 8px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: mob ? 10 : 16 }}>
+          {[
+            { icon: "❤️", title: "Favoris", desc: "Sauvegardez les formations qui vous intéressent en un clic" },
+            { icon: "📋", title: "Mes inscriptions", desc: "Retrouvez toutes vos formations au même endroit, sans chercher" },
+            { icon: "📅", title: "Calendrier", desc: "Visualisez vos sessions à venir sur un calendrier personnel" },
+            { icon: "⭐", title: "Avis vérifiés", desc: "Déposez et consultez des retours d'expérience honnêtes" },
+          ].map(({ icon, title, desc }) => (
+            <div key={title} style={{ background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, padding: mob ? "16px 14px" : "20px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: mob ? 24 : 28 }}>{icon}</span>
+              <div style={{ fontSize: mob ? 13 : 14, fontWeight: 800, color: C.text }}>{title}</div>
+              <div style={{ fontSize: mob ? 11 : 12, color: C.textSec, lineHeight: 1.5 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ===== SECTIONS ===== */}
       {!loading && domainesAccueil.length > 0 ? (
         domainesAccueil.map((domaine, di) => {
