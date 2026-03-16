@@ -130,8 +130,8 @@ export default function FranceMap({
           {(() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
-            // translate(0,-5) baked in: y -= 5
-            const d = "M300,116 L347,137 L406,161 L422,150 L418,107 L422,40 L394,40 L363,24 L322,31 L300,43 Z";
+            // Contour Belgique projeté avec la même projection Mercator (SCALE=1800, CENTER=2.5/46.5)
+            const d = "M301,61 L308,57 L313,54 L322,48 L327,47 L346,47 L363,43 L394,43 L400,78 L422,101 L403,138 L351,129 L331,102 L321,81 L309,73 Z";
             return (
               <g>
                 <path d={d} fill="none" stroke="white" strokeWidth={3} style={{ pointerEvents: "none" }} />
@@ -170,8 +170,7 @@ export default function FranceMap({
           {(() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
-            // Simplified hit area: only the northern strip visible above France (y < ~110)
-            const hitD = "M300,116 L418,107 L422,40 L394,40 L363,24 L322,31 L300,43 Z";
+            const hitD = "M301,61 L308,57 L313,54 L322,48 L327,47 L346,47 L363,43 L394,43 L400,78 L422,101 L403,138 L351,129 L331,102 L321,81 L309,73 Z";
             return (
               <g style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHovered("Belgique")}
@@ -179,13 +178,13 @@ export default function FranceMap({
                 onClick={() => go("Belgique")}
               >
                 <path d={hitD} fill="transparent" stroke="none" />
-                <text x="362" y="89" textAnchor="middle" fontSize={9} fontWeight={600}
+                <text x="355" y="57" textAnchor="middle" fontSize={9} fontWeight={600}
                   fill={isHov ? "white" : "#6B4F2D"}
                   style={{ pointerEvents: "none", userSelect: "none" as const }}>
                   Belgique
                 </text>
                 {count > 0 && (
-                  <text x="362" y="99" textAnchor="middle" fontSize={7.5}
+                  <text x="355" y="67" textAnchor="middle" fontSize={7.5}
                     fill={isHov ? "white" : C.accent}
                     style={{ pointerEvents: "none", userSelect: "none" as const }}>
                     {count} form.
