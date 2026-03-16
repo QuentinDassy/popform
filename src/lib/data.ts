@@ -107,6 +107,9 @@ export const REGIONS_CITIES: Record<string, string[]> = {
   "Belgique": ["Bruxelles", "Liège", "Anvers", "Gand", "Bruges", "Charleroi", "Namur", "Louvain", "Mons", "Arlon"],
 };
 
+export const FRENCH_REGIONS = Object.keys(REGIONS_CITIES).filter(r => r !== "Belgique");
+export const DOM_REGIONS_LIST = ["Guadeloupe", "Guyane", "Martinique", "Mayotte", "Réunion"];
+
 export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CITIES).reduce(
   (acc, [region, cities]) => { cities.forEach(c => { acc[c] = region; }); return acc; },
   {} as Record<string, string>

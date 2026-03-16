@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -302,9 +302,19 @@ function CatalogueContent() {
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Région</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                    {Object.keys(REGIONS_CITIES).map(r => (
+                    {FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)).map(r => (
                       <button key={r} onClick={() => setSelRegion(selRegion === r ? "" : r)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === r ? C.accent : C.border), background: selRegion === r ? C.accentBg : C.surface, color: selRegion === r ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === r ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
                     ))}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>DOM-TOM</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    {DOM_REGIONS_LIST.map(r => (
+                      <button key={r} onClick={() => setSelRegion(selRegion === r ? "" : r)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === r ? C.accent : C.border), background: selRegion === r ? C.accentBg : C.surface, color: selRegion === r ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === r ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>International</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    <button onClick={() => setSelRegion(selRegion === "Belgique" ? "" : "Belgique")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Belgique" ? C.accent : C.border), background: selRegion === "Belgique" ? C.accentBg : C.surface, color: selRegion === "Belgique" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Belgique" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>🇧🇪 Belgique</button>
                   </div>
                 </div>
 
@@ -340,7 +350,15 @@ function CatalogueContent() {
           </select>
           <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
             <option value="">Région</option>
-            {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
+            <optgroup label="France métropolitaine">
+              {FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)).map(r => <option key={r} value={r}>{r}</option>)}
+            </optgroup>
+            <optgroup label="DOM-TOM">
+              {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+            </optgroup>
+            <optgroup label="International">
+              <option value="Belgique">🇧🇪 Belgique</option>
+            </optgroup>
           </select>
           {hasActiveFilters && (
             <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕ Effacer</button>

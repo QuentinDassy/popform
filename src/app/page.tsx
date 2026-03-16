@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import FranceMap from "@/components/FranceMap";
 import { useIsMobile } from "@/lib/hooks";
@@ -361,7 +361,7 @@ export default function HomePage() {
                       { label: "Prise en charge", options: PRISES, sel: selPrises, set: setSelPrises },
                       { label: "Population", options: POPULATIONS, sel: selPops, set: setSelPops },
                       { label: "Ville", options: adminVilles.map(v => v.nom), sel: selVilles, set: setSelVilles },
-                      { label: "Région", options: Object.keys(REGIONS_CITIES), sel: selRegion ? [selRegion] : [], set: (v: string[]) => setSelRegion(v[v.length - 1] || "") },
+                      { label: "Région", options: [...FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)), ...DOM_REGIONS_LIST, "Belgique 🇧🇪"], sel: selRegion ? [selRegion === "Belgique" ? "Belgique 🇧🇪" : selRegion] : [], set: (v: string[]) => setSelRegion((v[v.length - 1] || "").replace(" 🇧🇪", "")) },
                     ].map(({ label, options, sel: selected, set }) => (
                       <div key={label} style={{ marginBottom: 20 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{label}</div>
@@ -405,7 +405,15 @@ export default function HomePage() {
               </select>
               <select value={selRegion} onChange={e => setSelRegion(e.target.value)} style={sel(false)}>
                 <option value="">Région</option>
-                {Object.keys(REGIONS_CITIES).map(r => <option key={r} value={r}>{r}</option>)}
+                <optgroup label="France métropolitaine">
+                  {FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)).map(r => <option key={r} value={r}>{r}</option>)}
+                </optgroup>
+                <optgroup label="DOM-TOM">
+                  {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+                </optgroup>
+                <optgroup label="─────────────">
+                  <option value="Belgique">🇧🇪 Belgique</option>
+                </optgroup>
               </select>
               {hasFilters && <button onClick={clearAll} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "33", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
               <button onClick={handleSearch} title="Lancer la recherche avec les filtres" style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.gradient, color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>🔍</button>
