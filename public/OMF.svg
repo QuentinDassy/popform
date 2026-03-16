@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380">
+  <defs>
+    <linearGradient id="bgOMF" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FEF0F5"/>
+      <stop offset="100%" style="stop-color:#FFD6E8"/>
+    </linearGradient>
+    <linearGradient id="faceOMF" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FDDCB8"/>
+      <stop offset="100%" style="stop-color:#F5C080"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" fill="url(#bgOMF)"/>
+  <circle cx="530" cy="60" r="90" fill="#E84575" opacity="0.07"/>
+  <circle cx="70" cy="310" r="70" fill="#E84575" opacity="0.06"/>
+
+  <!-- Face -->
+  <ellipse cx="250" cy="185" rx="110" ry="125" fill="url(#faceOMF)" stroke="#E8A870" stroke-width="1.5"/>
+  <!-- Ears -->
+  <ellipse cx="143" cy="185" rx="18" ry="25" fill="#F5C080" stroke="#E8A870" stroke-width="1.5"/>
+  <ellipse cx="357" cy="185" rx="18" ry="25" fill="#F5C080" stroke="#E8A870" stroke-width="1.5"/>
+  <!-- Hair -->
+  <ellipse cx="250" cy="93" rx="105" ry="42" fill="#8B4513"/>
+  <!-- Eyes -->
+  <ellipse cx="218" cy="160" rx="13" ry="14" fill="white" stroke="#E8A870" stroke-width="1"/>
+  <ellipse cx="282" cy="160" rx="13" ry="14" fill="white" stroke="#E8A870" stroke-width="1"/>
+  <circle cx="220" cy="161" r="8" fill="#3D1F00"/>
+  <circle cx="284" cy="161" r="8" fill="#3D1F00"/>
+  <circle cx="222" cy="159" r="2.5" fill="white"/>
+  <circle cx="286" cy="159" r="2.5" fill="white"/>
+  <!-- Eyebrows -->
+  <path d="M207,148 Q218,143 230,148" fill="none" stroke="#6B3A00" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M270,148 Q282,143 293,148" fill="none" stroke="#6B3A00" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Nose -->
+  <path d="M244,178 Q250,192 256,178" fill="none" stroke="#C09070" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="244" cy="191" rx="7" ry="5" fill="#E8A870" opacity="0.5"/>
+  <ellipse cx="256" cy="191" rx="7" ry="5" fill="#E8A870" opacity="0.5"/>
+  <!-- Open mouth showing teeth -->
+  <path d="M215,220 Q250,245 285,220" fill="#E84575" opacity="0.8"/>
+  <path d="M215,220 Q250,232 285,220" fill="white"/>
+  <!-- Teeth line -->
+  <path d="M225,222 L225,232" stroke="#E0D0D0" stroke-width="1.5" opacity="0.5"/>
+  <path d="M238,222 L238,233" stroke="#E0D0D0" stroke-width="1.5" opacity="0.5"/>
+  <path d="M250,222 L250,233" stroke="#E0D0D0" stroke-width="1.5" opacity="0.5"/>
+  <path d="M262,222 L262,233" stroke="#E0D0D0" stroke-width="1.5" opacity="0.5"/>
+  <path d="M274,222 L274,232" stroke="#E0D0D0" stroke-width="1.5" opacity="0.5"/>
+  <!-- Tongue -->
+  <ellipse cx="250" cy="237" rx="22" ry="12" fill="#E84575" opacity="0.6"/>
+  <!-- Jaw indicator (dotted lines) -->
+  <path d="M175,220 Q180,240 195,255" fill="none" stroke="#E84575" stroke-width="2" stroke-dasharray="5,4" opacity="0.5"/>
+  <path d="M325,220 Q320,240 305,255" fill="none" stroke="#E84575" stroke-width="2" stroke-dasharray="5,4" opacity="0.5"/>
+
+  <!-- Label -->
+  <text x="300" y="348" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#9A1A4A" text-anchor="middle" opacity="0.9">Oro-Myo-Fonctionnel</text>
+</svg>

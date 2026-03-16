@@ -51,7 +51,7 @@ export default function VillesPage() {
               .filter(([c]) => c === nn || c.startsWith(nn) || nn.startsWith(c))
               .reduce((sum, [, v]) => sum + v, 0);
             return [n, count] as [string, number];
-          }).sort((a, b) => b[1] - a[1]));
+          }).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]));
         } else {
           setCities([]);
         }

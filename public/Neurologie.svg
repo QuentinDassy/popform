@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380">
+  <defs>
+    <linearGradient id="bgNeuro" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EBF2FF"/>
+      <stop offset="100%" style="stop-color:#D5E6FF"/>
+    </linearGradient>
+    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9EC8FF"/>
+      <stop offset="100%" style="stop-color:#5B9EFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" fill="url(#bgNeuro)"/>
+  <circle cx="520" cy="60" r="85" fill="#2E7CE6" opacity="0.06"/>
+  <circle cx="70" cy="300" r="70" fill="#2E7CE6" opacity="0.06"/>
+
+  <!-- Brain shape (left hemisphere) -->
+  <path d="M190,195 C185,160 200,130 225,120 C245,112 265,118 275,130 C285,118 305,112 325,122 C350,132 360,155 355,180 C368,185 375,200 368,218 C378,230 375,250 360,258 C355,275 338,285 318,282 C308,295 288,300 268,292 C248,300 228,295 218,282 C198,285 182,272 178,255 C165,248 160,230 168,215 C162,208 163,198 190,195 Z"
+    fill="url(#brainGrad)" stroke="#2E7CE6" stroke-width="2" opacity="0.85"/>
+
+  <!-- Brain folds (right hem) -->
+  <path d="M275,130 C295,118 318,118 335,130" fill="none" stroke="white" stroke-width="2" opacity="0.5"/>
+  <path d="M268,150 Q280,140 292,150 Q304,160 316,150" fill="none" stroke="white" stroke-width="1.5" opacity="0.45"/>
+  <path d="M220,170 Q240,158 260,170" fill="none" stroke="white" stroke-width="1.5" opacity="0.45"/>
+  <path d="M185,200 Q200,188 218,200" fill="none" stroke="white" stroke-width="1.5" opacity="0.45"/>
+  <path d="M355,190 Q365,200 358,215" fill="none" stroke="white" stroke-width="1.5" opacity="0.45"/>
+  <path d="M220,230 Q245,220 268,230 Q290,242 312,230" fill="none" stroke="white" stroke-width="1.5" opacity="0.4"/>
+  <path d="M190,255 Q210,248 228,255" fill="none" stroke="white" stroke-width="1.5" opacity="0.4"/>
+  <path d="M300,260 Q320,252 340,262" fill="none" stroke="white" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Neural connections -->
+  <circle cx="420" cy="145" r="7" fill="#F5B731" opacity="0.9"/>
+  <circle cx="460" cy="185" r="5" fill="#F5B731" opacity="0.8"/>
+  <circle cx="490" cy="150" r="6" fill="#F5B731" opacity="0.9"/>
+  <circle cx="450" cy="225" r="7" fill="#F5B731" opacity="0.8"/>
+  <circle cx="500" cy="210" r="5" fill="#F5B731" opacity="0.7"/>
+  <line x1="420" y1="145" x2="460" y2="185" stroke="#F5B731" stroke-width="1.5" opacity="0.6"/>
+  <line x1="460" y1="185" x2="490" y2="150" stroke="#F5B731" stroke-width="1.5" opacity="0.6"/>
+  <line x1="460" y1="185" x2="450" y2="225" stroke="#F5B731" stroke-width="1.5" opacity="0.6"/>
+  <line x1="490" y1="150" x2="500" y2="210" stroke="#F5B731" stroke-width="1.5" opacity="0.6"/>
+  <line x1="450" y1="225" x2="500" y2="210" stroke="#F5B731" stroke-width="1.5" opacity="0.6"/>
+  <!-- Connection to brain -->
+  <line x1="360" y1="190" x2="420" y2="145" stroke="#F5B731" stroke-width="1.5" opacity="0.4" stroke-dasharray="4,4"/>
+
+  <text x="300" y="348" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#1A4D9A" text-anchor="middle" opacity="0.9">Neurologie</text>
+</svg>

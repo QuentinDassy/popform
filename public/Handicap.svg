@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380">
+  <defs>
+    <linearGradient id="bgHandi" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EDF8FF"/>
+      <stop offset="100%" style="stop-color:#C8E8FF"/>
+    </linearGradient>
+    <linearGradient id="personGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5B9EFF"/>
+      <stop offset="100%" style="stop-color:#2E7CE6"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" fill="url(#bgHandi)"/>
+  <circle cx="500" cy="60" r="80" fill="#2E7CE6" opacity="0.07"/>
+  <circle cx="80" cy="310" r="70" fill="#2E7CE6" opacity="0.07"/>
+
+  <!-- Wheelchair -->
+  <!-- Large wheel back -->
+  <circle cx="225" cy="265" r="52" fill="none" stroke="#2E7CE6" stroke-width="7" opacity="0.85"/>
+  <circle cx="225" cy="265" r="8" fill="#2E7CE6" opacity="0.7"/>
+  <!-- Spokes -->
+  <line x1="225" y1="213" x2="225" y2="257" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="225" y1="273" x2="225" y2="317" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="173" y1="265" x2="217" y2="265" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="233" y1="265" x2="277" y2="265" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="188" y1="228" x2="221" y2="261" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="229" y1="269" x2="262" y2="302" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="262" y1="228" x2="229" y2="261" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <line x1="221" y1="269" x2="188" y2="302" stroke="#2E7CE6" stroke-width="2.5" opacity="0.5"/>
+  <!-- Small wheel front -->
+  <circle cx="300" cy="295" r="22" fill="none" stroke="#2E7CE6" stroke-width="5" opacity="0.75"/>
+  <!-- Chair frame -->
+  <path d="M225,213 L245,145 L295,145" fill="none" stroke="#2E7CE6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  <path d="M295,145 L305,200 L285,210 L245,215" fill="none" stroke="#2E7CE6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  <line x1="245" y1="215" x2="300" y2="295" stroke="#2E7CE6" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <!-- Seat -->
+  <path d="M247,190 L300,190 L305,210 L245,215 Z" fill="#2E7CE6" opacity="0.3"/>
+  <!-- Backrest -->
+  <rect x="240" y="145" width="8" height="50" rx="4" fill="#2E7CE6" opacity="0.5"/>
+
+  <!-- Person -->
+  <!-- Head -->
+  <circle cx="280" cy="112" r="28" fill="#FDDCB8" stroke="#E8A870" stroke-width="1.5"/>
+  <!-- Body -->
+  <path d="M280,140 L275,175 L258,200" fill="none" stroke="#FDDCB8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arm reaching -->
+  <path d="M280,155 L320,148 L345,155" fill="none" stroke="#FDDCB8" stroke-width="8" stroke-linecap="round"/>
+  <!-- Hair -->
+  <path d="M255,105 Q268,90 285,95 Q298,88 305,100" fill="none" stroke="#5D3A1A" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Inclusive symbol / people around -->
+  <circle cx="400" cy="145" r="20" fill="url(#personGrad)" opacity="0.25"/>
+  <circle cx="440" cy="175" r="15" fill="url(#personGrad)" opacity="0.2"/>
+  <circle cx="390" cy="195" r="17" fill="url(#personGrad)" opacity="0.2"/>
+  <!-- connecting lines -->
+  <line x1="400" y1="145" x2="440" y2="175" stroke="#2E7CE6" stroke-width="1.5" opacity="0.3" stroke-dasharray="4,3"/>
+  <line x1="440" y1="175" x2="390" y2="195" stroke="#2E7CE6" stroke-width="1.5" opacity="0.3" stroke-dasharray="4,3"/>
+  <line x1="400" y1="145" x2="390" y2="195" stroke="#2E7CE6" stroke-width="1.5" opacity="0.3" stroke-dasharray="4,3"/>
+
+  <text x="300" y="348" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#1A4D9A" text-anchor="middle" opacity="0.9">Handicap</text>
+</svg>

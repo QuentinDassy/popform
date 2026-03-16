@@ -258,6 +258,28 @@ export default function FranceMap({
           })}
         </div>
       </div>
+
+      {/* Belgique */}
+      {(() => {
+        const count = countFormations("Belgique", formations);
+        const isHov = hovered === "Belgique";
+        return (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10, textAlign: "center" }}>
+              Belgique 🇧🇪
+            </div>
+            <button
+              onMouseEnter={() => setHovered("Belgique")}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => go("Belgique")}
+              style={{ width: "100%", padding: "10px 6px", borderRadius: 12, border: "1.5px solid " + (isHov ? C.accent : C.borderLight), background: isHov ? C.accentBg : count > 0 ? "#FFF8EC" : C.surface, color: isHov ? C.accent : C.textSec, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "center" as const, transition: "all 0.15s" }}
+            >
+              <div>Belgique</div>
+              {count > 0 && <div style={{ fontSize: 9, color: C.accent, marginTop: 3 }}>{count} form.</div>}
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

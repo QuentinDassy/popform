@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380">
+  <defs>
+    <linearGradient id="bgCM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFF0E4"/>
+      <stop offset="100%" style="stop-color:#FFD9B8"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" fill="url(#bgCM)"/>
+  <circle cx="60" cy="60" r="70" fill="#E87B35" opacity="0.08"/>
+  <circle cx="550" cy="320" r="80" fill="#E87B35" opacity="0.07"/>
+
+  <!-- Abacus frame -->
+  <rect x="130" y="110" width="200" height="170" rx="12" fill="none" stroke="#D4651A" stroke-width="3.5"/>
+  <rect x="130" y="110" width="200" height="20" rx="12" fill="#D4651A" opacity="0.6"/>
+  <rect x="130" y="260" width="200" height="20" rx="12" fill="#D4651A" opacity="0.6"/>
+
+  <!-- Abacus rods + beads -->
+  <!-- Rod 1 -->
+  <line x1="163" y1="130" x2="163" y2="260" stroke="#C4901A" stroke-width="2.5"/>
+  <circle cx="163" cy="155" r="12" fill="#E87B35"/>
+  <circle cx="163" cy="180" r="12" fill="#F5B731"/>
+  <circle cx="163" cy="205" r="12" fill="#E87B35"/>
+  <circle cx="163" cy="230" r="12" fill="#F5B731"/>
+  <!-- Rod 2 -->
+  <line x1="203" y1="130" x2="203" y2="260" stroke="#C4901A" stroke-width="2.5"/>
+  <circle cx="203" cy="155" r="12" fill="#2E7CE6"/>
+  <circle cx="203" cy="180" r="12" fill="#2A9D6E"/>
+  <circle cx="203" cy="205" r="12" fill="#2E7CE6"/>
+  <!-- Rod 3 -->
+  <line x1="243" y1="130" x2="243" y2="260" stroke="#C4901A" stroke-width="2.5"/>
+  <circle cx="243" cy="155" r="12" fill="#D42B2B"/>
+  <circle cx="243" cy="180" r="12" fill="#E87B35"/>
+  <circle cx="243" cy="205" r="12" fill="#D42B2B"/>
+  <circle cx="243" cy="230" r="12" fill="#E87B35"/>
+  <!-- Rod 4 -->
+  <line x1="283" y1="130" x2="283" y2="260" stroke="#C4901A" stroke-width="2.5"/>
+  <circle cx="283" cy="155" r="12" fill="#2A9D6E"/>
+  <circle cx="283" cy="180" r="12" fill="#2E7CE6"/>
+  <circle cx="283" cy="205" r="12" fill="#2A9D6E"/>
+
+  <!-- Floating math symbols -->
+  <text x="365" y="155" font-family="Georgia, serif" font-size="52" fill="#E87B35" opacity="0.22" font-weight="bold">+</text>
+  <text x="420" y="220" font-family="Georgia, serif" font-size="48" fill="#D4651A" opacity="0.2" font-weight="bold">×</text>
+  <text x="365" y="275" font-family="Georgia, serif" font-size="48" fill="#E87B35" opacity="0.2" font-weight="bold">=</text>
+  <text x="470" y="165" font-family="Georgia, serif" font-size="42" fill="#D4651A" opacity="0.18" font-weight="bold">7</text>
+  <text x="490" y="245" font-family="Georgia, serif" font-size="38" fill="#E87B35" opacity="0.18" font-weight="bold">3</text>
+
+  <text x="300" y="348" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#9A4A0A" text-anchor="middle" opacity="0.9">Cognition mathématique</text>
+</svg>

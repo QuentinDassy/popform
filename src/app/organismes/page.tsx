@@ -8,7 +8,9 @@ import { useIsMobile } from "@/lib/hooks";
 const MAX_DESC = 150;
 
 function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean }) {
-  const desc = (o.description || "").slice(0, MAX_DESC) + ((o.description || "").length > MAX_DESC ? "…" : "");
+  const [expanded, setExpanded] = useState(false);
+  const long = (o.description || "").length > MAX_DESC;
+  const desc = long && !expanded ? o.description!.slice(0, MAX_DESC) + "…" : (o.description || "");
   return (
     <Link href={`/catalogue?organisme=${o.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
@@ -21,9 +23,19 @@ function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean 
             <div style={{ fontSize: 11, color: C.textTer }}>{count} formation{count > 1 ? "s" : ""}</div>
           </div>
         </div>
-        <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5, margin: 0, flex: 1 }}>
-          {desc || <span style={{ fontStyle: "italic", opacity: 0.5 }}>Aucune description.</span>}
-        </p>
+        {desc && (
+          <p style={{ fontSize: 12, color: C.textTer, lineHeight: 1.5, margin: 0, flex: 1 }}>
+            {desc}
+            {long && (
+              <span
+                onClick={e => { e.preventDefault(); e.stopPropagation(); setExpanded(v => !v); }}
+                style={{ color: C.accent, fontWeight: 600, marginLeft: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {expanded ? " Réduire" : " En savoir plus"}
+              </span>
+            )}
+          </p>
+        )}
       </div>
     </Link>
   );
