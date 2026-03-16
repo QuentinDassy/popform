@@ -36,6 +36,11 @@ export async function GET(request: NextRequest) {
       if (type === "invite") {
         return NextResponse.redirect(`${origin}/auth/invite`);
       }
+      // Détecter une invitation via les métadonnées (quand type n'est pas dans l'URL)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.organisme_id) {
+        return NextResponse.redirect(`${origin}/auth/invite`);
+      }
       return NextResponse.redirect(`${origin}/auth/confirm`);
     }
   } else if (token_hash && type) {
@@ -45,6 +50,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}/compte?reset=1`);
       }
       if (type === "invite") {
+        return NextResponse.redirect(`${origin}/auth/invite`);
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.organisme_id) {
         return NextResponse.redirect(`${origin}/auth/invite`);
       }
       return NextResponse.redirect(`${origin}/auth/confirm`);
