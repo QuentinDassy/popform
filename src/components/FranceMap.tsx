@@ -157,7 +157,7 @@ export default function FranceMap({
             const d = featureToPath(belgiumGeo.geometry);
             return (
               <g
-                transform="translate(0,-18)"
+                transform="translate(0,-26)"
                 style={{ cursor: "pointer" }}
                 onMouseEnter={() => setHovered("Belgique")}
                 onMouseLeave={() => setHovered(null)}
