@@ -34,6 +34,8 @@ export default function InvitePage() {
       setSaving(false);
       return;
     }
+    // Lier automatiquement l'organisme si l'invitation en portait un
+    await fetch("/api/auth/complete-invite", { method: "POST" });
     setDone(true);
     setSaving(false);
   };

@@ -28,7 +28,16 @@ export async function POST(req: NextRequest) {
   const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (listErr) return NextResponse.json({ error: "Erreur recherche utilisateur" }, { status: 500 });
   const target = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-  if (!target) return NextResponse.json({ error: "Aucun compte trouvé avec cet email" }, { status: 404 });
+  if (!target) {
+    // Utilisateur inexistant : envoyer une invitation
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin;
+    const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { organisme_id, role: "organisme" },
+      redirectTo: `${siteUrl}/auth/callback?type=invite`,
+    });
+    if (inviteErr) return NextResponse.json({ error: "Erreur envoi invitation : " + inviteErr.message }, { status: 500 });
+    return NextResponse.json({ invited: true });
+  }
 
   // Supprimer l'éventuel organisme vide auto-créé pour cet utilisateur (doublon)
   const { data: existingOrgs } = await admin.from("organismes").select("id").eq("user_id", target.id).neq("id", organisme_id);

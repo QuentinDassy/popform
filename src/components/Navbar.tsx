@@ -99,9 +99,10 @@ export default function Navbar() {
   const filteredFormateurs = q.length >= 2
     ? searchFormateurs.filter(f => norm(f.nom).includes(q)).slice(0, 3)
     : randomSample(searchFormateurs, 2);
-  const filteredFormations = q.length >= 2
-    ? searchFormations.filter(f => norm(f.titre).includes(q) || norm(f.domaine).includes(q)).slice(0, 3)
+  const allMatchingFormations = q.length >= 2
+    ? searchFormations.filter(f => norm(f.titre).includes(q) || norm(f.domaine).includes(q))
     : [];
+  const filteredFormations = allMatchingFormations.slice(0, 10);
 
   return (
     <>
@@ -249,6 +250,11 @@ export default function Navbar() {
                         </div>
                       </button>
                     ))}
+                    {allMatchingFormations.length > 10 && (
+                      <button onClick={() => handleSearch()} style={{ width: "100%", padding: "9px 14px", background: "none", border: "1px solid " + C.borderLight, borderRadius: 10, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 7, textAlign: "center" as const }}>
+                        Voir toutes les formations ({allMatchingFormations.length}) →
+                      </button>
+                    )}
                   </>
                 )}
                 {filteredVilles.length > 0 && (

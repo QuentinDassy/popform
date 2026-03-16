@@ -100,6 +100,7 @@ export default function HomePage() {
   const addF = (arr: string[], val: string, set: (v: string[]) => void) => { if (val && !arr.includes(val)) set([...arr, val]); };
   const remF = (arr: string[], val: string, set: (v: string[]) => void) => set(arr.filter(x => x !== val));
   const [searchSuggestions, setSearchSuggestions] = useState<Formation[]>([]);
+  const [searchTotalFormations, setSearchTotalFormations] = useState(0);
   const [searchFmtResults, setSearchFmtResults] = useState<{id: number, nom: string}[]>([]);
   const [searchVilleResults, setSearchVilleResults] = useState<string[]>([]);
   const [searchDomaineResults, setSearchDomaineResults] = useState<string[]>([]);
@@ -130,12 +131,14 @@ export default function HomePage() {
     setHeroSearch(val);
     if (val.length >= 2) {
       const q = normalize(val);
-      const matchedFormations = formations.filter(f =>
+      const allFormationsMatch = formations.filter(f =>
         normalize(f.titre).includes(q) ||
         normalize(f.domaine).includes(q) ||
         (f.mots_cles || []).some((m: string) => normalize(m).includes(q)) ||
         (f.sessions || []).some(s => normalize(s.lieu).includes(q))
-      ).slice(0, 4);
+      );
+      const matchedFormations = allFormationsMatch.slice(0, 10);
+      setSearchTotalFormations(allFormationsMatch.length);
       const matchedFmts = allFormateurs.filter(f => normalize(f.nom).includes(q)).slice(0, 3);
       const matchedVilles = adminVilles.filter(v => normalize(v.nom).includes(q)).slice(0, 3).map(v => v.nom);
       const matchedDomaines = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => normalize(d).includes(q)).slice(0, 3);
@@ -327,6 +330,11 @@ export default function HomePage() {
                         {(f.sessions || []).length > 0 && <span style={{ fontSize: 11, color: C.textTer, flexShrink: 0 }}>📍 {f.sessions?.[0]?.lieu}</span>}
                       </div>
                     ))}
+                    {searchTotalFormations > 10 && (
+                      <div onMouseDown={() => { handleSearch(); }} style={{ padding: "8px 16px", cursor: "pointer", fontSize: 12, color: C.accent, fontWeight: 700, borderTop: "1px solid " + C.borderLight }}>
+                        Voir toutes les formations ({searchTotalFormations}) →
+                      </div>
+                    )}
                   </>
                 )}
                 {heroSearch.length >= 2 && (

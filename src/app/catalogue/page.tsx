@@ -65,6 +65,7 @@ function CatalogueContent() {
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
   const [allFormateurs, setAllFormateurs] = useState<{id: number, nom: string}[]>([]);
   const [searchDropFormations, setSearchDropFormations] = useState<Formation[]>([]);
+  const [searchDropFormationsTotal, setSearchDropFormationsTotal] = useState(0);
   const [searchDropFmts, setSearchDropFmts] = useState<{id: number, nom: string}[]>([]);
   const [searchDropVilles, setSearchDropVilles] = useState<string[]>([]);
   const [searchDropDomaines, setSearchDropDomaines] = useState<string[]>([]);
@@ -168,7 +169,9 @@ function CatalogueContent() {
               setSearch(val);
               if (val.length >= 2) {
                 const q = normS(val);
-                const mf = formations.filter(f => normS(f.titre).includes(q) || normS(f.domaine).includes(q)).slice(0, 3);
+                const allMf = formations.filter(f => normS(f.titre).includes(q) || normS(f.domaine).includes(q));
+                const mf = allMf.slice(0, 10);
+                setSearchDropFormationsTotal(allMf.length);
                 const mft = allFormateurs.filter(f => normS(f.nom).includes(q)).slice(0, 3);
                 const mv = adminVilles.filter(v => normS(v).includes(q)).slice(0, 3);
                 const md = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => normS(d).includes(q)).slice(0, 3);
@@ -244,6 +247,11 @@ function CatalogueContent() {
                       <span style={{ fontSize: 13, color: C.text, fontWeight: 600, flex: 1 }}>{f.titre}</span>
                     </div>
                   ))}
+                  {searchDropFormationsTotal > 10 && (
+                    <div onMouseDown={() => { setShowSearchDrop(false); }} style={{ padding: "8px 16px", cursor: "pointer", fontSize: 12, color: C.accent, fontWeight: 700 }}>
+                      Voir toutes les formations ({searchDropFormationsTotal}) →
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -801,9 +801,13 @@ export default function DashboardAdminPage() {
                           const res = await fetch("/api/admin/link-organisme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organisme_id: o.id, email: linkEmail }) });
                           const data = await res.json();
                           if (res.ok) {
-                            setLinkMsg({ id: o.id, msg: "✓ Compte lié avec succès", ok: true });
+                            if (data.invited) {
+                              setLinkMsg({ id: o.id, msg: "✉️ Invitation envoyée — l'utilisateur recevra un email pour créer son compte", ok: true });
+                            } else {
+                              setLinkMsg({ id: o.id, msg: "✓ Compte lié avec succès", ok: true });
+                              setUtilisateurs(prev => ({ ...prev, organismes: prev.organismes.map(x => x.id === o.id ? { ...x, user_id: data.user_id } : x) }));
+                            }
                             setLinkingOrg(null);
-                            setUtilisateurs(prev => ({ ...prev, organismes: prev.organismes.map(x => x.id === o.id ? { ...x, user_id: data.user_id } : x) }));
                           } else {
                             setLinkMsg({ id: o.id, msg: data.error || "Erreur", ok: false });
                           }
