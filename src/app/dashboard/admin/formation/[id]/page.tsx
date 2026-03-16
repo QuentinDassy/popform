@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES } from "@/lib/data";
@@ -79,6 +79,7 @@ function emptyForm(): FormState {
 export default function AdminFormationEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile, loading: authLoading } = useAuth();
   const isNew = id === "new";
 
@@ -134,6 +135,13 @@ export default function AdminFormationEditorPage() {
         setFormateurs(fmts);
         setOrganismes(orgs);
         setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
+
+        if (isNew) {
+          const orgId = searchParams.get("organisme_id");
+          const fmtId = searchParams.get("formateur_id");
+          if (orgId) setForm(prev => ({ ...prev, organisme_id: Number(orgId) }));
+          if (fmtId) setForm(prev => ({ ...prev, formateur_ids: [Number(fmtId)] }));
+        }
 
         if (!isNew) {
           const { data: f } = await supabase

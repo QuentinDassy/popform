@@ -18,7 +18,8 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("publiee");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs">("formations");
+  const [utilisateurs, setUtilisateurs] = useState<{ organismes: any[]; formateurs: any[] }>({ organismes: [], formateurs: [] });
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -64,6 +65,12 @@ export default function DashboardAdminPage() {
         setWebinaires(wbs || []);
         const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").order("date", { ascending: true });
         setCongresList(cgs || []);
+        // Load utilisateurs (self-registered)
+        try {
+          const { data: orgs } = await supabase.from("organismes").select("id, nom, user_id, logo, description").order("nom");
+          const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo").order("nom");
+          setUtilisateurs({ organismes: orgs || [], formateurs: fmts || [] });
+        } catch { /* ignore */ }
       } catch (e: any) {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
           window.location.href = "/";
@@ -293,6 +300,7 @@ export default function DashboardAdminPage() {
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
+        <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer" }}>👥 Utilisateurs</button>
         <Link href="/dashboard/admin/import" style={{ padding: "7px 14px", borderRadius: 9, background: "transparent", color: C.textTer, fontSize: 12, fontWeight: 500, textDecoration: "none", display: "flex", alignItems: "center" }}>📥 Import Excel</Link>
       </div>
 
@@ -741,7 +749,6 @@ export default function DashboardAdminPage() {
                       ) : (
                         <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
                       )}
-                      <button onClick={async () => { const newVal = !f.is_new; await supabase.from("formations").update({ is_new: newVal }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, is_new: newVal } : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.yellowBg, background: f.is_new ? C.yellowBg : C.surface, color: f.is_new ? C.yellowDark : C.textTer, fontSize: 12, fontWeight: f.is_new ? 700 : 400, cursor: "pointer" }}>{f.is_new ? "⭐ Nouvelle (retirer)" : "☆ Marquer nouvelle"}</button>
                     </div>
                   </div>
                 )}
@@ -751,6 +758,49 @@ export default function DashboardAdminPage() {
         </div>
       )}
       </>}
+
+      {/* ===== UTILISATEURS TAB ===== */}
+      {adminTab === "utilisateurs" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 20 }}>Organismes et formateurs inscrits sur la plateforme. Cliquez sur &quot;+ Formation&quot; pour créer une formation à leur place.</p>
+
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🏢 Organismes ({utilisateurs.organismes.length})</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10, marginBottom: 30 }}>
+            {utilisateurs.organismes.map(o => (
+              <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                    {o.logo && o.logo.startsWith("http") ? <img src={o.logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (o.logo || (o.nom || "?").slice(0, 2))}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
+                    <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé"}</div>
+                  </div>
+                </div>
+                <Link href={`/dashboard/admin/formation/new?organisme_id=${o.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
+              </div>
+            ))}
+          </div>
+
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🎤 Formateurs ({utilisateurs.formateurs.length})</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
+            {utilisateurs.formateurs.map(f => (
+              <div key={f.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 18, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, overflow: "hidden", border: "1.5px solid " + C.border }}>
+                    {f.photo && f.photo.startsWith("http") ? <img src={f.photo} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🎤"}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
+                    <div style={{ fontSize: 10, color: f.user_id ? C.green : C.textTer }}>{f.user_id ? "✓ Compte actif" : "Importé"}</div>
+                  </div>
+                </div>
+                <Link href={`/dashboard/admin/formation/new?formateur_id=${f.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

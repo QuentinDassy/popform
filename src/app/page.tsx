@@ -268,7 +268,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la meilleure formation près de chez vous.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formations.length > 0 ? formations.length : "…"}</strong> formations.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
@@ -425,14 +425,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ===== A LA UNE ===== */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "32px 0", color: C.textTer, fontSize: 13 }}>Chargement des formations…</div>
-      ) : (
-        <>
-          {newF.length > 0 && <SectionGrid title="À la une ⭐" formations={newF} mob={mob} max={6} link="/catalogue?nouveautes=1" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
-        </>
-      )}
 
       {/* ===== SECTIONS ===== */}
       {!loading && domainesAccueil.length > 0 ? (

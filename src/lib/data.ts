@@ -39,6 +39,8 @@ export const PHOTOS: Record<string, string> = {
   "Voix": "/Voix.png",
   "Bégaiement": "/Bégaiement.png",
   "Handicap": "/Handicap.png",
+  "TSA": "/TSA.svg",
+  "Relation orthophonique": "/RelationOrtho.svg",
   "default": "/LE.png",
 };
 
@@ -53,6 +55,8 @@ export const DOMAIN_PHOTO_CHOICES = [
   { label: "Voix", src: "/Voix.png" },
   { label: "Bégaiement", src: "/Bégaiement.png" },
   { label: "Handicap", src: "/Handicap.png" },
+  { label: "TSA", src: "/TSA.svg" },
+  { label: "Relation ortho.", src: "/RelationOrtho.svg" },
 ];
 
 export const CITY_PHOTOS: Record<string, string> = {};
@@ -64,6 +68,8 @@ export const DC: Record<string, { bg: string; color: string }> = {
   "Neurologie": { bg: "rgba(46,124,230,0.1)", color: "#2E7CE6" },
   "Pratique professionnelle": { bg: "rgba(212,43,43,0.1)", color: "#D42B2B" },
   "OMF": { bg: "rgba(232,69,117,0.1)", color: "#E84575" },
+  "TSA": { bg: "rgba(124,58,237,0.1)", color: "#7C3AED" },
+  "Relation orthophonique": { bg: "rgba(42,157,110,0.1)", color: "#2A9D6E" },
 };
 
 export const getDC = (d: string) => DC[d] || { bg: "rgba(212,43,43,0.1)", color: "#D42B2B" };
@@ -98,6 +104,7 @@ export const REGIONS_CITIES: Record<string, string[]> = {
   "Martinique": ["Fort-de-France", "Le Lamentin", "Le Robert"],
   "Mayotte": ["Mamoudzou", "Koungou", "Bandraboua"],
   "Réunion": ["Saint-Denis", "Saint-Paul", "Le Tampon", "Saint-Pierre", "Saint-André"],
+  "Belgique": ["Bruxelles", "Liège", "Anvers", "Gand", "Bruges", "Charleroi", "Namur", "Louvain", "Mons", "Arlon"],
 };
 
 export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CITIES).reduce(
