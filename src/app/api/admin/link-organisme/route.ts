@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin;
     const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
       data: { organisme_id, role: "organisme" },
-      redirectTo: `${siteUrl}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/invite`,
     });
     if (inviteErr) return NextResponse.json({ error: "Erreur envoi invitation : " + inviteErr.message }, { status: 500 });
     return NextResponse.json({ invited: true });

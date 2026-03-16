@@ -14,13 +14,24 @@ export default function InvitePage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [hasInviteHash, setHasInviteHash] = useState(false);
 
   useEffect(() => {
-    // If not logged in after auth loads, redirect to homepage with auth modal
-    if (!loading && !user) {
+    // Detect if URL contains an invite token in the hash (Supabase implicit flow)
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash.includes("access_token") || hash.includes("type=invite")) {
+        setHasInviteHash(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Don't redirect if we have an invite hash — the client is processing it
+    if (!loading && !user && !hasInviteHash) {
       router.replace("/?auth=1");
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, hasInviteHash]);
 
   const handleSetPassword = async () => {
     if (!password.trim()) { setMsg("Veuillez saisir un mot de passe."); return; }
