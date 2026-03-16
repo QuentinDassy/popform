@@ -814,7 +814,7 @@ export default function DashboardAdminPage() {
                     </div>
                   </div>
                 )}
-                {linkMsg?.id === o.id && <div style={{ fontSize: 11, color: linkMsg.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg.msg}</div>}
+                {linkMsg?.id === o.id && <div style={{ fontSize: 11, color: linkMsg!.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg!.msg}</div>}
                 <Link href={`/dashboard/admin/formation/new?organisme_id=${o.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
               </div>
             ))}
