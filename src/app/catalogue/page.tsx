@@ -306,7 +306,7 @@ function CatalogueContent() {
                       <button key={r} onClick={() => setSelRegion(selRegion === r ? "" : r)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === r ? C.accent : C.border), background: selRegion === r ? C.accentBg : C.surface, color: selRegion === r ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === r ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
                     ))}
                   </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>DOM-TOM</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>DROM</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                     {DOM_REGIONS_LIST.map(r => (
                       <button key={r} onClick={() => setSelRegion(selRegion === r ? "" : r)} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === r ? C.accent : C.border), background: selRegion === r ? C.accentBg : C.surface, color: selRegion === r ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === r ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>{r}</button>
@@ -353,7 +353,7 @@ function CatalogueContent() {
             <optgroup label="France métropolitaine">
               {FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)).map(r => <option key={r} value={r}>{r}</option>)}
             </optgroup>
-            <optgroup label="DOM-TOM">
+            <optgroup label="DROM">
               {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
             </optgroup>
             <optgroup label="International">

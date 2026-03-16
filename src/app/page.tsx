@@ -408,7 +408,7 @@ export default function HomePage() {
                 <optgroup label="France métropolitaine">
                   {FRENCH_REGIONS.filter(r => !DOM_REGIONS_LIST.includes(r)).map(r => <option key={r} value={r}>{r}</option>)}
                 </optgroup>
-                <optgroup label="DOM-TOM">
+                <optgroup label="DROM">
                   {DOM_REGIONS_LIST.map(r => <option key={r} value={r}>{r}</option>)}
                 </optgroup>
                 <optgroup label="─────────────">
