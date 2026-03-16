@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
-const POPULATIONS = ["Enfant", "Adolescent", "Adulte", "Senior"];
+const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
 // Fallback emojis for domaines
 const DOMAINE_EMOJIS: Record<string, string> = {
