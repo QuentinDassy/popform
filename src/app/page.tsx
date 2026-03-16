@@ -463,7 +463,7 @@ export default function HomePage() {
         <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: mob ? 10 : 16 }}>
           {(featTab === "ortho" ? [
             { icon: "❤️", title: "Favoris", desc: "Sauvegardez les formations qui vous intéressent en un clic" },
-            { icon: "📋", title: "Mes inscriptions", desc: "Retrouvez toutes vos formations au même endroit, sans chercher" },
+            { icon: "📋", title: "Mes formations", desc: "Enregistrez les formations qui vous intéressent et retrouvez facilement l'historique de vos formations" },
             { icon: "📅", title: "Calendrier", desc: "Visualisez vos sessions à venir sur un calendrier personnel" },
             { icon: "⭐", title: "Avis vérifiés", desc: "Déposez et consultez des retours d'expérience honnêtes" },
           ] : [
