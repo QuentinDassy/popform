@@ -136,7 +136,7 @@ export default function FranceMap({
             const isHov = hovered === "Belgique";
             const d = featureToPath(belgiumGeo.geometry);
             return (
-              <g transform="translate(0,-90)">
+              <g transform="translate(0,-78)">
                 <path
                   d={d}
                   fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
@@ -171,7 +171,7 @@ export default function FranceMap({
           {/* Belgique — zone cliquable */}
           {belgiumGeo && (
             <g
-              transform="translate(0,-90)"
+              transform="translate(0,-78)"
               style={{ cursor: "pointer" }}
               onMouseEnter={() => setHovered("Belgique")}
               onMouseLeave={() => setHovered(null)}
