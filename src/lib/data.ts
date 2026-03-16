@@ -30,7 +30,7 @@ export const C = {
 
 export const PHOTOS: Record<string, string> = {
   "Langage oral": "/langageoral.png",
-  "Langage écrit": "/langageécrit.png",
+  "Langage écrit": "/langageecrit.png",
   "Cognition mathématique": "/cognitionmath.png",
   "Neurologie": "/neurologiepf.png",
   "Pratique professionnelle": "/pratiquepro.png",
@@ -46,7 +46,7 @@ export const PHOTOS: Record<string, string> = {
 
 export const DOMAIN_PHOTO_CHOICES = [
   { label: "Langage oral", src: "/langageoral.png" },
-  { label: "Langage écrit", src: "/langageécrit.png" },
+  { label: "Langage écrit", src: "/langageecrit.png" },
   { label: "Cognition math.", src: "/cognitionmath.png" },
   { label: "Neurologie", src: "/neurologiepf.png" },
   { label: "Pratique prof.", src: "/pratiquepro.png" },
