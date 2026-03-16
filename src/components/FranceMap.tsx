@@ -130,24 +130,6 @@ export default function FranceMap({
               Chargement…
             </text>
           )}
-          {/* Belgique — entièrement au-dessus de la France grâce au translate */}
-          {belgiumGeo && (() => {
-            const count = countFormations("Belgique", formations);
-            const isHov = hovered === "Belgique";
-            const d = featureToPath(belgiumGeo.geometry);
-            return (
-              <g transform="translate(0,-78)">
-                <path
-                  d={d}
-                  fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
-                  stroke={isHov ? C.accentDark : "#BFB09A"}
-                  strokeWidth={isHov ? 1.2 : 0.6}
-                  style={{ pointerEvents: "none", transition: "fill 0.15s, stroke 0.15s" }}
-                />
-              </g>
-            );
-          })()}
-
           {features.map((f, i) => {
             const nom = f.properties.nom;
             const key = getKey(nom);
@@ -168,18 +150,29 @@ export default function FranceMap({
             );
           })}
 
-          {/* Belgique — zone cliquable */}
-          {belgiumGeo && (
-            <g
-              transform="translate(0,-78)"
-              style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHovered("Belgique")}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => go("Belgique")}
-            >
-              <path d={featureToPath(belgiumGeo.geometry)} fill="transparent" stroke="none" />
-            </g>
-          )}
+          {/* Belgique — dessinée APRÈS la France, sur le dessus, légèrement décollée */}
+          {belgiumGeo && (() => {
+            const count = countFormations("Belgique", formations);
+            const isHov = hovered === "Belgique";
+            const d = featureToPath(belgiumGeo.geometry);
+            return (
+              <g
+                transform="translate(0,-12)"
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setHovered("Belgique")}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => go("Belgique")}
+              >
+                <path
+                  d={d}
+                  fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
+                  stroke={isHov ? C.accentDark : "#BFB09A"}
+                  strokeWidth={isHov ? 1.2 : 0.6}
+                  style={{ transition: "fill 0.15s, stroke 0.15s" }}
+                />
+              </g>
+            );
+          })()}
         </svg>
       </div>
 
