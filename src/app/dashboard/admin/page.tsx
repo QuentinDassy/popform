@@ -27,6 +27,8 @@ export default function DashboardAdminPage() {
   const [orgSearch, setOrgSearch] = useState("");
   const [formSearch, setFormSearch] = useState("");
   const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
+  const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
+  const [validatingOrg, setValidatingOrg] = useState<number | null>(null);
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -72,11 +74,16 @@ export default function DashboardAdminPage() {
         setWebinaires(wbs || []);
         const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").order("date", { ascending: true });
         setCongresList(cgs || []);
-        // Load utilisateurs (self-registered)
+        // Load utilisateurs
         try {
           const { data: orgs } = await supabase.from("organismes").select("id, nom, user_id, logo, description").order("nom");
           const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo").order("nom");
           setUtilisateurs({ organismes: orgs || [], formateurs: fmts || [] });
+        } catch { /* ignore */ }
+        // Load self-registered organisms (not admin-invited)
+        try {
+          const res = await fetch("/api/admin/self-registered-orgs");
+          if (res.ok) { const data = await res.json(); setSelfRegisteredOrgs(data.orgs || []); }
         } catch { /* ignore */ }
       } catch (e: any) {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
@@ -324,9 +331,9 @@ export default function DashboardAdminPage() {
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
         <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
           👥 Utilisateurs
-          {utilisateurs.organismes.filter(o => o.user_id).length > 0 && (
+          {selfRegisteredOrgs.length > 0 && (
             <span style={{ position: "absolute" as const, top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: C.green, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
-              {utilisateurs.organismes.filter(o => o.user_id).length}
+              {selfRegisteredOrgs.length}
             </span>
           )}
         </button>
@@ -809,12 +816,50 @@ export default function DashboardAdminPage() {
       {/* ===== UTILISATEURS TAB ===== */}
       {adminTab === "utilisateurs" && (
         <div style={{ paddingBottom: 40 }}>
-          {utilisateurs.organismes.filter(o => o.user_id).length > 0 && (
-            <div style={{ marginBottom: 16, padding: "12px 16px", background: C.greenBg, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 18 }}>🔔</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{utilisateurs.organismes.filter(o => o.user_id).length} organisme{utilisateurs.organismes.filter(o => o.user_id).length > 1 ? "s" : ""} inscrit{utilisateurs.organismes.filter(o => o.user_id).length > 1 ? "s" : ""} — en attente de validation</div>
-                <div style={{ fontSize: 11, color: C.textSec }}>Ces organismes ont créé leur compte. Cliquez sur &quot;Valider &amp; notifier&quot; pour leur envoyer un email de confirmation.</div>
+
+          {/* Nouvelles inscriptions en attente */}
+          {selfRegisteredOrgs.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 10, padding: "12px 16px", background: C.greenBg, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🔔</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{selfRegisteredOrgs.length} nouvelle{selfRegisteredOrgs.length > 1 ? "s" : ""} inscription{selfRegisteredOrgs.length > 1 ? "s" : ""} — en attente de validation</div>
+                  <div style={{ fontSize: 11, color: C.textSec }}>Ces organismes se sont inscrits eux-mêmes. Validez et notifiez-les.</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
+                {selfRegisteredOrgs.map(o => (
+                  <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
+                        {o.logo && o.logo.startsWith("http") ? <img src={o.logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (o.logo || (o.nom || "?").slice(0, 2))}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
+                        <div style={{ fontSize: 10, color: C.textTer }}>{o.email}</div>
+                        {o.created_at && <div style={{ fontSize: 10, color: C.textTer }}>Inscrit le {new Date(o.created_at).toLocaleDateString("fr-FR")}</div>}
+                      </div>
+                    </div>
+                    {linkMsg?.id === o.id ? (
+                      <div style={{ fontSize: 11, color: linkMsg!.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg!.msg}</div>
+                    ) : (
+                      <button
+                        disabled={validatingOrg === o.id}
+                        onClick={async () => {
+                          if (!confirm(`Valider et notifier l'organisme "${o.nom}" (${o.email}) ?`)) return;
+                          setValidatingOrg(o.id);
+                          await fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id: o.user_id, nom: o.nom }) }).catch(() => {});
+                          setLinkMsg({ id: o.id, msg: "✉️ Email de confirmation envoyé !", ok: true });
+                          setValidatingOrg(null);
+                          setSelfRegisteredOrgs(prev => prev.filter(x => x.id !== o.id));
+                        }}
+                        style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: validatingOrg === o.id ? 0.6 : 1 }}
+                      >
+                        {validatingOrg === o.id ? "Envoi…" : "✅ Valider & notifier"}
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -842,18 +887,6 @@ export default function DashboardAdminPage() {
                     <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé — sans accès"}</div>
                   </div>
                 </div>
-                {o.user_id && (
-                  <button
-                    onClick={async () => {
-                      if (!confirm(`Envoyer un email de validation à l'organisme "${o.nom}" ?`)) return;
-                      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id: o.user_id, nom: o.nom }) }).catch(() => {});
-                      setLinkMsg({ id: o.id, msg: "✉️ Email de confirmation envoyé !", ok: true });
-                    }}
-                    style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    ✅ Valider & notifier
-                  </button>
-                )}
                 {!o.user_id && linkingOrg !== o.id && (
                   <button onClick={() => { setLinkingOrg(o.id); setLinkEmail(""); setLinkMsg(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                     🔗 Lier un compte
