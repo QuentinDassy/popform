@@ -263,6 +263,47 @@ export default function DashboardAdminPage() {
   };
 
   if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
+
+  function ManualValidateOrg() {
+    const [open, setOpen] = useState(false);
+    const [email, setEmail] = useState("");
+    const [nom, setNom] = useState("");
+    const [status, setStatus] = useState<{ msg: string; ok: boolean } | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    const handle = async () => {
+      if (!email.trim() || !nom.trim()) { setStatus({ msg: "Email et nom obligatoires", ok: false }); return; }
+      setBusy(true); setStatus(null);
+      // Trouver le user_id via l'API link-organisme (recherche par email)
+      const res = await fetch("/api/admin/find-user-by-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+      if (!res.ok) { setStatus({ msg: "Utilisateur introuvable pour cet email", ok: false }); setBusy(false); return; }
+      const { user_id } = await res.json();
+      const res2 = await fetch("/api/admin/validate-organisme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id, organisme_nom: nom.trim() }) });
+      if (!res2.ok) { const d = await res2.json(); setStatus({ msg: d.error || "Erreur", ok: false }); setBusy(false); return; }
+      await fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id, nom: nom.trim() }) }).catch(() => {});
+      setStatus({ msg: "✅ Organisme créé et email envoyé !", ok: true });
+      setEmail(""); setNom(""); setBusy(false);
+    };
+
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={() => setOpen(o => !o)} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>
+          🔧 Valider manuellement un organisme
+        </button>
+        {open && (
+          <div style={{ marginTop: 10, padding: 16, background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8, maxWidth: 420 }}>
+            <p style={{ fontSize: 12, color: C.textTer, margin: 0 }}>Pour les cas où l'utilisateur ne s'est pas inscrit en tant qu'organisme (ex : inscrit comme formateur puis organisme).</p>
+            <input type="email" placeholder="Email du compte *" value={email} onChange={e => setEmail(e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+            <input type="text" placeholder="Nom de l'organisme *" value={nom} onChange={e => setNom(e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+            <button onClick={handle} disabled={busy} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: busy ? 0.6 : 1 }}>
+              {busy ? "Création…" : "✅ Créer l'organisme & notifier"}
+            </button>
+            {status && <p style={{ fontSize: 12, color: status.ok ? C.green : C.accent, margin: 0, fontWeight: 600 }}>{status.msg}</p>}
+          </div>
+        )}
+      </div>
+    );
+  }
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
@@ -869,6 +910,9 @@ export default function DashboardAdminPage() {
               </div>
             </div>
           )}
+
+          {/* Validation manuelle (cas particuliers) */}
+          <ManualValidateOrg />
 
           <div style={{ marginBottom: 16 }}>
             <input
