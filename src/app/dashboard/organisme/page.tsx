@@ -51,6 +51,9 @@ export default function DashboardOrganismePage() {
   const [selFormateurIds, setSelFormateurIds] = useState<number[]>([]);
   const [inlineNewFmt, setInlineNewFmt] = useState(false);
   const [inlineFmt, setInlineFmt] = useState({ prenom: "", nom: "", sexe: "Non genré" });
+  const [fmtSearchQuery, setFmtSearchQuery] = useState("");
+  const [fmtSearchResults, setFmtSearchResults] = useState<FormateurRow[]>([]);
+  const [fmtSearchLoading, setFmtSearchLoading] = useState(false);
   const [inlineFmtPhotoFile, setInlineFmtPhotoFile] = useState<File | null>(null);
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
@@ -315,6 +318,26 @@ export default function DashboardOrganismePage() {
     setFormateurs(prev => prev.filter(f => f.id !== id));
   };
 
+  const handleSearchFormateurs = async (q: string) => {
+    setFmtSearchQuery(q);
+    if (q.trim().length < 2) { setFmtSearchResults([]); return; }
+    setFmtSearchLoading(true);
+    const { data } = await supabase.from("formateurs").select("*").ilike("nom", `%${q.trim()}%`).limit(10);
+    // Exclure ceux déjà dans l'organisme
+    const myIds = new Set(formateurs.map(f => f.id));
+    setFmtSearchResults((data || []).filter((f: FormateurRow) => !myIds.has(f.id)));
+    setFmtSearchLoading(false);
+  };
+
+  const handleAddExistingFormateur = async (f: FormateurRow) => {
+    if (!organisme) return;
+    await supabase.from("formateurs").update({ organisme_id: organisme.id }).eq("id", f.id);
+    setFormateurs(prev => [...prev, { ...f, organisme_id: organisme.id }]);
+    setFmtSearchResults(prev => prev.filter(r => r.id !== f.id));
+    setMsg("✅ " + f.nom + " ajouté·e à vos formateurs !");
+    setTimeout(() => setMsg(null), 3000);
+  };
+
   const openEditFormateur = (f: FormateurRow) => {
     setEditFmtId(f.id);
     const parts = (f.nom || "").trim().split(" ");
@@ -510,9 +533,47 @@ export default function DashboardOrganismePage() {
             </div>
           )}
 
+          {/* Rechercher un formateur existant */}
+          <div style={{ padding: mob ? 14 : 20, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 10 }}>🔍 Ajouter un·e formateur·rice existant·e</h3>
+            <p style={{ fontSize: 12, color: C.textTer, marginBottom: 10 }}>Recherchez parmi les formateurs déjà présents sur PopForm pour éviter les doublons.</p>
+            <input
+              type="text"
+              placeholder="Rechercher par nom…"
+              value={fmtSearchQuery}
+              onChange={e => handleSearchFormateurs(e.target.value)}
+              style={{ width: "100%", padding: "9px 14px", borderRadius: 10, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }}
+            />
+            {fmtSearchLoading && <p style={{ fontSize: 12, color: C.textTer, marginTop: 8 }}>Recherche…</p>}
+            {fmtSearchResults.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+                {fmtSearchResults.map(f => (
+                  <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 16, background: C.gradient, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700 }}>
+                      {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (f.nom?.[0]?.toUpperCase() || "?")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{f.nom}</div>
+                      {f.bio && <div style={{ fontSize: 11, color: C.textTer, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.bio.slice(0, 60)}{f.bio.length > 60 ? "…" : ""}</div>}
+                    </div>
+                    <button
+                      onClick={() => handleAddExistingFormateur(f)}
+                      style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+                    >
+                      + Ajouter
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {fmtSearchQuery.trim().length >= 2 && !fmtSearchLoading && fmtSearchResults.length === 0 && (
+              <p style={{ fontSize: 12, color: C.textTer, marginTop: 8 }}>Aucun formateur trouvé — créez-en un nouveau ci-dessous.</p>
+            )}
+          </div>
+
           {/* Formulaire ajout/édition */}
           <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editFmtId ? "Modifier le·la formateur·rice" : "Ajouter un·e formateur·rice"}</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editFmtId ? "Modifier le·la formateur·rice" : "Créer un·e nouveau·elle formateur·rice"}</h3>
             <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
                 <label style={labelStyle}>Photo de profil (optionnel)</label>
