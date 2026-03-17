@@ -20,12 +20,7 @@ export async function GET(_req: NextRequest) {
   const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).single();
   if (prof?.role !== "admin") return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-  // Récupérer tous les organismes qui ont un user_id (compte actif)
-  const { data: orgs } = await admin.from("organismes").select("id, nom, user_id, logo, description").not("user_id", "is", null);
-  if (!orgs || orgs.length === 0) return NextResponse.json({ orgs: [] });
-
-  // Pour chaque organisme, vérifier si le user est auto-inscrit (invited_at = null)
-  // On fetch les users en paginant pour trouver ceux qui correspondent
+  // Récupérer tous les users auth en paginant
   const allUsers: any[] = [];
   let page = 1;
   while (true) {
@@ -39,21 +34,27 @@ export async function GET(_req: NextRequest) {
     page++;
   }
 
-  const userMap = new Map(allUsers.map((u: any) => [u.id, u]));
+  // Filtrer : role=organisme dans les metadata ET invited_at est null (= auto-inscrit)
+  const candidates = allUsers.filter(u => {
+    const role = u.user_metadata?.role || u.app_metadata?.role;
+    return role === "organisme" && !u.invited_at;
+  });
 
-  // Filtrer : organismes dont le user auth a invited_at = null (= auto-inscrit, pas invité)
-  const result = orgs
-    .map(o => {
-      const authUser = userMap.get(o.user_id);
-      if (!authUser) return null;
-      if (authUser.invited_at) return null; // invité par l'admin → déjà validé
-      return {
-        ...o,
-        email: authUser.email || "",
-        created_at: authUser.created_at || "",
-      };
-    })
-    .filter(Boolean);
+  if (candidates.length === 0) return NextResponse.json({ orgs: [] });
+
+  // Exclure ceux qui ont déjà un organisme lié dans la DB (déjà validés)
+  const candidateIds = candidates.map((u: any) => u.id);
+  const { data: linkedOrgs } = await admin.from("organismes").select("user_id").in("user_id", candidateIds);
+  const alreadyLinked = new Set((linkedOrgs || []).map((o: any) => o.user_id));
+
+  const result = candidates
+    .filter((u: any) => !alreadyLinked.has(u.id))
+    .map((u: any) => ({
+      user_id: u.id,
+      email: u.email || "",
+      created_at: u.created_at || "",
+      organisme_nom: u.user_metadata?.organisme_nom || u.user_metadata?.full_name || u.email || "",
+    }));
 
   return NextResponse.json({ orgs: result });
 }

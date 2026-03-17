@@ -28,7 +28,7 @@ export default function DashboardAdminPage() {
   const [formSearch, setFormSearch] = useState("");
   const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
   const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
-  const [validatingOrg, setValidatingOrg] = useState<number | null>(null);
+  const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -829,33 +829,39 @@ export default function DashboardAdminPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
                 {selfRegisteredOrgs.map(o => (
-                  <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div key={o.user_id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
-                        {o.logo && o.logo.startsWith("http") ? <img src={o.logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (o.logo || (o.nom || "?").slice(0, 2))}
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800, flexShrink: 0 }}>
+                        {(o.organisme_nom || "?").slice(0, 2).toUpperCase()}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.organisme_nom}</div>
                         <div style={{ fontSize: 10, color: C.textTer }}>{o.email}</div>
                         {o.created_at && <div style={{ fontSize: 10, color: C.textTer }}>Inscrit le {new Date(o.created_at).toLocaleDateString("fr-FR")}</div>}
                       </div>
                     </div>
-                    {linkMsg?.id === o.id ? (
+                    {linkMsg?.id === o.user_id ? (
                       <div style={{ fontSize: 11, color: linkMsg!.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg!.msg}</div>
                     ) : (
                       <button
-                        disabled={validatingOrg === o.id}
+                        disabled={validatingOrg === o.user_id}
                         onClick={async () => {
-                          if (!confirm(`Valider et notifier l'organisme "${o.nom}" (${o.email}) ?`)) return;
-                          setValidatingOrg(o.id);
-                          await fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id: o.user_id, nom: o.nom }) }).catch(() => {});
-                          setLinkMsg({ id: o.id, msg: "✉️ Email de confirmation envoyé !", ok: true });
+                          if (!confirm(`Valider et notifier "${o.organisme_nom}" (${o.email}) ?\n\nCela va créer l'espace organisme et leur envoyer un email de confirmation.`)) return;
+                          setValidatingOrg(o.user_id);
+                          const res = await fetch("/api/admin/validate-organisme", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: o.user_id, organisme_nom: o.organisme_nom }) });
+                          if (!res.ok) {
+                            const d = await res.json();
+                            setLinkMsg({ id: o.user_id, msg: "❌ " + (d.error || "Erreur"), ok: false });
+                          } else {
+                            await fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id: o.user_id, nom: o.organisme_nom }) }).catch(() => {});
+                            setLinkMsg({ id: o.user_id, msg: "✅ Organisme créé & email envoyé !", ok: true });
+                            setSelfRegisteredOrgs(prev => prev.filter(x => x.user_id !== o.user_id));
+                          }
                           setValidatingOrg(null);
-                          setSelfRegisteredOrgs(prev => prev.filter(x => x.id !== o.id));
                         }}
-                        style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: validatingOrg === o.id ? 0.6 : 1 }}
+                        style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: validatingOrg === o.user_id ? 0.6 : 1 }}
                       >
-                        {validatingOrg === o.id ? "Envoi…" : "✅ Valider & notifier"}
+                        {validatingOrg === o.user_id ? "Création…" : "✅ Valider & notifier"}
                       </button>
                     )}
                   </div>

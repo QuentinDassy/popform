@@ -46,7 +46,8 @@ export function PopcornLogo({ size = 30 }: { size?: number }) {
 export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: Formation; compact?: boolean; mob?: boolean; favori?: boolean; onToggleFav?: () => void }) {
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
-  const photo = (f as any).photo_url || getPhoto(f.domaine) || null;
+  const firstDomaine = f.domaine || ((f as any).domaines as string[] | undefined)?.[0] || "";
+  const photo = (f as any).photo_url || getPhoto(firstDomaine) || null;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const uniqueLieux = [...new Set(sessions.flatMap((s: any) => {
