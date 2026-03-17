@@ -548,7 +548,7 @@ export default function AdminFormationEditorPage() {
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
               <select style={{ ...inp, flex: 1 }} value="" onChange={e => { if (e.target.value && !form.formateur_ids.includes(Number(e.target.value))) { setF("formateur_ids", [...form.formateur_ids, Number(e.target.value)]); setEditingFmtId(null); } }}>
                 <option value="">+ Ajouter un formateur…</option>
-                {formateurs.filter(f => !form.formateur_ids.includes(f.id)).map(f => <option key={f.id} value={f.id}>{f.nom}{f.organisme ? ` (${f.organisme.nom})` : ""}</option>)}
+                {formateurs.filter(f => !form.formateur_ids.includes(f.id)).map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
               </select>
               <button onClick={() => { setShowNewFormateur(v => !v); setEditingFmtId(null); }} style={{ padding: "6px 10px", borderRadius: 9, border: "1.5px solid " + C.border, background: showNewFormateur ? C.accentBg : C.surface, color: showNewFormateur ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {showNewFormateur ? "✕" : "+ Nouveau"}
@@ -846,22 +846,38 @@ export default function AdminFormationEditorPage() {
                 </div>
                 <div>
                   <label style={lbl}>Ville</label>
-                  <input
-                    style={inp}
-                    list={`villes-session-${si}`}
-                    value={s.ville}
-                    onChange={e => {
-                      const v = e.target.value;
-                      setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
-                        ...sess, ville: v,
-                        parties: sess.parties.map(p => ({ ...p, ville: v })),
-                      }));
-                    }}
-                    placeholder={(s.pays === "Belgique") ? "Bruxelles" : (s.pays === "Suisse") ? "Genève" : "Paris"}
-                  />
+                  {(s.pays || "France") === "France" ? (
+                    <input
+                      style={inp}
+                      list={`villes-session-${si}`}
+                      value={s.ville}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, ville: v, parties: sess.parties.map(p => ({ ...p, ville: v })) }));
+                      }}
+                      placeholder="Paris, Lyon, Bordeaux…"
+                    />
+                  ) : (
+                    <>
+                      <select style={inp} value={REGIONS_CITIES[s.pays || "France"]?.includes(s.ville) ? s.ville : (s.ville ? "__OTHER__" : "")} onChange={e => {
+                        const val = e.target.value;
+                        const v = val === "__OTHER__" ? "" : val;
+                        setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, ville: v, parties: sess.parties.map(p => ({ ...p, ville: v })) }));
+                      }}>
+                        <option value="">— Choisir une ville —</option>
+                        {(REGIONS_CITIES[s.pays || "France"] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="__OTHER__">✏️ Autre ville…</option>
+                      </select>
+                      {!REGIONS_CITIES[s.pays || "France"]?.includes(s.ville) && (
+                        <input style={{ ...inp, marginTop: 6 }} value={s.ville} onChange={e => {
+                          const v = e.target.value;
+                          setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, ville: v, parties: sess.parties.map(p => ({ ...p, ville: v })) }));
+                        }} placeholder={s.pays === "Belgique" ? "Ex: Bruxelles" : "Ex: Genève"} />
+                      )}
+                    </>
+                  )}
                   <datalist id={`villes-session-${si}`}>
-                    {(REGIONS_CITIES[s.pays || "France"] || []).map(c => <option key={c} value={c} />)}
-                    {s.pays === "France" && Object.entries(REGIONS_CITIES).filter(([r]) => r !== "Belgique" && r !== "Suisse").flatMap(([, cities]) => cities).map(c => <option key={c} value={c} />)}
+                    {Object.entries(REGIONS_CITIES).filter(([r]) => r !== "Belgique" && r !== "Suisse").flatMap(([, cities]) => cities).map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
               </div>

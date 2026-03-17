@@ -322,7 +322,14 @@ export default function DashboardAdminPage() {
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
-        <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer" }}>👥 Utilisateurs</button>
+        <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
+          👥 Utilisateurs
+          {utilisateurs.organismes.filter(o => o.user_id).length > 0 && (
+            <span style={{ position: "absolute" as const, top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: C.green, color: "#fff", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+              {utilisateurs.organismes.filter(o => o.user_id).length}
+            </span>
+          )}
+        </button>
         <button onClick={async () => { setAdminTab("clics"); if (clickStats.length === 0) { const { data } = await supabase.rpc("formation_click_stats"); if (data) setClickStats(data); } }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "clics" ? C.surface : "transparent", color: adminTab === "clics" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "clics" ? 700 : 500, cursor: "pointer" }}>📊 Clics</button>
         <Link href="/dashboard/admin/import" style={{ padding: "7px 14px", borderRadius: 9, background: "transparent", color: C.textTer, fontSize: 12, fontWeight: 500, textDecoration: "none", display: "flex", alignItems: "center" }}>📥 Import Excel</Link>
       </div>
@@ -802,7 +809,15 @@ export default function DashboardAdminPage() {
       {/* ===== UTILISATEURS TAB ===== */}
       {adminTab === "utilisateurs" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 12 }}>Organismes et formateurs inscrits sur la plateforme. Les organismes avec un ✓ ont un compte actif — validez-les pour leur envoyer un email de confirmation.</p>
+          {utilisateurs.organismes.filter(o => o.user_id).length > 0 && (
+            <div style={{ marginBottom: 16, padding: "12px 16px", background: C.greenBg, borderRadius: 12, border: "1.5px solid " + C.green + "44", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>🔔</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{utilisateurs.organismes.filter(o => o.user_id).length} organisme{utilisateurs.organismes.filter(o => o.user_id).length > 1 ? "s" : ""} inscrit{utilisateurs.organismes.filter(o => o.user_id).length > 1 ? "s" : ""} — en attente de validation</div>
+                <div style={{ fontSize: 11, color: C.textSec }}>Ces organismes ont créé leur compte. Cliquez sur &quot;Valider &amp; notifier&quot; pour leur envoyer un email de confirmation.</div>
+              </div>
+            </div>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <input
@@ -816,7 +831,7 @@ export default function DashboardAdminPage() {
 
           <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🏢 Organismes ({utilisateurs.organismes.length})</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10, marginBottom: 30 }}>
-            {utilisateurs.organismes.filter(o => !orgSearch.trim() || (o.nom || "").toLowerCase().includes(orgSearch.toLowerCase())).map(o => (
+            {utilisateurs.organismes.filter(o => !orgSearch.trim() || (o.nom || "").toLowerCase().includes(orgSearch.toLowerCase())).sort((a: any, b: any) => (b.user_id ? 1 : 0) - (a.user_id ? 1 : 0)).map(o => (
               <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>

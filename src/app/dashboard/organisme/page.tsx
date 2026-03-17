@@ -931,11 +931,18 @@ export default function DashboardOrganismePage() {
                                 </>
                               ) : (
                                 <>
-                                  <select value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} style={inputStyle}>
+                                  <select value={(REGIONS_CITIES[p.pays || "France"] || []).includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
+                                    const val = e.target.value;
+                                    const n = [...sessions];
+                                    if (val !== "__OTHER__") { n[i].parties![pi].ville = val; n[i].parties![pi].lieu = val; }
+                                    else { n[i].parties![pi].ville = ""; n[i].parties![pi].lieu = ""; }
+                                    setSessions(n);
+                                  }} style={inputStyle}>
                                     <option value="">— Choisir une ville —</option>
                                     {(REGIONS_CITIES[p.pays || "France"] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="__OTHER__">✏️ Autre ville…</option>
                                   </select>
-                                  {p.ville === "" && (
+                                  {(!(REGIONS_CITIES[p.pays || "France"] || []).includes(p.ville)) && (
                                     <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder={p.pays === "Belgique" ? "Ex: Bruxelles" : "Ex: Genève"} style={{ ...inputStyle, marginTop: 8 }} />
                                   )}
                                 </>

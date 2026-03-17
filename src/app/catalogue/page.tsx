@@ -101,7 +101,7 @@ function CatalogueContent() {
   let filtered = formations.filter(f => {
     if (search) {
       const q = search.toLowerCase();
-      if (![f.titre, f.sous_titre || "", f.domaine, ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
+      if (![f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
     }
     if (selVilles.length > 0) {
       const hasVisio = selVilles.includes("Visio");
