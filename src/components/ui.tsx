@@ -47,7 +47,9 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   const [hov, setHov] = useState(false);
   const dc = getDC(f.domaine);
   const firstDomaine = f.domaine || ((f as any).domaines as string[] | undefined)?.[0] || "";
-  const photo = (f as any).photo_url || getPhoto(firstDomaine) || null;
+  const customPhoto = (f as any).photo_url;
+  const defaultPhoto = getPhoto(firstDomaine);
+  const photo = (customPhoto && customPhoto !== "null" && (customPhoto.startsWith("http") || customPhoto.startsWith("/"))) ? customPhoto : defaultPhoto;
   const m = mob ?? false;
   const sessions = f.sessions || [];
   const uniqueLieux = [...new Set(sessions.flatMap((s: any) => {
@@ -71,9 +73,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
 
         {/* ── Photo ── */}
         <div style={{ position: "relative", height: compact ? 150 : (m ? 170 : 200), flexShrink: 0, background: `linear-gradient(135deg, ${dc.bg}, ${dc.color}22)` }}>
-          {photo ? (
-            <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
-          ) : null}
+          <img src={photo} alt="" loading="lazy" decoding="async" onError={(e) => { const el = e.currentTarget as HTMLImageElement; if (el.src !== window.location.origin + defaultPhoto && !el.src.endsWith(defaultPhoto)) { el.src = defaultPhoto; } else { el.style.display = "none"; } }} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "transform 0.5s", transform: hov && !m ? "scale(1.03)" : "scale(1)" }} />
           {onToggleFav && (
             <button onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleFav(); }} style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", zIndex: 2, transition: "transform 0.15s" }} onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.15)")} onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
               {favori ? "❤️" : "🤍"}
