@@ -679,6 +679,40 @@ export default function DashboardOrganismePage() {
                   })}
                 </div>
               )}
+              {/* Recherche formateur existant */}
+              <div style={{ marginBottom: 8 }}>
+                <input
+                  type="text"
+                  placeholder="🔍 Rechercher un·e formateur·rice existant·e…"
+                  value={fmtSearchQuery}
+                  onChange={e => handleSearchFormateurs(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none", background: C.bgAlt, boxSizing: "border-box" as const }}
+                />
+                {fmtSearchResults.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, padding: 8, background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                    {fmtSearchResults.map(f => (
+                      <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, background: C.bgAlt }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 14, background: C.gradient, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700 }}>
+                          {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (f.nom?.[0]?.toUpperCase() || "?")}
+                        </div>
+                        <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: C.text }}>{f.nom}</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await handleAddExistingFormateur(f);
+                            setSelFormateurIds(prev => [...prev, f.id]);
+                            setFmtSearchQuery("");
+                            setFmtSearchResults([]);
+                          }}
+                          style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+                        >
+                          + Sélectionner
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button type="button" onClick={() => { setInlineNewFmt(!inlineNewFmt); setInlineFmt({ prenom: "", nom: "", sexe: "Non genré" }); setInlineFmtPhotoFile(null); }} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>+ Créer un·e formateur·rice</button>
               {inlineNewFmt && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8, padding: 14, background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
