@@ -20,7 +20,12 @@ export async function GET(_req: NextRequest) {
   const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).single();
   if (prof?.role !== "admin") return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
 
-  // Récupérer tous les users auth avec role=organisme en paginant
+  // Récupérer tous les organismes qui ont un user_id (compte actif)
+  const { data: orgs } = await admin.from("organismes").select("id, nom, user_id, logo, description").not("user_id", "is", null);
+  if (!orgs || orgs.length === 0) return NextResponse.json({ orgs: [] });
+
+  // Pour chaque organisme, vérifier si le user est auto-inscrit (invited_at = null)
+  // On fetch les users en paginant pour trouver ceux qui correspondent
   const allUsers: any[] = [];
   let page = 1;
   while (true) {
@@ -34,27 +39,21 @@ export async function GET(_req: NextRequest) {
     page++;
   }
 
-  // Filtrer : role=organisme ET invited_at est null (= auto-inscrit, pas invité par admin)
-  const selfRegistered = allUsers.filter(u =>
-    (u.user_metadata?.role === "organisme" || u.app_metadata?.role === "organisme") &&
-    !u.invited_at
-  );
+  const userMap = new Map(allUsers.map((u: any) => [u.id, u]));
 
-  // Récupérer les organismes correspondants
-  const userIds = selfRegistered.map((u: any) => u.id);
-  if (userIds.length === 0) return NextResponse.json({ orgs: [] });
-
-  const { data: orgs } = await admin.from("organismes").select("id, nom, user_id, logo, description").in("user_id", userIds);
-
-  // Fusionner avec les infos user (email, date inscription)
-  const result = (orgs || []).map(o => {
-    const authUser = selfRegistered.find(u => u.id === o.user_id);
-    return {
-      ...o,
-      email: authUser?.email || "",
-      created_at: authUser?.created_at || "",
-    };
-  });
+  // Filtrer : organismes dont le user auth a invited_at = null (= auto-inscrit, pas invité)
+  const result = orgs
+    .map(o => {
+      const authUser = userMap.get(o.user_id);
+      if (!authUser) return null;
+      if (authUser.invited_at) return null; // invité par l'admin → déjà validé
+      return {
+        ...o,
+        email: authUser.email || "",
+        created_at: authUser.created_at || "",
+      };
+    })
+    .filter(Boolean);
 
   return NextResponse.json({ orgs: result });
 }
