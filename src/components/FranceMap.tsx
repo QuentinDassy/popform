@@ -85,6 +85,7 @@ export default function FranceMap({
 }) {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
   const [belgiumGeo, setBelgiumGeo] = useState<GeoFeature | null>(null);
+  const [switzerlandGeo, setSwitzerlandGeo] = useState<GeoFeature | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const router = useRouter();
 
@@ -96,6 +97,10 @@ export default function FranceMap({
     fetch("/belgium.geojson")
       .then((r) => r.json())
       .then((data) => setBelgiumGeo(data.features?.[0] || null))
+      .catch(console.error);
+    fetch("/switzerland.geojson")
+      .then((r) => r.json())
+      .then((data) => setSwitzerlandGeo(data.features?.[0] || null))
       .catch(console.error);
   }, []);
 
@@ -150,7 +155,7 @@ export default function FranceMap({
             );
           })}
 
-          {/* Belgique — dessinée APRÈS la France, sur le dessus, légèrement décollée */}
+          {/* Belgique — dessinée APRÈS la France, sur le dessus */}
           {belgiumGeo && (() => {
             const count = countFormations("Belgique", formations);
             const isHov = hovered === "Belgique";
@@ -162,6 +167,30 @@ export default function FranceMap({
                 onMouseEnter={() => setHovered("Belgique")}
                 onMouseLeave={() => setHovered(null)}
                 onClick={() => go("Belgique")}
+              >
+                <path
+                  d={d}
+                  fill={isHov ? C.accent : count > 0 ? "#FFE8C0" : "#E8DFCF"}
+                  stroke={isHov ? C.accentDark : "#BFB09A"}
+                  strokeWidth={isHov ? 1.2 : 0.6}
+                  style={{ transition: "fill 0.15s, stroke 0.15s" }}
+                />
+              </g>
+            );
+          })()}
+
+          {/* Suisse — dessinée APRÈS la France */}
+          {switzerlandGeo && (() => {
+            const count = countFormations("Suisse", formations);
+            const isHov = hovered === "Suisse";
+            const d = featureToPath(switzerlandGeo.geometry);
+            return (
+              <g
+                transform="translate(0,0)"
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setHovered("Suisse")}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => go("Suisse")}
               >
                 <path
                   d={d}

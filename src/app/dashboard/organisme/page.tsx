@@ -14,7 +14,7 @@ const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
 
-type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
+type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; pays: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[] };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null; photo_url?: string | null };
 
@@ -39,7 +39,7 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
-  const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
+  const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -127,7 +127,7 @@ export default function DashboardOrganismePage() {
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
       });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", pays: "France", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
       const existingIds: number[] = (f as any).formateur_ids?.length ? (f as any).formateur_ids : ((f as any).formateur_id ? [(f as any).formateur_id] : []);
       setSelFormateurIds(existingIds);
@@ -832,7 +832,7 @@ export default function DashboardOrganismePage() {
                             const parts = nSessions[i].parties || [];
                             if (n > parts.length) {
                               for (let k = parts.length; k < n; k++) {
-                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
+                                parts.push({ titre: n === 1 ? "" : "Partie " + (k + 1), jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
                               }
                             } else {
                               parts.splice(n);
@@ -888,8 +888,20 @@ export default function DashboardOrganismePage() {
                           </div>
                           {p.modalite !== "Visio" && (
                             <div>
+                              <label style={labelStyle}>Pays</label>
+                              <select value={p.pays || "France"} onChange={e => {
+                                const n = [...sessions];
+                                n[i].parties![pi].pays = e.target.value;
+                                n[i].parties![pi].ville = "";
+                                n[i].parties![pi].lieu = "";
+                                setSessions(n);
+                              }} style={{ ...inputStyle, marginBottom: 8 }}>
+                                <option value="France">France</option>
+                                <option value="Belgique">Belgique</option>
+                                <option value="Suisse">Suisse</option>
+                              </select>
                               <label style={labelStyle}>Ville</label>
-                              {adminVilles.length > 0 ? (
+                              {(p.pays || "France") === "France" && adminVilles.length > 0 ? (
                                 <>
                                   <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
                                     const val = e.target.value;
@@ -901,7 +913,7 @@ export default function DashboardOrganismePage() {
                                     <option value="">— Choisir une ville —</option>
                                     {(() => {
                                       const seen = new Set<string>();
-                                      return Object.entries(REGIONS_CITIES).flatMap(([region, cities]) => {
+                                      return Object.entries(REGIONS_CITIES).filter(([r]) => r !== "Belgique" && r !== "Suisse").flatMap(([region, cities]) => {
                                         const avail = cities.filter(c => adminVilles.includes(c));
                                         avail.forEach(c => seen.add(c));
                                         if (avail.length === 0) return [];
@@ -918,7 +930,15 @@ export default function DashboardOrganismePage() {
                                   )}
                                 </>
                               ) : (
-                                <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; setSessions(n); }} placeholder="Ex: Paris" style={inputStyle} />
+                                <>
+                                  <select value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} style={inputStyle}>
+                                    <option value="">— Choisir une ville —</option>
+                                    {(REGIONS_CITIES[p.pays || "France"] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                  {p.ville === "" && (
+                                    <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder={p.pays === "Belgique" ? "Ex: Bruxelles" : "Ex: Genève"} style={{ ...inputStyle, marginTop: 8 }} />
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -934,7 +954,7 @@ export default function DashboardOrganismePage() {
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
             </div>
           </div>
           )}

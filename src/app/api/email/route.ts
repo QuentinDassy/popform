@@ -107,6 +107,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (type === "organisme_validated") {
+      // Compte organisme validé par l'admin → email à l'organisme
+      const { user_id, nom } = data;
+      if (!user_id) return NextResponse.json({ ok: true });
+
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceKey) { console.warn("SUPABASE_SERVICE_ROLE_KEY not set"); return NextResponse.json({ ok: true }); }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${user_id}`,
+        { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+      );
+      const userData = await res.json();
+      const email = userData?.email;
+      if (!email) return NextResponse.json({ ok: true });
+
+      await sendEmail(
+        email,
+        "Votre compte PopForm est validé !",
+        brandedHtml(
+          "Bienvenue sur PopForm !",
+          `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 12px">Bonne nouvelle ! Votre compte organisme <strong>${esc(nom || "")}</strong> a été validé par notre équipe. Vous pouvez maintenant publier vos formations.</p>
+           <a href="${BASE_URL}/dashboard/organisme" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Accéder à mon espace →</a>`
+        )
+      );
+    }
+
     if (type === "newsletter_confirm") {
       const { email: to } = data;
       if (!to) return NextResponse.json({ ok: true });

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES, REGIONS_CITIES } from "@/lib/data";
 import { supabase, fetchOrganismes, fetchFormateurs, type Organisme, type Formateur } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 
@@ -16,7 +16,7 @@ type SessionPartieRow = {
 };
 type SessionRow = {
   id?: number; dates: string; date_ranges: { debut: string; fin: string }[];
-  lieu: string; adresse: string; ville: string;
+  lieu: string; adresse: string; ville: string; pays: string;
   code_postal: string; modalite_session: string; lien_visio: string; is_visio: boolean;
   parties: SessionPartieRow[];
 };
@@ -37,7 +37,7 @@ type FormState = {
 
 const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
-const POPULATIONS_OPTS = ["Enfants", "Adolescents", "Adultes", "Personnes âgées", "Tous publics"];
+const POPULATIONS_OPTS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
 const STATUS_OPTS = ["publiee", "en_attente", "refusee", "archivee"];
 
@@ -60,7 +60,7 @@ function formatMultipleDateRanges(ranges: { debut: string; fin: string }[]): str
 }
 
 function emptySession(): SessionRow {
-  return { dates: "", date_ranges: [{ debut: "", fin: "" }], lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
+  return { dates: "", date_ranges: [{ debut: "", fin: "" }], lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
 }
 function emptyForm(): FormState {
   return {
@@ -190,6 +190,7 @@ export default function AdminFormationEditorPage() {
                 lieu: s.lieu || "",
                 adresse: "",
                 ville: s.lieu || "",
+                pays: "France",
                 code_postal: s.code_postal || "",
                 modalite_session: s.modalite_session || "Présentiel",
                 lien_visio: s.lien_visio || "",
@@ -239,7 +240,7 @@ export default function AdminFormationEditorPage() {
     let photoUrl: string | null = null;
     if (newFmtPhotoFile) { try { photoUrl = await uploadImage(newFmtPhotoFile, "formateurs"); } catch {} }
     const fullNom = [newFmt.prenom.trim(), newFmt.nom.trim()].filter(Boolean).join(" ");
-    const { data, error } = await supabase.from("formateurs").insert({ nom: fullNom, sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: form.organisme_id, photo_url: photoUrl }).select().single();
+    const { data, error } = await supabase.from("formateurs").insert({ nom: fullNom, sexe: newFmt.sexe, bio: newFmt.bio.trim() || "", organisme_id: null, photo_url: photoUrl }).select().single();
     if (!error && data) {
       setFormateurs(fmts => [...fmts, data]);
       setF("formateur_ids", [...form.formateur_ids, data.id]);
@@ -834,15 +835,35 @@ export default function AdminFormationEditorPage() {
                 <input style={inp} value={s.lien_visio} onChange={e => setSession(si, "lien_visio", e.target.value)} placeholder="https://zoom.us/…" />
               </div>
             ) : (
-              <div>
-                <label style={lbl}>Ville</label>
-                <input style={inp} value={s.ville} onChange={e => {
-                  const v = e.target.value;
-                  setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
-                    ...sess, ville: v,
-                    parties: sess.parties.map(p => ({ ...p, ville: v })),
-                  }));
-                }} placeholder="Paris" />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+                <div>
+                  <label style={lbl}>Pays</label>
+                  <select style={inp} value={s.pays || "France"} onChange={e => setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, pays: e.target.value, ville: "" }))}>
+                    <option value="France">France</option>
+                    <option value="Belgique">Belgique</option>
+                    <option value="Suisse">Suisse</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Ville</label>
+                  <input
+                    style={inp}
+                    list={`villes-session-${si}`}
+                    value={s.ville}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : {
+                        ...sess, ville: v,
+                        parties: sess.parties.map(p => ({ ...p, ville: v })),
+                      }));
+                    }}
+                    placeholder={(s.pays === "Belgique") ? "Bruxelles" : (s.pays === "Suisse") ? "Genève" : "Paris"}
+                  />
+                  <datalist id={`villes-session-${si}`}>
+                    {(REGIONS_CITIES[s.pays || "France"] || []).map(c => <option key={c} value={c} />)}
+                    {s.pays === "France" && Object.entries(REGIONS_CITIES).filter(([r]) => r !== "Belgique" && r !== "Suisse").flatMap(([, cities]) => cities).map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
               </div>
             )}
 

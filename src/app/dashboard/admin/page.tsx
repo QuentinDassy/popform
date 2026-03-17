@@ -24,6 +24,9 @@ export default function DashboardAdminPage() {
   const [linkingOrg, setLinkingOrg] = useState<number | null>(null);
   const [linkEmail, setLinkEmail] = useState("");
   const [linkMsg, setLinkMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
+  const [orgSearch, setOrgSearch] = useState("");
+  const [formSearch, setFormSearch] = useState("");
+  const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -256,7 +259,22 @@ export default function DashboardAdminPage() {
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
-  const filtered = filter === "all" ? formations.filter(f => f.status !== "supprimee") : formations.filter(f => f.status === filter);
+  const normS = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filteredBase = filter === "all" ? formations.filter(f => f.status !== "supprimee") : formations.filter(f => f.status === filter);
+  const filteredSearched = formSearch.trim()
+    ? filteredBase.filter(f => {
+        const q = normS(formSearch);
+        return normS(f.titre).includes(q)
+          || normS((f as any).organisme?.nom || "").includes(q)
+          || normS((f as any).formateur?.nom || "").includes(q);
+      })
+    : filteredBase;
+  const filtered = [...filteredSearched].sort((a, b) => {
+    if (formSort === "alpha") return normS(a.titre).localeCompare(normS(b.titre));
+    if (formSort === "organisme") return normS((a as any).organisme?.nom || "").localeCompare(normS((b as any).organisme?.nom || ""));
+    if (formSort === "recent") return new Date(b.date_ajout).getTime() - new Date(a.date_ajout).getTime();
+    return 0; // default: order from DB (already date_ajout desc)
+  });
   const deletedCount = formations.filter(f => f.status === "supprimee").length;
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
   const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
@@ -650,6 +668,23 @@ export default function DashboardAdminPage() {
       <Link href="/dashboard/admin/formation/new" style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>➕ Nouvelle formation</Link>
       </div>
 
+      {/* Recherche et tri formations */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="text"
+          placeholder="🔍 Rechercher par titre, organisme, formateur…"
+          value={formSearch}
+          onChange={e => setFormSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 200, padding: "9px 14px", borderRadius: 10, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none", background: C.surface }}
+        />
+        <select value={formSort} onChange={e => setFormSort(e.target.value as any)} style={{ padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", background: C.surface, cursor: "pointer" }}>
+          <option value="default">Tri : Récent d'abord</option>
+          <option value="alpha">Tri : Alphabétique</option>
+          <option value="organisme">Tri : Par organisme</option>
+          <option value="recent">Tri : Dernière modification</option>
+        </select>
+      </div>
+
       {/* Formation list */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: 50, color: C.textTer }}>Aucune formation dans cette catégorie.</div>
@@ -767,11 +802,21 @@ export default function DashboardAdminPage() {
       {/* ===== UTILISATEURS TAB ===== */}
       {adminTab === "utilisateurs" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 20 }}>Organismes et formateurs inscrits sur la plateforme. Cliquez sur &quot;+ Formation&quot; pour créer une formation à leur place.</p>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 12 }}>Organismes et formateurs inscrits sur la plateforme. Les organismes avec un ✓ ont un compte actif — validez-les pour leur envoyer un email de confirmation.</p>
+
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="text"
+              placeholder="🔍 Rechercher un organisme…"
+              value={orgSearch}
+              onChange={e => setOrgSearch(e.target.value)}
+              style={{ width: "100%", maxWidth: 360, padding: "9px 14px", borderRadius: 10, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" }}
+            />
+          </div>
 
           <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🏢 Organismes ({utilisateurs.organismes.length})</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10, marginBottom: 30 }}>
-            {utilisateurs.organismes.map(o => (
+            {utilisateurs.organismes.filter(o => !orgSearch.trim() || (o.nom || "").toLowerCase().includes(orgSearch.toLowerCase())).map(o => (
               <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
@@ -782,6 +827,18 @@ export default function DashboardAdminPage() {
                     <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé — sans accès"}</div>
                   </div>
                 </div>
+                {o.user_id && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Envoyer un email de validation à l'organisme "${o.nom}" ?`)) return;
+                      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "organisme_validated", user_id: o.user_id, nom: o.nom }) }).catch(() => {});
+                      setLinkMsg({ id: o.id, msg: "✉️ Email de confirmation envoyé !", ok: true });
+                    }}
+                    style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    ✅ Valider & notifier
+                  </button>
+                )}
                 {!o.user_id && linkingOrg !== o.id && (
                   <button onClick={() => { setLinkingOrg(o.id); setLinkEmail(""); setLinkMsg(null); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                     🔗 Lier un compte
@@ -826,22 +883,39 @@ export default function DashboardAdminPage() {
             ))}
           </div>
 
-          <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🎤 Formateurs ({utilisateurs.formateurs.length})</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 4 }}>🎤 Formateurs ({utilisateurs.formateurs.length})</h2>
+          <p style={{ fontSize: 12, color: C.textTer, marginBottom: 12 }}>Les formateurs ne doivent pas être liés à un organisme. Utilisez le bouton "Détacher" si nécessaire.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
-            {utilisateurs.formateurs.map(f => (
-              <div key={f.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 18, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, overflow: "hidden", border: "1.5px solid " + C.border }}>
-                    {f.photo && f.photo.startsWith("http") ? <img src={f.photo} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🎤"}
+            {utilisateurs.formateurs.map(f => {
+              const linkedOrg = f.organisme_id ? utilisateurs.organismes.find((o: any) => o.id === f.organisme_id) : null;
+              return (
+                <div key={f.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + (linkedOrg ? C.yellow + "66" : C.borderLight), display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 18, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, overflow: "hidden", border: "1.5px solid " + C.border }}>
+                      {f.photo && f.photo.startsWith("http") ? <img src={f.photo} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🎤"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
+                      <div style={{ fontSize: 10, color: f.user_id ? C.green : C.textTer }}>{f.user_id ? "✓ Compte actif" : "Importé"}</div>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
-                    <div style={{ fontSize: 10, color: f.user_id ? C.green : C.textTer }}>{f.user_id ? "✓ Compte actif" : "Importé"}</div>
-                  </div>
+                  {linkedOrg && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 7, background: C.yellowBg, fontSize: 11 }}>
+                      <span style={{ color: C.yellowDark, flex: 1 }}>⚠️ Lié à : {linkedOrg.nom}</span>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Détacher ${f.nom} de l'organisme "${linkedOrg.nom}" ?`)) return;
+                          await supabase.from("formateurs").update({ organisme_id: null }).eq("id", f.id);
+                          setUtilisateurs(prev => ({ ...prev, formateurs: prev.formateurs.map((x: any) => x.id === f.id ? { ...x, organisme_id: null } : x) }));
+                        }}
+                        style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.accent, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
+                      >Détacher</button>
+                    </div>
+                  )}
+                  <Link href={`/dashboard/admin/formation/new?formateur_id=${f.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
                 </div>
-                <Link href={`/dashboard/admin/formation/new?formateur_id=${f.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

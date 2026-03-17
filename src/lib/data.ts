@@ -105,9 +105,10 @@ export const REGIONS_CITIES: Record<string, string[]> = {
   "Mayotte": ["Mamoudzou", "Koungou", "Bandraboua"],
   "Réunion": ["Saint-Denis", "Saint-Paul", "Le Tampon", "Saint-Pierre", "Saint-André"],
   "Belgique": ["Bruxelles", "Liège", "Anvers", "Gand", "Bruges", "Charleroi", "Namur", "Louvain", "Mons", "Arlon"],
+  "Suisse": ["Genève", "Lausanne", "Zurich", "Berne", "Bâle", "Lucerne", "Lugano", "Fribourg", "Sion", "Neuchâtel", "Montreux", "Winterthour", "Saint-Gall", "Biel", "Thoune"],
 };
 
-export const FRENCH_REGIONS = Object.keys(REGIONS_CITIES).filter(r => r !== "Belgique");
+export const FRENCH_REGIONS = Object.keys(REGIONS_CITIES).filter(r => r !== "Belgique" && r !== "Suisse");
 export const DOM_REGIONS_LIST = ["Guadeloupe", "Guyane", "Martinique", "Mayotte", "Réunion"];
 
 export const CITY_TO_REGION: Record<string, string> = Object.entries(REGIONS_CITIES).reduce(
