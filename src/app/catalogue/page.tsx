@@ -133,8 +133,10 @@ function CatalogueContent() {
     }
     if (organismeParam) {
       const orgId = Number(organismeParam);
-      const matchesOrg = f.organisme_id === orgId || (f.formateur && (f.formateur as any).organisme_id === orgId);
-      if (!matchesOrg) return false;
+      const formationOrgId = f.organisme_id
+        ? f.organisme_id
+        : (f.formateur && (f.formateur as any).organisme_id);
+      if (formationOrgId !== orgId) return false;
     }
     return true;
   });
