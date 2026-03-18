@@ -15,8 +15,16 @@ CREATE INDEX IF NOT EXISTS formation_clicks_formation_id_idx
 CREATE INDEX IF NOT EXISTS formation_clicks_created_at_idx
   ON formation_clicks(created_at);
 
+-- Permissions de base (nécessaire même avec RLS)
+GRANT INSERT ON formation_clicks TO anon, authenticated;
+GRANT SELECT ON formation_clicks TO authenticated;
+
 -- RLS
 ALTER TABLE formation_clicks ENABLE ROW LEVEL SECURITY;
+
+-- Supprimer les policies existantes pour éviter les doublons
+DROP POLICY IF EXISTS "click_insert" ON formation_clicks;
+DROP POLICY IF EXISTS "click_select" ON formation_clicks;
 
 -- Tout le monde peut insérer (visiteur anonyme ou connecté)
 CREATE POLICY "click_insert" ON formation_clicks

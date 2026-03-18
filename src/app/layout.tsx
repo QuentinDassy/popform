@@ -21,11 +21,13 @@ export const metadata: Metadata = {
     siteName: "PopForm",
     locale: "fr_FR",
     type: "website",
+    images: [{ url: "https://popform.fr/og-image.png", width: 2048, height: 1080, alt: "PopForm — L'annuaire des formations en orthophonie" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PopForm 🍿",
     description: "La formation continue en orthophonie, version blockbuster.",
+    images: ["https://popform.fr/og-image.png"],
   },
   robots: { index: true, follow: true },
   metadataBase: new URL("https://popform.fr"),
