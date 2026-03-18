@@ -7,14 +7,22 @@ export default function CguPage() {
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 24px" }}>
       <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: C.text, marginTop: 12, marginBottom: 24 }}>Conditions Générales d'Utilisation</h1>
-      <p style={{ fontSize: 12, color: C.textTer, marginBottom: 24 }}>Dernière mise à jour : février 2026</p>
+      <p style={{ fontSize: 12, color: C.textTer, marginBottom: 24 }}>Dernière mise à jour : mars 2026</p>
       {[
         { title: "1. Objet", content: "Les présentes CGU régissent l'utilisation de la plateforme PopForm, accessible à l'adresse popform.fr. En accédant à la plateforme, vous acceptez ces conditions." },
         { title: "2. Description du service", content: "PopForm est une plateforme de référencement de formations continues destinées aux professionnels de santé, notamment les orthophonistes. Elle met en relation des organismes de formation, des formateurs indépendants et des professionnels souhaitant se former." },
         { title: "3. Inscription et compte", content: "L'inscription est gratuite pour les utilisateurs. Les organismes et formateurs peuvent créer un compte pour référencer leurs formations, sous réserve de validation par l'équipe PopForm." },
         { title: "4. Contenu", content: "Les organismes et formateurs sont responsables du contenu qu'ils publient. PopForm se réserve le droit de refuser ou supprimer tout contenu non conforme à sa charte éditoriale." },
-        { title: "5. Données personnelles", content: "Vos données sont traitées conformément à notre politique de confidentialité et au RGPD. Vous pouvez exercer vos droits en écrivant à contact@popform.fr." },
-        { title: "6. Contact", content: "Pour toute question relative aux CGU : contact@popform.fr" },
+        {
+          title: "5. Avis et évaluations",
+          content: [
+            "En publiant un avis sur une formation, l'utilisateur déclare sur l'honneur avoir assisté à cette formation.",
+            "PopForm se réserve le droit de demander à tout moment un justificatif de présence (attestation de formation, certificat de participation, ou tout document équivalent) afin de vérifier l'authenticité d'un avis. En cas de refus de fournir ce justificatif ou en cas d'avis manifestement frauduleux, PopForm se réserve le droit de supprimer l'avis concerné et de suspendre le compte de l'utilisateur.",
+            "PopForm agit en qualité d'hébergeur au sens de la loi pour la Confiance dans l'Économie Numérique (LCEN). À ce titre, PopForm n'est pas responsable du contenu des avis publiés par les utilisateurs. Les avis reflètent l'opinion personnelle de leurs auteurs et n'engagent pas la responsabilité de PopForm. Toutefois, PopForm s'engage à traiter sans délai toute demande de retrait d'un contenu manifestement illicite.",
+          ].join(" "),
+        },
+        { title: "6. Données personnelles", content: "Vos données sont traitées conformément à notre politique de confidentialité et au RGPD. Vous pouvez exercer vos droits en écrivant à contact@popform.fr." },
+        { title: "7. Contact", content: "Pour toute question relative aux CGU : contact@popform.fr" },
       ].map(({ title, content }) => (
         <div key={title} style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>{title}</h2>
