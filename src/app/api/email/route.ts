@@ -137,6 +137,23 @@ export async function POST(request: NextRequest) {
     if (type === "newsletter_confirm") {
       const { email: to } = data;
       if (!to) return NextResponse.json({ ok: true });
+
+      // Insert into newsletter_subscribers via service role (bypasses RLS)
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (serviceKey && supabaseUrl) {
+        await fetch(`${supabaseUrl}/rest/v1/newsletter_subscribers`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey,
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates",
+          },
+          body: JSON.stringify({ email: to.trim().toLowerCase() }),
+        });
+      }
+
       await sendEmail(
         to,
         "Bienvenue dans la newsletter PopForm 🍿",

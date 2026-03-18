@@ -567,9 +567,7 @@ export default function HomePage() {
               <input placeholder="votre@email.fr" type="email" value={nlEmail} onChange={e => setNlEmail(e.target.value)} style={{ flex: 1, padding: "11px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
               <button onClick={async () => {
                 if (!nlEmail.trim()) return;
-                // Save to newsletter_subscribers table
-                await supabase.from("newsletter_subscribers").upsert({ email: nlEmail.trim().toLowerCase() }, { onConflict: "email" }).catch(() => {});
-                // Send confirmation email
+                // L'API gère l'insertion en BDD + l'email de confirmation
                 fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "newsletter_confirm", email: nlEmail.trim() }) }).catch(() => {});
                 setNlSent(true);
               }} style={{ padding: "11px 22px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>S&apos;abonner</button>
