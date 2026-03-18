@@ -997,9 +997,12 @@ export default function DashboardOrganismePage() {
                                 <option value="France">France</option>
                                 <option value="Belgique">Belgique</option>
                                 <option value="Suisse">Suisse</option>
+                                <option value="Monde">Monde (autre pays)</option>
                               </select>
-                              <label style={labelStyle}>Ville</label>
-                              {(p.pays || "France") === "France" && adminVilles.length > 0 ? (
+                              <label style={labelStyle}>{p.pays === "Monde" ? "Pays (préciser)" : "Ville"}</label>
+                              {p.pays === "Monde" ? (
+                                <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties![pi].ville = e.target.value; n[i].parties![pi].lieu = e.target.value; setSessions(n); }} placeholder="Ex: Allemagne, Espagne, Canada…" style={inputStyle} />
+                              ) : (p.pays || "France") === "France" && adminVilles.length > 0 ? (
                                 <>
                                   <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
                                     const val = e.target.value;

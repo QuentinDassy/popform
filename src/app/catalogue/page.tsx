@@ -331,6 +331,10 @@ function CatalogueContent() {
                     <button onClick={() => setSelRegion(selRegion === "Belgique" ? "" : "Belgique")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Belgique" ? C.accent : C.border), background: selRegion === "Belgique" ? C.accentBg : C.surface, color: selRegion === "Belgique" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Belgique" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Belgique</button>
                     <button onClick={() => setSelRegion(selRegion === "Suisse" ? "" : "Suisse")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Suisse" ? C.accent : C.border), background: selRegion === "Suisse" ? C.accentBg : C.surface, color: selRegion === "Suisse" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Suisse" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Suisse</button>
                   </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 10, marginBottom: 6 }}>Monde</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                    <button onClick={() => setSelRegion(selRegion === "Monde" ? "" : "Monde")} style={{ padding: "7px 14px", borderRadius: 99, border: "1.5px solid " + (selRegion === "Monde" ? C.accent : C.border), background: selRegion === "Monde" ? C.accentBg : C.surface, color: selRegion === "Monde" ? C.accent : C.textSec, fontSize: 12, fontWeight: selRegion === "Monde" ? 700 : 400, cursor: "pointer", fontFamily: "inherit" }}>Monde</button>
+                  </div>
                 </div>
 
                 <button onClick={() => { clearAll(); setShowFilterPanel(false); }} style={{ width: "100%", padding: "12px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>Réinitialiser les filtres</button>
@@ -374,6 +378,9 @@ function CatalogueContent() {
             <optgroup label="International">
               <option value="Belgique">Belgique</option>
               <option value="Suisse">Suisse</option>
+            </optgroup>
+            <optgroup label="Monde">
+              <option value="Monde">Monde</option>
             </optgroup>
           </select>
           {hasActiveFilters && (

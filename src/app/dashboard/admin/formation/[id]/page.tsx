@@ -843,10 +843,11 @@ export default function AdminFormationEditorPage() {
                     <option value="France">France</option>
                     <option value="Belgique">Belgique</option>
                     <option value="Suisse">Suisse</option>
+                    <option value="Monde">Monde (autre pays)</option>
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Ville</label>
+                  <label style={lbl}>{s.pays === "Monde" ? "Pays (préciser)" : "Ville"}</label>
                   {(s.pays || "France") === "France" ? (
                     <input
                       style={inp}
@@ -858,6 +859,11 @@ export default function AdminFormationEditorPage() {
                       }}
                       placeholder="Paris, Lyon, Bordeaux…"
                     />
+                  ) : s.pays === "Monde" ? (
+                    <input style={inp} value={s.ville} onChange={e => {
+                      const v = e.target.value;
+                      setSessions(ss => ss.map((sess, idx) => idx !== si ? sess : { ...sess, ville: v, parties: sess.parties.map(p => ({ ...p, ville: v })) }));
+                    }} placeholder="Ex: Allemagne, Espagne, Canada…" />
                   ) : (
                     <>
                       <select style={inp} value={REGIONS_CITIES[s.pays || "France"]?.includes(s.ville) ? s.ville : (s.ville ? "__OTHER__" : "")} onChange={e => {

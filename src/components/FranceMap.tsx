@@ -315,6 +315,52 @@ export default function FranceMap({
             );
           })}
         </div>
+        {(() => {
+          const mondeCount = countFormations("Monde", formations);
+          const isHov = hovered === "Monde";
+          return (
+            <>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: C.textTer,
+                  textTransform: "uppercase" as const,
+                  letterSpacing: 1,
+                  marginTop: 14,
+                  marginBottom: 8,
+                }}
+              >
+                Monde
+              </div>
+              <button
+                onMouseEnter={() => setHovered("Monde")}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => go("Monde")}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 12,
+                  border: "1.5px solid " + (isHov ? C.accent : C.borderLight),
+                  background: isHov ? C.accentBg : mondeCount > 0 ? "#FFF8EC" : C.surface,
+                  color: isHov ? C.accent : C.textSec,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  textAlign: "center" as const,
+                  transition: "all 0.15s",
+                }}
+              >
+                <div>Monde</div>
+                {mondeCount > 0 && (
+                  <div style={{ fontSize: 9, color: C.accent, marginTop: 3 }}>
+                    {mondeCount} form.
+                  </div>
+                )}
+              </button>
+            </>
+          );
+        })()}
       </div>
 
     </div>
