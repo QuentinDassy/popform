@@ -55,7 +55,7 @@ const normCity = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
 
 function countFormations(
   key: string,
-  formations: { sessions?: { lieu: string; session_parties?: { lieu?: string; ville?: string }[] }[] }[]
+  formations: { sessions?: { lieu: string; pays?: string | null; session_parties?: { lieu?: string; ville?: string }[] }[] }[]
 ): number {
   const cities = (REGIONS_CITIES[key] || []).map((c) => normCity(c));
   const matchesCity = (text: string) => {
@@ -64,6 +64,7 @@ function countFormations(
   };
   return formations.filter((f) =>
     (f.sessions || []).some((s) => {
+      if (s.pays === key) return true;
       const parts = (s.lieu || "").split(", ").map((p) => p.trim()).filter(Boolean);
       if (parts.some((p) => matchesCity(p))) return true;
       return (s.session_parties || []).some((p) => matchesCity(p.lieu || p.ville || ""));
