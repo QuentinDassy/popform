@@ -58,6 +58,7 @@ function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId }
   const [subOrganisation, setSubOrganisation] = useState(5);
   const [subSupports, setSubSupports] = useState(5);
   const [subPertinence, setSubPertinence] = useState(5);
+  const [certifie, setCertifie] = useState(false);
   const startEdit = () => { setNote(myAvis!.note); setTexte(myAvis!.texte); setEditMode(true); setShowForm(true) };
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -148,10 +149,16 @@ function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId }
             </>
           )}
           <textarea value={texte} onChange={e => setTexte(e.target.value)} placeholder="Partagez votre expérience..." style={{ width: "100%", minHeight: 80, padding: 10, borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, resize: "vertical", marginTop: 12 }} />
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            {submitError && <p style={{ color: C.pink, fontSize: 12, marginBottom: 6 }}>{submitError}</p>}
-            <button onClick={handleSubmit} disabled={submitting} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: submitting ? 0.6 : 1 }}>{submitting ? "⏳..." : editMode ? "Modifier" : "Publier"}</button>
-            <button onClick={() => { setShowForm(false); setEditMode(false) }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+          {!editMode && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer", userSelect: "none" }}>
+              <input type="checkbox" checked={certifie} onChange={e => setCertifie(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.accent, cursor: "pointer", flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.4 }}>Je certifie avoir assisté à cette formation</span>
+            </label>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {submitError && <p style={{ color: C.pink, fontSize: 12, marginBottom: 6, width: "100%" }}>{submitError}</p>}
+            <button onClick={handleSubmit} disabled={submitting || (!editMode && !certifie)} title={!editMode && !certifie ? "Veuillez certifier avoir assisté à cette formation" : undefined} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: (!editMode && !certifie) ? "not-allowed" : "pointer", opacity: (submitting || (!editMode && !certifie)) ? 0.5 : 1 }}>{submitting ? "⏳..." : editMode ? "Modifier" : "Publier"}</button>
+            <button onClick={() => { setShowForm(false); setEditMode(false); setCertifie(false); }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
           </div>
         </div>
       )}

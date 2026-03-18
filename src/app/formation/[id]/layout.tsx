@@ -19,7 +19,11 @@ export async function generateMetadata({
 
   if (!f) return {};
 
-  const org = (f.organisme as { nom: string } | null)?.nom ?? (f.formateur as { nom: string } | null)?.nom ?? "";
+  const orgRaw = f.organisme as unknown;
+  const fmtRaw = f.formateur as unknown;
+  const orgNom = Array.isArray(orgRaw) ? (orgRaw[0] as { nom: string } | undefined)?.nom : (orgRaw as { nom: string } | null)?.nom;
+  const fmtNom = Array.isArray(fmtRaw) ? (fmtRaw[0] as { nom: string } | undefined)?.nom : (fmtRaw as { nom: string } | null)?.nom;
+  const org = orgNom ?? fmtNom ?? "";
   const title = org ? `${f.titre} — ${org} | PopForm` : `${f.titre} | PopForm`;
   const description = (f.description || f.sous_titre || "Découvrez cette formation en orthophonie sur PopForm.").slice(0, 160);
   const image = f.photo_url || "https://popform.fr/og-image.png";
