@@ -129,6 +129,7 @@ function CatalogueContent() {
     if (selRegion) {
       const regionCities = REGIONS_CITIES[selRegion] || [];
       const matches = (f.sessions || []).some(s =>
+        s.pays === selRegion ||
         regionCities.some(c => normV(s.lieu).includes(normV(c)))
       );
       if (!matches) return false;

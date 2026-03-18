@@ -242,6 +242,9 @@ export default function DashboardOrganismePage() {
             : (s.is_visio ? ((s.lien_visio || "").trim()) : [s.adresse.trim(), s.ville.trim(), s.code_postal.trim()].filter(Boolean).join(", ")),
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
+          pays: (s.parties && s.parties.length > 0)
+            ? (s.parties.find((p: any) => p.pays && p.pays !== "France")?.pays || "France")
+            : "France",
         }))).select();
         // Save parties for each session
         if (insertedSessions) {

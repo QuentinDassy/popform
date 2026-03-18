@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES, REGIONS_CITIES } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, DOMAIN_PHOTO_CHOICES, REGIONS_CITIES, CITY_TO_REGION } from "@/lib/data";
 import { supabase, fetchOrganismes, fetchFormateurs, type Organisme, type Formateur } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 
@@ -190,7 +190,7 @@ export default function AdminFormationEditorPage() {
                 lieu: s.lieu || "",
                 adresse: "",
                 ville: s.lieu || "",
-                pays: "France",
+                pays: s.pays || CITY_TO_REGION[s.lieu || ""] || "France",
                 code_postal: s.code_postal || "",
                 modalite_session: s.modalite_session || "Présentiel",
                 lien_visio: s.lien_visio || "",
@@ -390,6 +390,7 @@ export default function AdminFormationEditorPage() {
             code_postal: s.code_postal || null,
             modalite_session: s.modalite_session || null,
             lien_visio: s.lien_visio || null,
+            pays: s.pays || "France",
           }))
         ).select();
 
