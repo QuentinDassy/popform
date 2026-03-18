@@ -99,6 +99,8 @@ function CatalogueContent() {
 
   const normV = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
   let filtered = formations.filter(f => {
+    if ((f.formateur as any)?.hidden) return false;
+    if ((f.organisme as any)?.hidden) return false;
     if (search) {
       const q = search.toLowerCase();
       if (![f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;

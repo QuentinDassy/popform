@@ -28,6 +28,7 @@ function FormateursContent() {
       const [f, fo] = await Promise.all([fetchFormateurs(), fetchFormations()]);
       const seen = new Set<string>();
       const unique = f.filter((fmt: any) => {
+        if (fmt.hidden) return false;
         const nameKey = fmt.nom?.toLowerCase().trim();
         if (nameKey && seen.has(nameKey)) return false;
         if (nameKey) seen.add(nameKey);

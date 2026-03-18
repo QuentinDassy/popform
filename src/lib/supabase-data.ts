@@ -6,8 +6,8 @@ export const supabase = createClient();
 
 export type SessionPartie = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; lien_visio: string };
 export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null; parties?: SessionPartie[] | null };
-export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string; site_url?: string | null };
-export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string; site_url?: string | null; photo_url?: string | null };
+export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string; site_url?: string | null; hidden?: boolean };
+export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string; site_url?: string | null; photo_url?: string | null; hidden?: boolean };
 export type Formation = {
   id: number; titre: string; sous_titre: string; description: string;
   domaine: string; domaines?: string[]; modalite: string; prise_en_charge: string[];
@@ -83,14 +83,14 @@ export async function fetchFormations(): Promise<Formation[]> {
 
 async function _fetchAndStore(): Promise<Formation[]> {
   try {
-    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url), organisme:organismes(id,nom,logo)").eq("status", "publiee").order("date_ajout", { ascending: false });
+    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url,hidden), organisme:organismes(id,nom,logo,hidden)").eq("status", "publiee").order("date_ajout", { ascending: false });
     if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
     const result = data || [];
     // Batch-fetch formateurs for multi-formateur formations
     const multiIds = new Set<number>();
     result.forEach((f: any) => { if (f.formateur_ids?.length > 1) f.formateur_ids.forEach((id: number) => multiIds.add(id)); });
     if (multiIds.size > 0) {
-      const { data: fmts } = await supabase.from("formateurs").select("id,nom,sexe,bio,organisme_id,photo_url").in("id", Array.from(multiIds));
+      const { data: fmts } = await supabase.from("formateurs").select("id,nom,sexe,bio,organisme_id,photo_url,hidden").in("id", Array.from(multiIds));
       if (fmts) {
         result.forEach((f: any) => {
           if (f.formateur_ids?.length > 1) {

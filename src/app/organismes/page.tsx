@@ -61,6 +61,7 @@ export default function OrganismesPage() {
       });
       const seen = new Set<string>();
       const unique = sorted.filter(org => {
+        if (org.hidden) return false;
         const nameKey = org.nom?.toLowerCase().trim();
         const userKey = org.user_id;
         if (userKey && seen.has("u:" + userKey)) return false;

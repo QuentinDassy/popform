@@ -76,8 +76,8 @@ export default function DashboardAdminPage() {
         setCongresList(cgs || []);
         // Load utilisateurs
         try {
-          const { data: orgs } = await supabase.from("organismes").select("id, nom, user_id, logo, description").order("nom");
-          const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo").order("nom");
+          const { data: orgs } = await supabase.from("organismes").select("id, nom, user_id, logo, description, hidden").order("nom");
+          const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo, hidden").order("nom");
           setUtilisateurs({ organismes: orgs || [], formateurs: fmts || [] });
         } catch { /* ignore */ }
         // Load self-registered organisms (not admin-invited)
@@ -976,6 +976,14 @@ export default function DashboardAdminPage() {
                   </div>
                 )}
                 {linkMsg?.id === o.id && <div style={{ fontSize: 11, color: linkMsg!.ok ? C.green : C.accent, fontWeight: 600 }}>{linkMsg!.msg}</div>}
+                <button
+                  onClick={async () => {
+                    const newVal = !o.hidden;
+                    await supabase.from("organismes").update({ hidden: newVal }).eq("id", o.id);
+                    setUtilisateurs(prev => ({ ...prev, organismes: prev.organismes.map((x: any) => x.id === o.id ? { ...x, hidden: newVal } : x) }));
+                  }}
+                  style={{ padding: "5px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: o.hidden ? C.yellowBg : C.surface, color: o.hidden ? C.yellowDark : C.textTer, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                >{o.hidden ? "👁️ Masqué — afficher" : "🙈 Masquer du site"}</button>
                 <Link href={`/dashboard/admin/formation/new?organisme_id=${o.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
               </div>
             ))}
@@ -1010,6 +1018,14 @@ export default function DashboardAdminPage() {
                       >Détacher</button>
                     </div>
                   )}
+                  <button
+                    onClick={async () => {
+                      const newVal = !f.hidden;
+                      await supabase.from("formateurs").update({ hidden: newVal }).eq("id", f.id);
+                      setUtilisateurs(prev => ({ ...prev, formateurs: prev.formateurs.map((x: any) => x.id === f.id ? { ...x, hidden: newVal } : x) }));
+                    }}
+                    style={{ padding: "5px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: f.hidden ? C.yellowBg : C.surface, color: f.hidden ? C.yellowDark : C.textTer, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                  >{f.hidden ? "👁️ Masqué — afficher" : "🙈 Masquer du site"}</button>
                   <Link href={`/dashboard/admin/formation/new?formateur_id=${f.id}`} style={{ display: "block", textAlign: "center", padding: "7px", borderRadius: 8, background: C.gradient, color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>+ Formation</Link>
                 </div>
               );
