@@ -35,7 +35,7 @@ type FormState = {
   photo_url: string;
 };
 
-const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS_OPTS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
@@ -505,11 +505,26 @@ export default function AdminFormationEditorPage() {
           </div>
         </div>
         <div style={row2}>
-          <div>
-            <label style={lbl}>Modalité principale</label>
-            <select style={inp} value={form.modalite} onChange={e => setF("modalite", e.target.value)}>
-              {MODALITES.map(m => <option key={m}>{m}</option>)}
-            </select>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={lbl}>Modalité(s)</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {MODALITES.map(m => {
+                const cur = (form.modalite || "").split(",").map((x: string) => x.trim());
+                const active = cur.includes(m) || (m === "Présentiel" && form.modalite === "Mixte") || (m === "Visio" && form.modalite === "Mixte");
+                return (
+                  <button key={m} type="button" onClick={() => {
+                    const list = (form.modalite || "").split(",").map((x: string) => x.trim()).filter((x: string) => x && x !== "Mixte");
+                    const next = active ? list.filter((x: string) => x !== m) : [...list, m];
+                    setF("modalite", (next.length > 0 ? next : [m]).join(","));
+                  }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + (active ? "#D42B2B44" : "#ddd"), background: active ? "rgba(212,43,43,0.07)" : "#fff", color: active ? "#D42B2B" : "#888", fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400 }}>
+                    {m}
+                  </button>
+                );
+              })}
+              {form.modalite && !MODALITES.some(m => (form.modalite || "").split(",").map((x: string) => x.trim()).includes(m)) && (
+                <span style={{ fontSize: 11, color: "#888", alignSelf: "center" }}>Valeur actuelle : {form.modalite}</span>
+              )}
+            </div>
           </div>
           <div>
             <label style={lbl}>Prise en charge</label>
@@ -768,12 +783,12 @@ export default function AdminFormationEditorPage() {
       </div>
 
       {/* ── Sessions ── */}
-      {form.modalite === "E-learning" && (
+      {(form.modalite || "").split(",").every(m => m.trim() === "E-learning") && (
         <div style={{ ...section, background: "#f0f9ff", border: "1.5px solid #bae6fd", color: "#0369a1", fontSize: 13, textAlign: "center", padding: "14px 20px" }}>
           📱 E-learning — pas de sessions à configurer
         </div>
       )}
-      {form.modalite !== "E-learning" && <div style={section}>
+      {(form.modalite || "").split(",").some(m => m.trim() === "Présentiel" || m.trim() === "Visio" || m.trim() === "Mixte") && <div style={section}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontWeight: 700, color: C.text, fontSize: 15 }}>Sessions ({sessions.length})</div>
           <button onClick={() => setSessions(ss => [...ss, emptySession()])} style={{ padding: "6px 14px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>

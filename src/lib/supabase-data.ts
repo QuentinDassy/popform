@@ -83,9 +83,25 @@ export async function fetchFormations(): Promise<Formation[]> {
 
 async function _fetchAndStore(): Promise<Formation[]> {
   try {
-    const { data, error } = await supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url,hidden), organisme:organismes(id,nom,logo,hidden)").eq("status", "publiee").order("date_ajout", { ascending: false });
-    if (error) { console.error("fetchFormations error:", error); return _formationsCache || lsRead()?.data || []; }
-    const result = data || [];
+    const [formRes, avisRes] = await Promise.all([
+      supabase.from("formations").select("*, domaines, prix_extras, sessions(*, session_parties(*)), formateur:formateurs(id,nom,sexe,bio,organisme_id,photo_url,hidden), organisme:organismes(id,nom,logo,hidden)").eq("status", "publiee").order("date_ajout", { ascending: false }),
+      supabase.from("avis").select("formation_id, note"),
+    ]);
+    if (formRes.error) { console.error("fetchFormations error:", formRes.error); return _formationsCache || lsRead()?.data || []; }
+    const result = formRes.data || [];
+    // Merge live avis stats so cards always show accurate ratings
+    const avisRows = avisRes.data || [];
+    const avisMap: Record<number, { count: number; total: number }> = {};
+    avisRows.forEach((a: { formation_id: number; note: number }) => {
+      if (!avisMap[a.formation_id]) avisMap[a.formation_id] = { count: 0, total: 0 };
+      avisMap[a.formation_id].count++;
+      avisMap[a.formation_id].total += a.note;
+    });
+    result.forEach((f: any) => {
+      const s = avisMap[f.id];
+      if (s) { f.nb_avis = s.count; f.note = Math.round(s.total / s.count * 10) / 10; }
+      else { f.nb_avis = 0; f.note = 0; }
+    });
     // Batch-fetch formateurs for multi-formateur formations
     const multiIds = new Set<number>();
     result.forEach((f: any) => { if (f.formateur_ids?.length > 1) f.formateur_ids.forEach((id: number) => multiIds.add(id)); });
@@ -207,21 +223,40 @@ export async function fetchAvis(formationId?: number): Promise<Avis[]> {
   return data || [];
 }
 
+/** Public: recalculate note/nb_avis for a formation from its avis rows */
+export async function recalcFormationAvis(formationId: number): Promise<void> {
+  return _refreshFormationAvisStats(formationId);
+}
+
+async function _refreshFormationAvisStats(formationId: number) {
+  const { data } = await supabase.from("avis").select("note").eq("formation_id", formationId);
+  const all = data || [];
+  const nb_avis = all.length;
+  const note = nb_avis > 0 ? Math.round(all.reduce((s: number, a: { note: number }) => s + a.note, 0) / nb_avis * 10) / 10 : 0;
+  await supabase.from("formations").update({ note, nb_avis }).eq("id", formationId);
+  invalidateCache();
+}
+
 export async function addAvis(formationId: number, userId: string, userName: string, note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }): Promise<Avis | null> {
   const { data, error } = await supabase.from("avis").insert({ formation_id: formationId, user_id: userId, user_name: userName, note, texte, note_contenu: subs?.contenu ?? null, note_organisation: subs?.organisation ?? null, note_supports: subs?.supports ?? null, note_pertinence: subs?.pertinence ?? null }).select().single();
   if (error) { console.error(error); return null; }
+  _refreshFormationAvisStats(formationId).catch(() => {});
   return data;
 }
 
 export async function updateAvis(avisId: number, note: number, texte: string): Promise<boolean> {
   const { error } = await supabase.from("avis").update({ note, texte }).eq("id", avisId);
   if (error) { console.error(error); return false; }
+  const { data } = await supabase.from("avis").select("formation_id").eq("id", avisId).maybeSingle();
+  if (data?.formation_id) _refreshFormationAvisStats(data.formation_id).catch(() => {});
   return true;
 }
 
 export async function deleteAvis(avisId: number): Promise<boolean> {
+  const { data } = await supabase.from("avis").select("formation_id").eq("id", avisId).maybeSingle();
   const { error } = await supabase.from("avis").delete().eq("id", avisId);
   if (error) { console.error(error); return false; }
+  if (data?.formation_id) _refreshFormationAvisStats(data.formation_id).catch(() => {});
   return true;
 }
 

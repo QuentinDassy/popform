@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
@@ -53,7 +53,7 @@ export default function DashboardAdminPage() {
       try {
         const { data: f, error: fErr } = await supabase
           .from("formations")
-          .select("*, sessions(*), formateur:formateurs(*), organisme:organismes(*)")
+          .select("*, sessions(*, session_parties(*)), formateur:formateurs(*), organisme:organismes(*)")
           .order("date_ajout", { ascending: false });
         if (fErr?.message?.includes("refresh") || fErr?.message?.includes("JWT")) { setLoading(false); return; }
         setFormations(f || []);
@@ -747,13 +747,15 @@ export default function DashboardAdminPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
           {filtered.map(f => {
             const expanded = expandedId === f.id;
+            const past = f.status === "publiee" && isFormationPast(f);
             return (
-              <div key={f.id} style={{ background: C.surface, borderRadius: 14, border: "1px solid " + (f.status === "en_attente" ? C.yellow + "44" : C.borderLight), overflow: "hidden" }}>
+              <div key={f.id} style={{ background: C.surface, borderRadius: 14, border: "1px solid " + (f.status === "en_attente" ? C.yellow + "44" : C.borderLight), overflow: "hidden", opacity: past ? 0.6 : 1 }}>
                 <div style={{ padding: mob ? 12 : 18, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap", cursor: "pointer" }} onClick={() => setExpandedId(expanded ? null : f.id)}>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {statusBadge(f.status)}
+                      {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
                       {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
                     {(f as any).pending_update && (

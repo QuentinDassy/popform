@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, DOMAIN_PHOTO_CHOICES, type Formation, type Organisme } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, DOMAIN_PHOTO_CHOICES, isFormationPast, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
 import { useRouter } from "next/navigation";
 
-const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
 
@@ -21,7 +21,7 @@ type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organi
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "", domaines: [] as string[],
-    modalite: MODALITES[0],
+    modalites: ["Présentiel"] as string[],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null, prix_from: false,
@@ -124,7 +124,7 @@ export default function DashboardOrganismePage() {
       setForm({
         titre: f.titre, sous_titre: f.sous_titre || "", description: f.description,
         domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []),
-        modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0,
+        modalites: (f.modalite === "Mixte" ? ["Présentiel", "Visio"] : (f.modalite || "Présentiel").split(",").map((x: string) => x.trim()).filter(Boolean)), prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0,
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
@@ -153,15 +153,13 @@ export default function DashboardOrganismePage() {
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return }
     if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return }
     if (selFormateurIds.length === 0) { setMsg("Veuillez sélectionner au moins un·e formateur·rice."); return }
-    const isELearning = form.modalite === "E-learning";
-    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => p.date_debut));
-    if (!isELearning && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
+    const hasPresentialOrVisio = form.modalites.some((m: string) => m === "Présentiel" || m === "Visio");
+    const isELearning = !hasPresentialOrVisio;
+    const hasDate = !hasPresentialOrVisio || sessions.every(s => (s.parties || []).some(p => p.date_debut));
+    if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
 
-    // Déterminer la modalité en fonction des sessions
-    const allVisio = !isELearning && sessions.length > 0 && sessions.every(s => s.is_visio);
-    const someVisio = !isELearning && sessions.some(s => s.is_visio) && !allVisio;
-    const computedModalite = isELearning ? "E-learning" : (allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel"));
+    const computedModalite = form.modalites.length > 0 ? form.modalites.join(",") : "Présentiel";
 
     // Calculer les prix supplémentaires
     const prixExtrasAll = [...extraPrix].filter(e => e.label !== "__from__");
@@ -480,19 +478,21 @@ export default function DashboardOrganismePage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
-              {formations.map(f => (
-                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap" }}>
+              {formations.map(f => {
+                const past = f.status === "publiee" && isFormationPast(f);
+                return (
+                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap", opacity: past ? 0.5 : 1 }}>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
-
-                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}{(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6", marginLeft: 4 }}>🔄 Modif. en attente</span>}
+                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
                       {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
                       {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
-                      {f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                      {f.status === "publiee" && !past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                      {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
-                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
                     </div>
                     {(f.prise_en_charge || []).length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4 }}>{f.prise_en_charge.map(p => <PriseTag key={p} label={p} />)}</div>}
                   </div>
@@ -501,12 +501,13 @@ export default function DashboardOrganismePage() {
                     <span style={{ fontSize: 12, color: C.textSec }}>{f.note}</span>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none", cursor: "pointer" }}>👁️ Voir</Link>
+                    {!past && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none", cursor: "pointer" }}>👁️ Voir</Link>}
                     <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️ Modifier</button>
                     <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
@@ -774,11 +775,21 @@ export default function DashboardOrganismePage() {
             </div>
 
             {/* Modalité */}
-            <div>
-              <label style={labelStyle}>Modalité</label>
-              <select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>
-                {MODALITES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Modalité(s) *</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {MODALITES.map(m => {
+                  const active = form.modalites.includes(m);
+                  return (
+                    <button key={m} type="button" onClick={() => {
+                      const next = active ? form.modalites.filter((x: string) => x !== m) : [...form.modalites, m];
+                      setForm({ ...form, modalites: next.length > 0 ? next : [m] });
+                    }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + (active ? C.accent + "55" : C.border), background: active ? C.accentBg : C.bgAlt, color: active ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400 }}>
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Durée */}
@@ -897,13 +908,13 @@ export default function DashboardOrganismePage() {
           </div>
 
           {/* ===== SESSIONS ===== */}
-          {form.modalite === "E-learning" && (
+          {form.modalites.includes("E-learning") && (
             <div style={{ marginTop: 24, padding: "14px 18px", background: C.accentBg, borderRadius: 12, border: "1.5px solid " + C.accent + "33" }}>
-              <p style={{ fontSize: 13, color: C.accent, fontWeight: 600, margin: 0 }}>📺 E-learning — pas de session ni de date requise.</p>
-              <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, marginBottom: 0 }}>Le contenu est accessible en autonomie à tout moment.</p>
+              <p style={{ fontSize: 13, color: C.accent, fontWeight: 600, margin: 0 }}>📺 E-learning — contenu accessible en autonomie à tout moment.</p>
+              {form.modalites.length === 1 && <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, marginBottom: 0 }}>Pas de session ni de date requise.</p>}
             </div>
           )}
-          {form.modalite !== "E-learning" && (
+          {form.modalites.some((m: string) => m === "Présentiel" || m === "Visio") && (
           <div style={{ marginTop: 24 }}>
             <label style={labelStyle}>Sessions</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -957,7 +968,7 @@ export default function DashboardOrganismePage() {
                           <div style={{ gridColumn: "1 / -1" }}>
                             <label style={labelStyle}>Modalité</label>
                             <div style={{ display: "flex", gap: 6 }}>
-                              {["Présentiel", "Visio", "Mixte"].map(m => (
+                              {["Présentiel", "Visio"].map(m => (
                                 <button key={m} type="button" onClick={() => {
                                   const n = [...sessions];
                                   n[i].parties![pi].modalite = m;
@@ -1062,7 +1073,7 @@ export default function DashboardOrganismePage() {
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" }] }])} style={{ padding: "11px 22px", borderRadius: 10, border: "2px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 13, fontWeight: 700, cursor: "pointer", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}>+ Ajouter une session</button>
             </div>
           </div>
           )}

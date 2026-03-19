@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { C, fetchFormateurs, fetchFormations, fmtTitle, type Formation } from "@/lib/data";
+import { C, fetchFormateurs, fetchFormations, fmtTitle, isFormationPast, type Formation } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -29,6 +29,7 @@ function FormateursContent() {
       const seen = new Set<string>();
       const unique = f.filter((fmt: any) => {
         if (fmt.hidden) return false;
+        if (fmt.organisme_id != null) return false;
         const nameKey = fmt.nom?.toLowerCase().trim();
         if (nameKey && seen.has(nameKey)) return false;
         if (nameKey) seen.add(nameKey);
@@ -67,6 +68,7 @@ function FormateursContent() {
   const selected = fmts.find(f => f.id === selectedId);
   const selectedFormations = formations.filter(fo =>
     fo.status === "publiee" &&
+    !isFormationPast(fo) &&
     (fo.formateur_id === selectedId || ((fo as any).formateur_ids || []).includes(selectedId))
   );
 

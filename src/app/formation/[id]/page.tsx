@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { C, getDC, getPhoto, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, deleteAvis as deleteAvisDB, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
+import { C, getDC, getPhoto, fmtTitle, fetchFormation, fetchFormations, fetchAvis, fetchFavoris, toggleFavori, addAvis as addAvisDB, updateAvis as updateAvisDB, deleteAvis as deleteAvisDB, recalcFormationAvis, fetchInscriptions, fetchFormationsFaites, toggleFormationFaite, type Formation, type Avis, type Inscription } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { StarRow, PriseTag, FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -212,7 +212,15 @@ export default function FormationPage() {
   useEffect(() => {
     if (!id) return;
     fetchFormation(Number(id)).then(d => { setF(d); setLoading(false); if (d) setPhoto((d as any).photo_url || getPhoto(d.domaine)); }).catch(() => setLoading(false));
-    fetchAvis().then(setAvis);
+    fetchAvis(Number(id)).then(avisData => {
+      setAvis(avisData);
+      // Resync note/nb_avis on the formation if stale (handles legacy data)
+      fetchFormation(Number(id)).then(formation => {
+        if (formation && (formation.nb_avis !== avisData.length || (avisData.length > 0 && formation.nb_avis === 0))) {
+          recalcFormationAvis(Number(id)).catch(() => {});
+        }
+      });
+    });
     fetchFormations().then(setFormations);
     if (user) {
       fetchFavoris(user.id).then(favs => setIsFav(favs.some(fv => fv.formation_id === Number(id))));

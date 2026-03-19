@@ -5,7 +5,7 @@ import type { Formation as FormationType } from "./supabase-data";
 export type { Formation, Formateur, Organisme, Avis, Session, Inscription, Favori, AdminNotification, DomaineAdmin } from "./supabase-data";
 export {
   fetchFormations, fetchFormation, fetchAllFormations, fetchOrganismes, fetchFormateurs,
-  fetchAvis, addAvis, updateAvis, deleteAvis, fetchInscriptions, fetchFavoris, toggleFavori,
+  fetchAvis, addAvis, updateAvis, deleteAvis, recalcFormationAvis, fetchInscriptions, fetchFavoris, toggleFavori,
   fetchAdminNotifications, notifyAdmin, invalidateCache,
   fetchDomainesAdmin, fetchDomainesAccueil, fetchDomainesFiltres, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin,
   fetchFormationsFaites, toggleFormationFaite
@@ -83,6 +83,22 @@ export function fmtLabel(f: { sexe: string } | null | undefined) {
 export function fmtTitle(f: { sexe: string } | null | undefined) {
   if (!f) return "Formateur·rice";
   return f.sexe === "Femme" ? "Formatrice" : f.sexe === "Homme" ? "Formateur" : "Formateur·rice";
+}
+
+/** Returns true if all dated sessions of a Présentiel/Visio formation are in the past.
+ *  E-learning formations (or undated ones) are never considered past. */
+export function isFormationPast(f: FormationType): boolean {
+  const modaliteList = (f.modalite || "").split(",").map(m => m.trim());
+  const hasPhysical = modaliteList.some(m => m === "Présentiel" || m === "Visio");
+  if (!hasPhysical) return false; // E-learning only → always visible
+  const sessions = f.sessions || [];
+  if (sessions.length === 0) return false; // no sessions → undated, still visible
+  const today = new Date().toISOString().slice(0, 10);
+  return sessions.every(s => {
+    const parties = (s as any).session_parties as Array<{ date_fin?: string }> | null;
+    if (!parties || parties.length === 0) return false; // no parties → undated session → not past
+    return parties.every(p => p.date_fin && p.date_fin < today);
+  });
 }
 
 export const REGIONS_CITIES: Record<string, string[]> = {

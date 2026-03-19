@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, getAllCitiesFromFormations, fetchFormations, fetchDomainesAccueil, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
 import { FormationCard, CityCard } from "@/components/ui";
 import FranceMap from "@/components/FranceMap";
 import { useIsMobile } from "@/lib/hooks";
@@ -25,7 +25,7 @@ function useTyping(words: string[]) {
   return d;
 }
 
-const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -254,9 +254,10 @@ export default function HomePage() {
     : formationCities.slice(0, 8).map(([c, n]) => ({ name: c, count: n }));
   const topCities = [...displayCities].sort((a, b) => b.count - a.count).slice(0, 6);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const newF = formations.filter(f => f.is_new);
-  const popularF = [...formations].sort((a, b) => b.note - a.note).slice(0, 8);
-  const visioF = formations.filter(f => f.modalite === "Visio" || (f.sessions || []).some(s => s.lieu === "Visio"));
+  const activeFormations = formations.filter(f => !isFormationPast(f));
+  const newF = activeFormations.filter(f => f.is_new);
+  const popularF = [...activeFormations].sort((a, b) => b.note - a.note).slice(0, 8);
+  const visioF = activeFormations.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "Visio") || (f.sessions || []).some(s => s.lieu === "Visio"));
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 

@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, DOMAIN_PHOTO_CHOICES, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, DOMAIN_PHOTO_CHOICES, isFormationPast, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
 
-const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 
 type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string };
@@ -16,7 +16,7 @@ type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; v
 function emptyFormation() {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "", domaines: [] as string[],
-    modalite: MODALITES[0],
+    modalites: ["Présentiel"] as string[],
     prise_en_charge: [] as string[], prise_aucune: false,
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null, prix_from: false,
@@ -125,7 +125,9 @@ export default function DashboardFormateurPage() {
   const openEdit = (f?: Formation) => {
     if (f) {
       setEditId(f.id);
-      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalite: f.modalite, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
+      const rawModalite = f.modalite || "Présentiel";
+      const loadedModalites = rawModalite === "Mixte" ? ["Présentiel", "Visio"] : rawModalite.split(",").map((x: string) => x.trim()).filter(Boolean);
+      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalites: loadedModalites, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })) }; }));
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
     } else {
@@ -145,15 +147,13 @@ export default function DashboardFormateurPage() {
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     if (!form.description.trim()) { setMsg("La description est obligatoire."); return; }
     if (!form.domaines.length) { setMsg("Le domaine est obligatoire."); return; }
-    const isELearning = form.modalite === "E-learning";
-    const hasDate = isELearning || sessions.every(s => (s.parties || []).some(p => p.date_debut));
-    if (!isELearning && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
+    const hasPresentialOrVisio = form.modalites.some((m: string) => m === "Présentiel" || m === "Visio");
+    const isELearning = !hasPresentialOrVisio;
+    const hasDate = !hasPresentialOrVisio || sessions.every(s => (s.parties || []).some(p => p.date_debut));
+    if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
     setSaving(true); setMsg(null);
 
-    // Déterminer la modalité en fonction des sessions
-    const allVisio = !isELearning && sessions.length > 0 && sessions.every(s => s.is_visio);
-    const someVisio = !isELearning && sessions.some(s => s.is_visio) && !allVisio;
-    const computedModalite = isELearning ? "E-learning" : (allVisio ? "Visio" : someVisio ? "Mixte" : (form.modalite || "Présentiel"));
+    const computedModalite = form.modalites.length > 0 ? form.modalites.join(",") : "Présentiel";
 
     // Calculer les prix supplémentaires
     const prixExtrasAll = [...extraPrix].filter(e => e.label !== "__from__");
@@ -357,26 +357,30 @@ export default function DashboardFormateurPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
-              {formations.map(f => (
-                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap" }}>
+              {formations.map(f => {
+                const past = f.status === "publiee" && isFormationPast(f);
+                return (
+                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap", opacity: past ? 0.5 : 1 }}>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
                       {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
-                      {f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                      {f.status === "publiee" && !past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                      {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
-                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    {f.status === "publiee" && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none" }}>👁️ Voir</Link>}
+                    {f.status === "publiee" && !past && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none" }}>👁️ Voir</Link>}
                     <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
@@ -480,7 +484,22 @@ export default function DashboardFormateurPage() {
                 ))}
               </div>
             </div>
-            <div><label style={labelStyle}>Modalité</label><select value={form.modalite} onChange={e => setForm({ ...form, modalite: e.target.value })} style={inputStyle}>{MODALITES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Modalité(s) *</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {MODALITES.map(m => {
+                  const active = form.modalites.includes(m);
+                  return (
+                    <button key={m} type="button" onClick={() => {
+                      const next = active ? form.modalites.filter((x: string) => x !== m) : [...form.modalites, m];
+                      setForm({ ...form, modalites: next.length > 0 ? next : [m] });
+                    }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + (active ? C.accent + "55" : C.border), background: active ? C.accentBg : C.bgAlt, color: active ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400 }}>
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
             <div>
               <label style={labelStyle}>Prix (€)</label>
@@ -543,16 +562,25 @@ export default function DashboardFormateurPage() {
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL vidéo (YouTube)</label><input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} style={inputStyle} /></div>
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription</label><input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
+
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Rattacher à un organisme (optionnel)</label>
+              <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera partagée et modifiable par l&apos;organisme choisi.</p>
+              <select value={form.organisme_id ?? ""} onChange={e => setForm({ ...form, organisme_id: e.target.value ? Number(e.target.value) : null })} style={inputStyle}>
+                <option value="">— Aucun organisme —</option>
+                {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+              </select>
+            </div>
           </div>
 
           {/* ===== SESSIONS STRUCTURÉES ===== */}
-          {form.modalite === "E-learning" && (
+          {form.modalites.includes("E-learning") && (
             <div style={{ marginTop: 24, padding: "14px 18px", background: C.accentBg, borderRadius: 12, border: "1.5px solid " + C.accent + "33" }}>
-              <p style={{ fontSize: 13, color: C.accent, fontWeight: 600, margin: 0 }}>📺 E-learning — pas de session ni de date requise.</p>
-              <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, marginBottom: 0 }}>Le contenu est accessible en autonomie à tout moment.</p>
+              <p style={{ fontSize: 13, color: C.accent, fontWeight: 600, margin: 0 }}>📺 E-learning — contenu accessible en autonomie à tout moment.</p>
+              {form.modalites.length === 1 && <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, marginBottom: 0 }}>Pas de session ni de date requise.</p>}
             </div>
           )}
-          {form.modalite !== "E-learning" && (
+          {form.modalites.some((m: string) => m === "Présentiel" || m === "Visio") && (
           <div style={{ marginTop: 24 }}>
             <label style={labelStyle}>Sessions</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -599,7 +627,7 @@ export default function DashboardFormateurPage() {
                           <div style={{ gridColumn: "1 / -1" }}>
                             <label style={labelStyle}>Modalité</label>
                             <div style={{ display: "flex", gap: 6 }}>
-                              {["Présentiel", "Visio", "Mixte"].map(m => (
+                              {["Présentiel", "Visio"].map(m => (
                                 <button key={m} type="button" onClick={() => {
                                   const n = [...sessions];
                                   n[i].parties[pi].modalite = m;
@@ -674,7 +702,7 @@ export default function DashboardFormateurPage() {
                   </div>
                 );
               })}
-              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }])} style={{ padding: "8px 14px", borderRadius: 9, border: "1.5px dashed " + C.border, background: "transparent", color: C.textTer, fontSize: 12, cursor: "pointer", alignSelf: "flex-start" }}>+ Ajouter une session</button>
+              <button onClick={() => setSessions([...sessions, { dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 1, parties: [{ titre: "", jours: [], date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", adresse: "", ville: "", code_postal: "", lien_visio: "" }] }])} style={{ padding: "11px 22px", borderRadius: 10, border: "2px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 13, fontWeight: 700, cursor: "pointer", alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 6 }}>＋ Ajouter une session</button>
             </div>
           </div>
           )}

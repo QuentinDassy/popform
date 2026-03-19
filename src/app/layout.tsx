@@ -10,12 +10,12 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-body", display: "swa
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "PopForm — La formation continue, version blockbuster 🍿",
+  title: "PopForm - La formation continue, version blockbuster 🍿",
   description: "Trouvez, comparez et évaluez les meilleures formations continues en orthophonie. DPC, FIF-PL, présentiel et distanciel.",
   keywords: ["formation", "orthophonie", "DPC", "FIF-PL", "formation continue", "orthophoniste", "popform"],
   authors: [{ name: "PopForm" }],
   openGraph: {
-    title: "PopForm — La formation continue, version blockbuster 🍿",
+    title: "PopForm - La formation continue, version blockbuster 🍿",
     description: "Consultez le programme et trouvez la formation qui fera décoller votre pratique.",
     url: "https://popform.fr",
     siteName: "PopForm",

@@ -3,13 +3,13 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 
-const MODALITES = ["Présentiel", "Visio", "Mixte", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -101,6 +101,7 @@ function CatalogueContent() {
   let filtered = formations.filter(f => {
     if ((f.formateur as any)?.hidden) return false;
     if ((f.organisme as any)?.hidden) return false;
+    if (isFormationPast(f)) return false;
     if (search) {
       const q = search.toLowerCase();
       if (![f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
@@ -120,7 +121,10 @@ function CatalogueContent() {
       const fDomaines: string[] = (f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine];
       if (!selDomaines.some(d => fDomaines.includes(d))) return false;
     }
-    if (selModalites.length > 0 && !selModalites.includes(f.modalite)) return false;
+    if (selModalites.length > 0) {
+      const fModalites = f.modalite === "Mixte" ? ["Présentiel", "Visio"] : (f.modalite || "").split(",").map(m => m.trim()).filter(Boolean);
+      if (!selModalites.some(m => fModalites.includes(m))) return false;
+    }
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
     if (selPops.length > 0) {
       const fPops = (f.populations || []).map(p => p.toLowerCase().trim());

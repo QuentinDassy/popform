@@ -60,7 +60,8 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
     }
     return s.lieu ? [s.lieu] : [];
   }))];
-  const isElearning = f.modalite === "E-learning";
+  const modaliteList = (f.modalite || "").split(",").map(m => m.trim()).filter(Boolean);
+  const isElearning = modaliteList.length > 0 && modaliteList.every(m => m === "E-learning");
   const lieuDisplay = uniqueLieux.length > 1 ? "Plusieurs lieux" : (uniqueLieux[0] || "—");
   const isVisioOnly = uniqueLieux.length > 0 && uniqueLieux.every((l: string) => /visio/i.test(l));
   const domaines: string[] = (f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine];
@@ -90,7 +91,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
               const ddc = getDC(d);
               return <span key={d} style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: ddc.bg, color: ddc.color }}>{d}</span>;
             })}
-            <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 500, background: C.bgAlt, color: C.textSec }}>{f.modalite}</span>
+            {modaliteList.map(m => <span key={m} style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 500, background: C.bgAlt, color: C.textSec }}>{m}</span>)}
           </div>
           {/* Title */}
           <h3 style={{ fontSize: m ? 13 : compact ? 13 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
@@ -100,7 +101,10 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
           <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isElearning ? "💻" : isVisioOnly ? "💻" : "📍"} {isElearning ? "En ligne" : lieuDisplay}</div>
           {/* Price + rating */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 4 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 3 }}><StarRow rating={Math.round(f.note)} /><span style={{ fontSize: 10, color: C.textSec }}>{f.note}</span></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <StarRow rating={f.nb_avis > 0 ? Math.round(f.note) : 0} />
+              {f.nb_avis > 0 && <span style={{ fontSize: 10, color: C.textSec }}>{f.note} <span style={{ color: C.textTer }}>({f.nb_avis})</span></span>}
+            </div>
             {f.prix > 0 && (
               <div style={{ fontSize: m ? 12 : 14, fontWeight: 800, color: C.text }}>
                 {isPrixFrom && <span style={{ fontSize: 10, fontWeight: 600, color: C.accent }}>dès </span>}{f.prix}€
