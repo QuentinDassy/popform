@@ -282,7 +282,7 @@ photo_url: (f as any).photo_url || "" };
       const { data: existingForms } = await supabase.from("formations").select("titre").eq("formateur_id", formateur.id).neq("status", "supprimee").neq("status", "refusee");
       if (existingForms) {
         const newNorm = norm(payload.titre);
-        const duplicate = existingForms.find(ef => {
+        const duplicate = existingForms.find((ef: { titre: string }) => {
           const efNorm = norm(ef.titre);
           if (efNorm === newNorm) return true;
           // Vérifier si l'un contient l'autre (titre similaire)
