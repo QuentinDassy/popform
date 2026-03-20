@@ -8,6 +8,7 @@ import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
 import { uploadImage } from "@/lib/upload";
+import FormationWizard, { type WizardFormData, type WizardSession } from "@/components/FormationWizard";
 import { useRouter } from "next/navigation";
 
 const MODALITES = ["Présentiel", "Visio", "E-learning"];
@@ -44,6 +45,7 @@ export default function DashboardOrganismePage() {
   const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
   const [saving, setSaving] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   // Formateurs management
   const [formateurs, setFormateurs] = useState<FormateurRow[]>([]);
@@ -413,6 +415,71 @@ export default function DashboardOrganismePage() {
     setFormations(prev => prev.filter(f => f.id !== id));
   };
 
+  const handleWizardSubmit = async (data: WizardFormData, wizSessions: WizardSession[], photoFile: File | null) => {
+    if (!organisme) return;
+    setSaving(true);
+    const computedModalite = data.modalites.length > 1 ? "Mixte" : (data.modalites[0] || "Présentiel");
+    let photoUrl = data.photo_url;
+    if (photoFile) {
+      try { photoUrl = await uploadImage(photoFile, "formations"); } catch {}
+    }
+    const payload: any = {
+      titre: data.titre.trim(), sous_titre: data.sous_titre.trim(), description: data.description.trim(),
+      domaine: data.domaines[0] || "", domaines: data.domaines,
+      modalite: computedModalite, modalites: data.modalites,
+      prise_en_charge: data.prise_aucune ? [] : data.prise_en_charge,
+      duree: data.duree || "7h", prix: data.prix ?? 0,
+      prix_salarie: data.prix_salarie || null, prix_liberal: data.prix_liberal || null, prix_dpc: data.prix_dpc || null,
+      is_new: true, populations: data.populations,
+      mots_cles: data.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
+      professions: data.professions.length ? data.professions : ["Orthophonie"],
+      effectif: data.effectif || null, photo_url: photoUrl || null,
+      video_url: data.video_url, url_inscription: data.url_inscription || "",
+      organisme_id: organisme.id,
+      organisme_ids: [...new Set([organisme.id, ...(data.organisme_ids || [])])],
+      organismes_libres: data.organismes_libres || [],
+      formateur_id: (data.formateur_ids || [])[0] || null,
+      formateur_ids: data.formateur_ids || [],
+      note: 0, nb_avis: 0, sans_limite: false,
+      date_fin: null, date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
+    };
+    const { data: inserted, error } = await supabase.from("formations").insert(payload).select().single();
+    if (error) { setSaving(false); alert("Erreur: " + error.message); return; }
+    if (inserted && wizSessions.length > 0) {
+      const { data: insertedSessions } = await supabase.from("sessions").insert(
+        wizSessions.map((s: WizardSession) => ({
+          formation_id: inserted.id,
+          dates: s.date_debut + (s.date_fin ? " → " + s.date_fin : ""),
+          lieu: s.modalite === "Visio" ? "Visio" : s.lieu,
+          adresse: s.modalite === "Visio" ? (s.lien_visio || "") : s.lieu,
+          modalite_session: s.modalite, lien_visio: s.lien_visio || null,
+        }))
+      ).select();
+      if (insertedSessions) {
+        for (let i = 0; i < wizSessions.length; i++) {
+          if (insertedSessions[i]) {
+            await supabase.from("session_parties").insert({
+              session_id: insertedSessions[i].id,
+              modalite: wizSessions[i].modalite,
+              lieu: wizSessions[i].modalite === "Visio" ? "Visio" : wizSessions[i].lieu,
+              ville: wizSessions[i].modalite === "Visio" ? "" : wizSessions[i].lieu,
+              lien_visio: wizSessions[i].lien_visio || null,
+              date_debut: wizSessions[i].date_debut || null,
+              date_fin: wizSessions[i].date_fin || null,
+              jours: wizSessions[i].date_debut || null,
+            });
+          }
+        }
+      }
+    }
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+    setFormations(f || []);
+    setSaving(false);
+    const { invalidateCache } = await import("@/lib/supabase-data");
+    invalidateCache();
+    fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: organisme.nom }) }).catch(() => {});
+  };
+
   if (authLoading || loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   if (!user) { if (typeof window !== "undefined") window.location.href = "/"; return null }
   if (profile && profile.role !== "organisme") { if (typeof window !== "undefined") window.location.href = "/"; return null }
@@ -498,6 +565,7 @@ export default function DashboardOrganismePage() {
             <button onClick={() => setTab("formateurs")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
             {/* Webinaires - désactivé v1 */}
             {/* Congrès - désactivé v1 */}
+            <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✨ Mode guidé</button>
             <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
           </div>
         )}
@@ -1374,6 +1442,21 @@ export default function DashboardOrganismePage() {
           </div>
         </div>
       )}
+
+      <FormationWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onSubmit={handleWizardSubmit}
+        context={{
+          mode: "organisme",
+          domainesList,
+          organismes: allOrganismes,
+          formateurs: formateurs.map(f => ({ id: f.id, nom: f.nom })),
+          adminVilles,
+          initialData: undefined,
+          initialSessions: undefined,
+        }}
+      />
     </div>
   );
 }
