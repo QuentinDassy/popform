@@ -293,6 +293,7 @@ export default function FormationPage() {
     return fmt.nom;
   }
   const priseEnCharge = f.prise_en_charge || [];
+  const hasSessionOrgs = sessions.some(s => (s as any).organisme || (s as any).organisme_libre);
   const fAvis = avis.filter(a => a.formation_id === f.id);
   const avg = fAvis.length ? (fAvis.reduce((s, a) => s + a.note, 0) / fAvis.length).toFixed(1) : "—";
 
@@ -382,19 +383,29 @@ export default function FormationPage() {
                       </div>
                     </div>
                   ))}
-                  {org && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.blueBg, border: "1.5px solid " + C.blue + "33" }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", background: C.bgAlt, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {org.logo?.startsWith("http")
-                          ? <img src={org.logo} alt={org.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          : <span style={{ fontSize: 16 }}>🏢</span>}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Organisme</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>{org.nom}</div>
-                      </div>
-                    </div>
-                  )}
+                  {(() => {
+  const formOrgs = ((f as any).formOrganismes as { id: number; nom: string; site_url?: string | null }[] | undefined) || [];
+  const formLibres = ((f as any).organismes_libres as string[] | undefined) || [];
+  const displayOrgs: { nom: string; logo?: string; site_url?: string | null; isLibre?: boolean }[] =
+    formOrgs.length > 0 || formLibres.length > 0
+      ? [...formOrgs.map(o => ({ nom: o.nom, site_url: o.site_url })), ...formLibres.map(n => ({ nom: n, isLibre: true }))]
+      : org ? [{ nom: org.nom, logo: org.logo, site_url: (org as any).site_url }] : [];
+  return displayOrgs.map((o, i) => (
+    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", borderRadius: 40, background: C.blueBg, border: "1.5px solid " + C.blue + "33" }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden", background: C.bgAlt, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {(o as any).logo?.startsWith("http")
+          ? <img src={(o as any).logo} alt={o.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <span style={{ fontSize: 16 }}>🏢</span>}
+      </div>
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Organisme</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>
+          {o.site_url ? <a href={o.site_url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{o.nom} 🌐</a> : o.nom}
+        </div>
+      </div>
+    </div>
+  ));
+})()}
                 </div>
               )}
 
@@ -451,7 +462,7 @@ export default function FormationPage() {
                     Voir les sessions →
                   </a>
                 )}
-                {f.modalite === "E-learning" && f.url_inscription && (
+                {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning")) && f.url_inscription && (
                   <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
                     Accéder à la formation →
                   </a>
@@ -478,7 +489,7 @@ export default function FormationPage() {
           {/* LEFT COLUMN */}
           <div>
             {/* E-learning info box — at top */}
-            {f.modalite === "E-learning" && (
+            {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning")) && (
               <section style={{ marginBottom: 28, padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
                 <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#1A5FA8", marginBottom: 4 }}>Formation en ligne</div>
@@ -511,7 +522,9 @@ export default function FormationPage() {
                     const parts = (s as any).session_parties as Array<{titre:string;date_debut:string;date_fin:string;jours:string|null;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
                     const isInscrit = inscriptions.some(ins => ins.formation_id === f.id && ins.session_id === s.id);
                     const compact = sessions.length > 2;
-                    // Compute display date & lieu for compact mode
+                    const sessionOrg = (s as any).organisme as { id: number; nom: string; site_url?: string | null } | null;
+                    const sessionOrgLibre = (s as any).organisme_libre as string | null;
+                    const hasOrg = !!(sessionOrg || sessionOrgLibre);
                     const displayDate = parts && parts.length > 0
                       ? parts.map(p => p.date_debut ? fmtDateFr(p.date_debut) + (p.date_fin && p.date_fin !== p.date_debut ? " → " + fmtDateFr(p.date_fin) : "") : "").filter(Boolean).join(" / ")
                       : s.dates;
@@ -530,7 +543,18 @@ export default function FormationPage() {
                           <div style={{ flex: 1, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>📅 {displayDate}</span>
                             {displayLieu && <span style={{ fontSize: 13, color: C.textSec }}>{displayLieu === "Visio" ? "💻 Visio" : "📍 " + displayLieu}</span>}
+                            {hasOrg && (
+                              <span style={{ fontSize: 12, color: C.blue, fontWeight: 600 }}>
+                                🏢 {sessionOrg?.nom || sessionOrgLibre}
+                                {sessionOrg?.site_url && <a href={sessionOrg.site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ color: C.textSec, fontSize: 11, marginLeft: 6, textDecoration: "none" }}>🌐 site →</a>}
+                              </span>
+                            )}
                           </div>
+                          {hasOrg && ((s as any).url_inscription || f.url_inscription) && (
+                            <a href={(s as any).url_inscription || f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "7px 14px", borderRadius: 9, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+                              Voir la formation →
+                            </a>
+                          )}
                           <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "7px 16px", borderRadius: 9, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 12, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
                             {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
                           </button>
@@ -572,6 +596,21 @@ export default function FormationPage() {
                                   </div>
                                 );
                               })()}
+                              {hasOrg && (
+                                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                  <span style={{ padding: "4px 10px", borderRadius: 8, background: C.blueBg, border: "1px solid " + C.blue + "33", fontSize: 12, fontWeight: 700, color: C.blue }}>
+                                    🏢 {sessionOrg?.nom || sessionOrgLibre}
+                                  </span>
+                                  {sessionOrg?.site_url && (
+                                    <a href={sessionOrg.site_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.textSec, textDecoration: "none" }}>🌐 Voir le site →</a>
+                                  )}
+                                  {((s as any).url_inscription || f.url_inscription) && (
+                                    <a href={(s as any).url_inscription || f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "8px 16px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                                      Voir la formation →
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <button onClick={() => handleInscription(s.id)} disabled={inscribing} style={{ padding: "10px 20px", borderRadius: 10, background: isInscrit ? C.greenBg : C.gradient, color: isInscrit ? C.green : "#fff", fontSize: 13, fontWeight: 700, border: isInscrit ? "1.5px solid " + C.green : "none", cursor: "pointer", opacity: inscribing ? 0.7 : 1, whiteSpace: "nowrap" }}>
                               {isInscrit ? "✓ Inscrit·e" : "S'inscrire"}
@@ -641,7 +680,7 @@ export default function FormationPage() {
             {/* Infos */}
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Informations</div>
-              {f.url_inscription && (
+              {!hasSessionOrgs && f.url_inscription && (
                 <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "12px 16px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center", marginBottom: 16 }}>
                   Voir la formation →
                 </a>

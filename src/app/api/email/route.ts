@@ -134,6 +134,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (type === "duplicate_formation") {
+      const { titre, formateur_nom, existing_titre } = data;
+      await sendEmail(
+        ADMIN_TO,
+        `⚠️ Doublon possible : "${titre}"`,
+        brandedHtml(
+          "Formation similaire déjà existante",
+          `<p style="color:#5C4A2A;font-size:14px;line-height:1.6;margin:0 0 12px">Un formateur vient de soumettre une formation dont le titre est proche d'une formation existante :</p>
+           <div style="background:#FAF8F4;border-radius:10px;padding:16px;margin-bottom:12px">
+             <div style="font-size:12px;color:#A48C6A;margin-bottom:4px">Nouvelle formation</div>
+             <div style="font-size:15px;font-weight:700;color:#2D1B06">${esc(titre)}</div>
+             <div style="font-size:13px;color:#A48C6A;margin-top:2px">Formateur : ${esc(formateur_nom)}</div>
+           </div>
+           <div style="background:#FFF8EC;border-radius:10px;padding:16px;margin-bottom:20px;border:1px solid #E8D5A0">
+             <div style="font-size:12px;color:#A48C6A;margin-bottom:4px">Formation existante similaire</div>
+             <div style="font-size:15px;font-weight:700;color:#2D1B06">${esc(existing_titre)}</div>
+           </div>
+           <a href="${BASE_URL}/dashboard/admin" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,#D42B2B,#E85555);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Vérifier dans le tableau de bord →</a>`
+        )
+      );
+    }
+
     if (type === "newsletter_confirm") {
       const { email: to } = data;
       if (!to) return NextResponse.json({ ok: true });

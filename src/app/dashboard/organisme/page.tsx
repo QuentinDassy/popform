@@ -27,6 +27,8 @@ function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
     prix_liberal: null as number | null, prix_dpc: null as number | null, prix_from: false,
     is_new: false, populations: [] as string[], mots_cles: "",
     professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
+    organisme_ids: [] as number[],
+    organismes_libres: [] as string[],
   };
 }
 
@@ -55,6 +57,8 @@ export default function DashboardOrganismePage() {
   const [fmtSearchResults, setFmtSearchResults] = useState<FormateurRow[]>([]);
   const [fmtSearchLoading, setFmtSearchLoading] = useState(false);
   const [inlineFmtPhotoFile, setInlineFmtPhotoFile] = useState<File | null>(null);
+  const [allOrganismes, setAllOrganismes] = useState<Organisme[]>([]);
+  const [orgLibreInput, setOrgLibreInput] = useState("");
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
@@ -97,9 +101,37 @@ export default function DashboardOrganismePage() {
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");
       setOrgNom(myOrg?.nom || "");
+      const { data: orgs } = await supabase.from("organismes").select("id,nom").order("nom");
+      setAllOrganismes((orgs as any) || []);
       if (myOrg) {
-        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", myOrg.id).order("date_ajout", { ascending: false });
-        setFormations(f || []);
+        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`organisme_id.eq.${myOrg.id},organisme_ids.cs.{${myOrg.id}}`).order("date_ajout", { ascending: false });
+        let allF: any[] = f || [];
+        try {
+          // Essayer le RPC d'abord (bypass RLS), sinon fallback direct
+          let sessionFormationIds: number[] = [];
+          const { data: sessionLinks, error: slErr } = await supabase
+            .rpc("get_formation_ids_by_session_organisme", { org_id: myOrg.id });
+          if (!slErr && sessionLinks) {
+            sessionFormationIds = (sessionLinks as { formation_id: number }[]).map(r => r.formation_id).filter(Boolean);
+          } else {
+            // Fallback : query directe (fonctionne si RLS sessions autorise les authenticated users)
+            if (slErr) console.error("RPC manquant, tentative directe:", slErr.message);
+            const { data: directLinks } = await supabase
+              .from("sessions")
+              .select("formation_id")
+              .eq("organisme_id", myOrg.id);
+            if (directLinks) sessionFormationIds = directLinks.map((r: any) => r.formation_id).filter(Boolean);
+          }
+          if (sessionFormationIds.length > 0) {
+            const existingIds = new Set(allF.map((fo: any) => fo.id));
+            const extraIds = sessionFormationIds.filter((id, i, a) => id && !existingIds.has(id) && a.indexOf(id) === i);
+            if (extraIds.length > 0) {
+              const { data: extraF } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").in("id", extraIds);
+              if (extraF) allF = [...allF, ...extraF];
+            }
+          }
+        } catch (e: any) { console.error("sessions organisme lookup exception:", e?.message); }
+        setFormations(allF);
         const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
         setFormateurs(fmts || []);
         const { data: wbs } = await supabase.from("webinaires").select("*").eq("organisme_id", myOrg.id).order("date_heure", { ascending: true });
@@ -129,6 +161,8 @@ export default function DashboardOrganismePage() {
         prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
         effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
+        organisme_ids: (f as any).organisme_ids || [],
+        organismes_libres: (f as any).organismes_libres || [],
       });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", pays: "France", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
@@ -159,7 +193,7 @@ export default function DashboardOrganismePage() {
     if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
     setSaving(true); setMsg(null);
 
-    const computedModalite = form.modalites.length > 0 ? form.modalites.join(",") : "Présentiel";
+    const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
 
     // Calculer les prix supplémentaires
     const prixExtrasAll = [...extraPrix].filter(e => e.label !== "__from__");
@@ -178,6 +212,7 @@ export default function DashboardOrganismePage() {
       domaine: form.domaines[0] || form.domaine,
       domaines: form.domaines,
       modalite: computedModalite,
+      modalites: form.modalites,
       prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h",
       prix: form.prix ?? 0,
@@ -192,6 +227,8 @@ export default function DashboardOrganismePage() {
       video_url: form.video_url,
       url_inscription: form.url_inscription || "",
       organisme_id: organisme.id,
+      organisme_ids: [...new Set([(organisme as any).id, ...(form.organisme_ids || [])])],
+      organismes_libres: form.organismes_libres || [],
       formateur_id: selFormateurIds[0] || null as number | null, formateur_ids: selFormateurIds,
       note: 0,
       nb_avis: 0,
@@ -243,6 +280,7 @@ export default function DashboardOrganismePage() {
           pays: (s.parties && s.parties.length > 0)
             ? (s.parties.find((p: any) => p.pays && p.pays !== "France")?.pays || "France")
             : "France",
+          organisme_id: organisme.id,
         }))).select();
         // Save parties for each session
         if (insertedSessions) {
@@ -268,8 +306,28 @@ export default function DashboardOrganismePage() {
     }
 
     // Reload
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).order("date_ajout", { ascending: false });
-    setFormations(f || []);
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`organisme_id.eq.${organisme.id},organisme_ids.cs.{${organisme.id}}`).order("date_ajout", { ascending: false });
+    let allF: any[] = f || [];
+    try {
+      let sessionFormationIds: number[] = [];
+      const { data: sessionLinks, error: slErr2 } = await supabase
+        .rpc("get_formation_ids_by_session_organisme", { org_id: organisme.id });
+      if (!slErr2 && sessionLinks) {
+        sessionFormationIds = (sessionLinks as { formation_id: number }[]).map(r => r.formation_id).filter(Boolean);
+      } else {
+        const { data: directLinks } = await supabase.from("sessions").select("formation_id").eq("organisme_id", organisme.id);
+        if (directLinks) sessionFormationIds = directLinks.map((r: any) => r.formation_id).filter(Boolean);
+      }
+      if (sessionFormationIds.length > 0) {
+        const existingIds = new Set(allF.map((fo: any) => fo.id));
+        const extraIds = sessionFormationIds.filter((id, i, a) => id && !existingIds.has(id) && a.indexOf(id) === i);
+        if (extraIds.length > 0) {
+          const { data: extraF } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").in("id", extraIds);
+          if (extraF) allF = [...allF, ...extraF];
+        }
+      }
+    } catch {}
+    setFormations(allF);
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
@@ -350,9 +408,8 @@ export default function DashboardOrganismePage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette formation ?")) return;
-    await supabase.from("sessions").delete().eq("formation_id", id);
-    await supabase.from("formations").delete().eq("id", id);
+    if (!confirm("Supprimer cette formation ? Elle sera conservée dans l'historique admin.")) return;
+    await supabase.from("formations").update({ status: "supprimee", supprime_par: "organisme" } as any).eq("id", id);
     setFormations(prev => prev.filter(f => f.id !== id));
   };
 
@@ -905,6 +962,37 @@ export default function DashboardOrganismePage() {
               <label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label>
               <input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} />
             </div>
+
+            {/* Co-organismes */}
+            <div style={{ gridColumn: "1 / -1" }}>
+  <label style={labelStyle}>Co-organismes (optionnel)</label>
+  <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>Ajoutez d&apos;autres organismes co-organisateurs.</p>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+    {allOrganismes.filter(o => o.id !== organisme?.id).map(o => {
+      const selected = (form.organisme_ids || []).includes(o.id);
+      return (
+        <button key={o.id} type="button" onClick={() => {
+          const ids = (form.organisme_ids || []).filter((id: number) => id !== organisme!.id);
+          setForm({ ...form, organisme_ids: selected ? ids.filter((id: number) => id !== o.id) : [...ids, o.id] });
+        }} style={{ padding: "5px 12px", borderRadius: 20, border: "1.5px solid " + (selected ? C.accent : C.border), background: selected ? C.accentBg : C.surface, color: selected ? C.accent : C.textSec, fontSize: 12, fontWeight: selected ? 700 : 400, cursor: "pointer" }}>
+          {selected ? "✓ " : ""}{o.nom}
+        </button>
+      );
+    })}
+  </div>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+    {(form.organismes_libres || []).map((ol: string, i: number) => (
+      <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
+        🏢 {ol}
+        <button type="button" onClick={() => setForm({ ...form, organismes_libres: (form.organismes_libres || []).filter((_: string, j: number) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
+      </span>
+    ))}
+  </div>
+  <div style={{ display: "flex", gap: 6 }}>
+    <input value={orgLibreInput} onChange={e => setOrgLibreInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } } }} placeholder="Ajouter un organisme non répertorié..." style={{ ...inputStyle, flex: 1 }} />
+    <button type="button" onClick={() => { if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } }} style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>+ Ajouter</button>
+  </div>
+</div>
           </div>
 
           {/* ===== SESSIONS ===== */}

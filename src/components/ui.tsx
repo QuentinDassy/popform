@@ -68,6 +68,14 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
   const fmts = (f as any).formateurs as any[] | undefined;
   const formateurNom = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
+  const sessionOrgs = (sessions as any[]).map(s => s.organisme?.nom || s.organisme_libre || null).filter(Boolean);
+  const uniqueSessionOrgs = [...new Set(sessionOrgs)];
+  const formOrgs = ((f as any).formOrganismes as { nom: string }[] | undefined) || [];
+  const formLibres = ((f as any).organismes_libres as string[] | undefined) || [];
+  const formOrgNames = [...formOrgs.map(o => o.nom), ...formLibres];
+  const legacyOrg = formOrgNames.length === 0 ? ((f as any).organisme?.nom || null) : null;
+  const allOrgNames = [...new Set([...(formOrgNames.length > 0 ? formOrgNames : legacyOrg ? [legacyOrg] : []), ...uniqueSessionOrgs])];
+  const orgNom = allOrgNames.length > 1 ? "Plusieurs organismes" : allOrgNames[0] || null;
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} style={{ cursor: "pointer", transition: "all 0.3s", transform: hov && !m ? "translateY(-3px)" : "none", height: "100%", display: "flex", flexDirection: "column", background: C.surface, borderRadius: m ? 14 : 16, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
@@ -81,6 +89,12 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
             </button>
           )}
           {(f as any).is_webinaire && <span style={{ position: "absolute", top: 8, left: 8, padding: "3px 9px", borderRadius: 8, fontSize: 9, fontWeight: 700, background: "linear-gradient(135deg, #2E7CE6, #7C3AED)", color: "#fff", textTransform: "uppercase" }}>📡 Webinaire</span>}
+          {orgNom && (
+            <>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 48, background: "linear-gradient(to top, rgba(0,0,0,0.52) 0%, transparent 100%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: 7, left: 8, right: 8, fontSize: 10, fontWeight: 700, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.7)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>🏢 {orgNom}</div>
+            </>
+          )}
         </div>
 
         {/* ── Info ── */}
@@ -96,7 +110,11 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
           {/* Title */}
           <h3 style={{ fontSize: m ? 13 : compact ? 13 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>
           {/* Formateur */}
-          {formateurNom && <div style={{ fontSize: 11, fontWeight: 600, color: C.accent, marginBottom: 4 }}>{formateurNom}</div>}
+          {formateurNom && (
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.accent }}>{formateurNom}</span>
+            </div>
+          )}
           {/* Location */}
           <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isElearning ? "💻" : isVisioOnly ? "💻" : "📍"} {isElearning ? "En ligne" : lieuDisplay}</div>
           {/* Price + rating */}

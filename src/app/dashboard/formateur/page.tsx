@@ -11,8 +11,8 @@ import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/su
 const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 
-type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string };
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties: SessionPartieRow[] };
+type SessionPartieRow = { titre: string; jours: string[]; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; ville: string; code_postal: string; lien_visio: string; ville_autre?: boolean };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties: SessionPartieRow[]; organisme_id?: number | null; organisme_libre?: string; url_inscription?: string };
 function emptyFormation() {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaine_custom: "", domaines: [] as string[],
@@ -23,6 +23,8 @@ function emptyFormation() {
     is_new: false, populations: [] as string[], mots_cles: "",
     professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
     organisme_id: null as number | null,
+    organisme_ids: [] as number[],
+    organismes_libres: [] as string[],
   };
 }
 
@@ -48,6 +50,7 @@ export default function DashboardFormateurPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [profilSaved, setProfilSaved] = useState(false);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
+  const [originalForm, setOriginalForm] = useState<ReturnType<typeof emptyFormation> | null>(null);
 
   const [fmtPrenom, setFmtPrenom] = useState("");
   const [fmtNom, setFmtNom] = useState("");
@@ -56,6 +59,7 @@ export default function DashboardFormateurPage() {
   const [profilPhotoRemoved, setProfilPhotoRemoved] = useState(false);
   const [orphanFmts, setOrphanFmts] = useState<{ id: number; nom: string; count: number }[]>([]);
   const [merging, setMerging] = useState(false);
+  const [orgLibreInput, setOrgLibreInput] = useState("");
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -100,7 +104,7 @@ export default function DashboardFormateurPage() {
         const nom = parts.pop() || "";
         const prenom = parts.join(" ");
         setFmtPrenom(prenom); setFmtNom(nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
-        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
         setFormations(f || []);
         // Fetch unlinked formateurs with formations (candidates for manual merge)
         const { data: unlinkedFmts } = await supabase.from("formateurs").select("id, nom").is("user_id", null);
@@ -126,13 +130,19 @@ export default function DashboardFormateurPage() {
     if (f) {
       setEditId(f.id);
       const rawModalite = f.modalite || "Présentiel";
-      const loadedModalites = rawModalite === "Mixte" ? ["Présentiel", "Visio"] : rawModalite.split(",").map((x: string) => x.trim()).filter(Boolean);
-      setForm({ titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalites: loadedModalites, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id, photo_url: (f as any).photo_url || "" });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })) }; }));
+      const loadedModalites = (f as any).modalites?.length > 0 ? (f as any).modalites : (rawModalite === "Mixte" ? ["Présentiel", "Visio"] : rawModalite.split(",").map((x: string) => x.trim()).filter(Boolean));
+      const loadedForm = { titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalites: loadedModalites, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", organisme_id: f.organisme_id,
+organisme_ids: (f as any).organisme_ids || (f.organisme_id ? [f.organisme_id] : []),
+organismes_libres: (f as any).organismes_libres || [],
+photo_url: (f as any).photo_url || "" };
+      setForm(loadedForm);
+      setOriginalForm(loadedForm);
+      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })), organisme_id: (s as any).organisme_id || null, organisme_libre: (s as any).organisme_libre || "", url_inscription: (s as any).url_inscription || "" }; }));
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
     } else {
       setEditId(null);
       setForm(emptyFormation());
+      setOriginalForm(null);
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
       setFormPhotoFile(null);
       setExtraPrix([]);
@@ -153,7 +163,7 @@ export default function DashboardFormateurPage() {
     if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
     setSaving(true); setMsg(null);
 
-    const computedModalite = form.modalites.length > 0 ? form.modalites.join(",") : "Présentiel";
+    const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
 
     // Calculer les prix supplémentaires
     const prixExtrasAll = [...extraPrix].filter(e => e.label !== "__from__");
@@ -169,7 +179,7 @@ export default function DashboardFormateurPage() {
       titre: form.titre.trim(), sous_titre: form.sous_titre.trim(), description: form.description.trim(),
       domaine: form.domaines[0] || form.domaine,
       domaines: form.domaines,
-      modalite: computedModalite, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
+      modalite: computedModalite, modalites: form.modalites, prise_en_charge: form.prise_aucune ? [] : form.prise_en_charge,
       duree: form.duree || "7h", prix: form.prix ?? 0, prix_salarie: form.prix_salarie || null,
       prix_liberal: form.prix_liberal || null, prix_dpc: form.prix_dpc || null,
       is_new: true, populations: form.populations,
@@ -177,7 +187,10 @@ export default function DashboardFormateurPage() {
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: form.effectif || null, video_url: form.video_url, photo_url: form.photo_url || null,
       url_inscription: form.url_inscription || "",
-      formateur_id: formateur.id, organisme_id: form.organisme_id || null,
+      formateur_id: formateur.id,
+      organisme_id: (form.organisme_ids || [])[0] || form.organisme_id || null,
+      organisme_ids: form.organisme_ids || [],
+      organismes_libres: form.organismes_libres || [],
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
     };
@@ -208,10 +221,12 @@ export default function DashboardFormateurPage() {
     }
 
     if (formationId) {
-      await supabase.from("sessions").delete().eq("formation_id", formationId);
+      // Sauvegarder les IDs des anciennes sessions AVANT toute modification
+      const oldSessionIds = sessions.filter(s => s.id != null).map(s => s.id as number);
       const validSessions = isELearning ? [] : sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
-        const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
+        // INSERT d'abord — si ça échoue, les anciennes sessions sont préservées
+        const { data: insertedSessions, error: sessErr } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.parties && s.parties.length > 0
             ? s.parties.map((p, pi) => { const lbl = p.titre || ("Partie " + (pi+1)); const d = p.jours && p.jours.length > 0 ? (p.jours.length === 1 ? p.jours[0] : p.jours[0] + " → " + p.jours[p.jours.length-1]) : (p.date_debut || ""); return `${lbl}: ${d}`; }).join(" | ")
@@ -225,7 +240,11 @@ export default function DashboardFormateurPage() {
           modalite_session: s.modalite_session || null,
           lien_visio: s.lien_visio || null,
           code_postal: s.code_postal || null,
+          organisme_id: s.organisme_id || null,
+          organisme_libre: s.organisme_libre || null,
+          url_inscription: s.url_inscription || null,
         }))).select();
+        if (sessErr) { setMsg("Erreur lors de la sauvegarde des sessions : " + sessErr.message); setSaving(false); return; }
         if (insertedSessions) {
           for (let si = 0; si < validSessions.length; si++) {
             const parties = validSessions[si].parties || [];
@@ -234,6 +253,10 @@ export default function DashboardFormateurPage() {
                 parties.map(p => ({ session_id: insertedSessions[si].id, titre: p.titre, modalite: p.modalite, lieu: p.lieu || p.ville, adresse: [p.adresse, p.code_postal].filter(Boolean).join(", ") || null, ville: p.ville, lien_visio: p.lien_visio || null, date_debut: p.jours?.[0] || p.date_debut || null, date_fin: p.jours?.[p.jours.length-1] || p.date_fin || null, jours: (p.jours || []).join(",") || null }))
               );
             }
+          }
+          // Supprimer les ANCIENNES sessions seulement après que les nouvelles sont insérées avec succès
+          if (oldSessionIds.length > 0) {
+            await supabase.from("sessions").delete().in("id", oldSessionIds);
           }
         }
       }
@@ -248,12 +271,28 @@ export default function DashboardFormateurPage() {
       if (prixError) { setMsg("Formation soumise mais erreur sur les prix supplémentaires : " + prixError.message); setSaving(false); return; }
     }
 
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
       fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) }).catch(() => {});
+      // Détection de doublons : chercher si une formation du même formateur avec un titre similaire existe déjà
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
+      const { data: existingForms } = await supabase.from("formations").select("titre").eq("formateur_id", formateur.id).neq("status", "supprimee").neq("status", "refusee");
+      if (existingForms) {
+        const newNorm = norm(payload.titre);
+        const duplicate = existingForms.find(ef => {
+          const efNorm = norm(ef.titre);
+          if (efNorm === newNorm) return true;
+          // Vérifier si l'un contient l'autre (titre similaire)
+          if (efNorm.length > 10 && newNorm.length > 10 && (efNorm.includes(newNorm) || newNorm.includes(efNorm))) return true;
+          return false;
+        });
+        if (duplicate) {
+          fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "duplicate_formation", titre: payload.titre, formateur_nom: formateur.nom, existing_titre: duplicate.titre }) }).catch(() => {});
+        }
+      }
     }
     setFormPhotoFile(null);
     setExtraPrix([]);
@@ -262,10 +301,11 @@ export default function DashboardFormateurPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette formation ?")) return;
-    await supabase.from("sessions").delete().eq("formation_id", id);
-    await supabase.from("formations").delete().eq("id", id);
+    if (!confirm("Supprimer cette formation ? Elle sera conservée dans l'historique admin.")) return;
+    const { error } = await supabase.from("formations").update({ status: "supprimee", supprime_par: "formateur" } as any).eq("id", id);
+    if (error) { alert("Erreur suppression : " + error.message + "\n\nVérifiez les droits RLS dans Supabase."); return; }
     setFormations(prev => prev.filter(f => f.id !== id));
+    invalidateCache();
   };
 
   const handleSaveProfil = async () => {
@@ -296,7 +336,7 @@ export default function DashboardFormateurPage() {
     await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
     await supabase.from("formateurs").delete().eq("id", orphanId);
     setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
     setFormations(f || []);
     invalidateCache();
     setMerging(false);
@@ -564,13 +604,34 @@ export default function DashboardFormateurPage() {
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription</label><input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-              <label style={labelStyle}>Rattacher à un organisme (optionnel)</label>
-              <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera partagée et modifiable par l&apos;organisme choisi.</p>
-              <select value={form.organisme_id ?? ""} onChange={e => setForm({ ...form, organisme_id: e.target.value ? Number(e.target.value) : null })} style={inputStyle}>
-                <option value="">— Aucun organisme —</option>
-                {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-              </select>
-            </div>
+  <label style={labelStyle}>Organismes rattachés (optionnel)</label>
+  <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera visible dans le(s) espace(s) organisme(s) sélectionné(s).</p>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+    {organismes.map(o => {
+      const selected = (form.organisme_ids || []).includes(o.id);
+      return (
+        <button key={o.id} type="button" onClick={() => {
+          const ids = form.organisme_ids || [];
+          setForm({ ...form, organisme_ids: selected ? ids.filter(id => id !== o.id) : [...ids, o.id] });
+        }} style={{ padding: "5px 12px", borderRadius: 20, border: "1.5px solid " + (selected ? C.accent : C.border), background: selected ? C.accentBg : C.surface, color: selected ? C.accent : C.textSec, fontSize: 12, fontWeight: selected ? 700 : 400, cursor: "pointer" }}>
+          {selected ? "✓ " : ""}{o.nom}
+        </button>
+      );
+    })}
+  </div>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+    {(form.organismes_libres || []).map((ol, i) => (
+      <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
+        🏢 {ol}
+        <button type="button" onClick={() => setForm({ ...form, organismes_libres: (form.organismes_libres || []).filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
+      </span>
+    ))}
+  </div>
+  <div style={{ display: "flex", gap: 6 }}>
+    <input value={orgLibreInput} onChange={e => setOrgLibreInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } } }} placeholder="Ajouter un organisme non répertorié..." style={{ ...inputStyle, flex: 1 }} />
+    <button type="button" onClick={() => { if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } }} style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>+ Ajouter</button>
+  </div>
+</div>
           </div>
 
           {/* ===== SESSIONS STRUCTURÉES ===== */}
@@ -659,11 +720,11 @@ export default function DashboardFormateurPage() {
                               <label style={labelStyle}>Ville</label>
                               {adminVilles.length > 0 ? (
                                 <>
-                                  <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville ? "__OTHER__" : "")} onChange={e => {
+                                  <select value={adminVilles.includes(p.ville) ? p.ville : (p.ville_autre || (p.ville && !adminVilles.includes(p.ville)) ? "__OTHER__" : "")} onChange={e => {
                                     const val = e.target.value;
                                     const n = [...sessions];
-                                    if (val !== "__OTHER__") { n[i].parties[pi].ville = val; n[i].parties[pi].lieu = val; }
-                                    else { n[i].parties[pi].ville = ""; n[i].parties[pi].lieu = ""; }
+                                    if (val !== "__OTHER__") { n[i].parties[pi].ville = val; n[i].parties[pi].lieu = val; n[i].parties[pi].ville_autre = false; }
+                                    else { n[i].parties[pi].ville_autre = true; }
                                     setSessions(n);
                                   }} style={inputStyle}>
                                     <option value="">— Choisir une ville —</option>
@@ -681,8 +742,8 @@ export default function DashboardFormateurPage() {
                                     })()}
                                     <option value="__OTHER__">✏️ Autre ville...</option>
                                   </select>
-                                  {!adminVilles.includes(p.ville) && p.ville && (
-                                    <input value={p.ville} onChange={e => { const n = [...sessions]; n[i].parties[pi].ville = e.target.value; n[i].parties[pi].lieu = e.target.value; setSessions(n); }} placeholder="Entrez la ville" style={{ ...inputStyle, marginTop: 8 }} />
+                                  {(p.ville_autre || (p.ville && !adminVilles.includes(p.ville))) && (
+                                    <input value={p.ville_autre ? (adminVilles.includes(p.ville) ? "" : p.ville) : p.ville} onChange={e => { const n = [...sessions]; n[i].parties[pi].ville = e.target.value; n[i].parties[pi].lieu = e.target.value; setSessions(n); }} placeholder="Entrez la ville" style={{ ...inputStyle, marginTop: 8 }} autoFocus />
                                   )}
                                 </>
                               ) : (
@@ -699,6 +760,33 @@ export default function DashboardFormateurPage() {
                         </div>
                       </div>
                     ))}
+                    {/* Organisme par session */}
+                    <div style={{ marginTop: 12, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                      <label style={{ ...labelStyle, marginBottom: 8 }}>Organisme pour cette session (optionnel)</label>
+                      <select value={s.organisme_id != null ? String(s.organisme_id) : (s.organisme_libre ? "__libre__" : "")}
+                        onChange={e => {
+                          const n = [...sessions];
+                          if (e.target.value === "") { n[i].organisme_id = null; n[i].organisme_libre = ""; }
+                          else if (e.target.value === "__libre__") { n[i].organisme_id = null; n[i].organisme_libre = n[i].organisme_libre || " "; }
+                          else { n[i].organisme_id = Number(e.target.value); n[i].organisme_libre = ""; }
+                          setSessions(n);
+                        }}
+                        style={inputStyle}>
+                        <option value="">— Aucun organisme —</option>
+                        {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                        <option value="__libre__">✏️ Autre (nom libre)…</option>
+                      </select>
+                      {s.organisme_id == null && s.organisme_libre !== undefined && s.organisme_libre !== "" && (
+                        <input value={s.organisme_libre} onChange={e => { const n = [...sessions]; n[i].organisme_libre = e.target.value; setSessions(n); }}
+                          placeholder="Nom de l'organisme (non référencé sur PopForm)"
+                          style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
+                      )}
+                      {(s.organisme_id != null || (s.organisme_libre !== undefined && s.organisme_libre !== "")) && (
+                        <input value={s.url_inscription || ""} onChange={e => { const n = [...sessions]; n[i].url_inscription = e.target.value; setSessions(n); }}
+                          placeholder="URL directe vers cette formation (optionnel)"
+                          style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -708,6 +796,52 @@ export default function DashboardFormateurPage() {
           )}
 
                     {msg && <p style={{ color: C.pink, fontSize: 13, marginTop: 14, textAlign: "center" }}>{msg}</p>}
+
+          {/* ── Résumé des modifications ── */}
+          {editId && originalForm && (() => {
+            const LABELS: Record<string, string> = { titre: "Titre", sous_titre: "Sous-titre", description: "Description", duree: "Durée", prix: "Prix", prix_salarie: "Prix salarié", prix_liberal: "Prix libéral", url_inscription: "URL inscription", video_url: "Vidéo", mots_cles: "Mots-clés" };
+            const changes: { label: string; from: string; to: string }[] = [];
+            (Object.keys(LABELS) as (keyof typeof LABELS)[]).forEach(k => {
+              const orig = String((originalForm as any)[k] ?? "");
+              const curr = String((form as any)[k] ?? "");
+              if (orig !== curr) changes.push({ label: LABELS[k], from: orig.slice(0, 50) || "—", to: curr.slice(0, 50) || "—" });
+            });
+            if (JSON.stringify(originalForm.domaines) !== JSON.stringify(form.domaines)) changes.push({ label: "Domaine(s)", from: (originalForm.domaines || []).join(", ") || "—", to: (form.domaines || []).join(", ") || "—" });
+            if (JSON.stringify(originalForm.modalites) !== JSON.stringify(form.modalites)) changes.push({ label: "Modalité(s)", from: (originalForm.modalites || []).join(", ") || "—", to: (form.modalites || []).join(", ") || "—" });
+            if (JSON.stringify(originalForm.populations) !== JSON.stringify(form.populations)) changes.push({ label: "Populations", from: (originalForm.populations || []).join(", ") || "—", to: (form.populations || []).join(", ") || "—" });
+            if (JSON.stringify(originalForm.prise_en_charge) !== JSON.stringify(form.prise_en_charge)) changes.push({ label: "Prise en charge", from: (originalForm.prise_en_charge || []).join(", ") || "—", to: (form.prise_en_charge || []).join(", ") || "—" });
+            if (originalForm.organisme_id !== form.organisme_id) {
+              const fromOrg = organismes.find(o => o.id === originalForm.organisme_id)?.nom || "Aucun";
+              const toOrg = organismes.find(o => o.id === form.organisme_id)?.nom || "Aucun";
+              changes.push({ label: "Organisme", from: fromOrg, to: toOrg });
+            }
+            if (JSON.stringify(originalForm.organisme_ids) !== JSON.stringify(form.organisme_ids)) {
+              const fromOrgs = (originalForm.organisme_ids || []).map((id: number) => organismes.find(o => o.id === id)?.nom || id).join(", ") || "Aucun";
+              const toOrgs = (form.organisme_ids || []).map((id: number) => organismes.find(o => o.id === id)?.nom || id).join(", ") || "Aucun";
+              changes.push({ label: "Organismes", from: fromOrgs, to: toOrgs });
+            }
+            if (JSON.stringify(originalForm.organismes_libres) !== JSON.stringify(form.organismes_libres)) {
+              changes.push({ label: "Organismes libres", from: (originalForm.organismes_libres || []).join(", ") || "Aucun", to: (form.organismes_libres || []).join(", ") || "Aucun" });
+            }
+            if (originalForm.photo_url !== form.photo_url) changes.push({ label: "Photo", from: originalForm.photo_url ? "oui" : "—", to: form.photo_url ? "oui" : "—" });
+            if (changes.length === 0) return null;
+            return (
+              <div style={{ marginTop: 16, padding: "14px 16px", background: C.yellowBg, borderRadius: 12, border: "1.5px solid " + C.yellow + "55" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.yellowDark, marginBottom: 10 }}>✏️ Modifications</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {changes.map(({ label, from, to }) => (
+                    <div key={label} style={{ display: "flex", gap: 8, alignItems: "baseline", fontSize: 12 }}>
+                      <span style={{ fontWeight: 700, color: C.text, minWidth: 110, flexShrink: 0 }}>{label}</span>
+                      <span style={{ color: C.pink, textDecoration: "line-through", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{from}</span>
+                      <span style={{ color: C.textTer, flexShrink: 0 }}>→</span>
+                      <span style={{ color: C.green, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{to}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button onClick={handleSave} disabled={saving} style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.5 : 1 }}>
               {saving ? "⏳ ..." : editId ? "Soumettre les modifications" : "Soumettre la formation 🍿"}

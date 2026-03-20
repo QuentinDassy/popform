@@ -5,7 +5,7 @@ export const supabase = createClient();
 // ============ TYPES ============
 
 export type SessionPartie = { titre: string; date_debut: string; date_fin: string; modalite: string; lieu: string; adresse: string; lien_visio: string };
-export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null; pays?: string | null; parties?: SessionPartie[] | null };
+export type Session = { id: number; dates: string; lieu: string; adresse: string; modalite_session?: string | null; lien_visio?: string | null; code_postal?: string | null; pays?: string | null; parties?: SessionPartie[] | null; organisme_id?: number | null; organisme_libre?: string | null; organisme?: { id: number; nom: string; site_url?: string | null } | null; url_inscription?: string | null };
 export type Organisme = { id: number; nom: string; logo: string; description: string; user_id?: string; site_url?: string | null; hidden?: boolean };
 export type Formateur = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id?: string; site_url?: string | null; photo_url?: string | null; hidden?: boolean };
 export type Formation = {
@@ -19,6 +19,8 @@ export type Formation = {
   effectif: number; video_url: string; url_inscription: string;
   date_fin: string | null; sans_limite: boolean;
   status: string; photo_url?: string | null;
+  organisme_ids?: number[] | null;
+  organismes_libres?: string[] | null;
   pending_update?: boolean;
   affiche_order: number | null;
   sessions?: Session[];
@@ -115,6 +117,32 @@ async function _fetchAndStore(): Promise<Formation[]> {
         });
       }
     }
+    // Batch-fetch organismes for sessions (requires organisme_id column in sessions — migration: session_organisme.sql)
+    try {
+      const sessionOrgIds = new Set<number>();
+      result.forEach((f: any) => (f.sessions || []).forEach((s: any) => { if (s.organisme_id) sessionOrgIds.add(s.organisme_id); }));
+      if (sessionOrgIds.size > 0) {
+        const { data: sessionOrgs } = await supabase.from("organismes").select("id,nom,site_url").in("id", Array.from(sessionOrgIds));
+        if (sessionOrgs) {
+          const orgMap: Record<number, any> = {};
+          sessionOrgs.forEach((o: any) => { orgMap[o.id] = o; });
+          result.forEach((f: any) => (f.sessions || []).forEach((s: any) => { if (s.organisme_id) s.organisme = orgMap[s.organisme_id] || null; }));
+        }
+      }
+    } catch { /* column may not exist yet — migration not run */ }
+    // Enrich organisme_ids with organisme data
+    try {
+      const formOrgIds = new Set<number>();
+      result.forEach((f: any) => (f.organisme_ids || []).forEach((id: number) => formOrgIds.add(id)));
+      if (formOrgIds.size > 0) {
+        const { data: formOrgs } = await supabase.from("organismes").select("id,nom,site_url").in("id", Array.from(formOrgIds));
+        if (formOrgs) {
+          const orgMap: Record<number, any> = {};
+          formOrgs.forEach((o: any) => { orgMap[o.id] = o; });
+          result.forEach((f: any) => { f.formOrganismes = (f.organisme_ids || []).map((id: number) => orgMap[id]).filter(Boolean); });
+        }
+      }
+    } catch {}
     _formationsCache = result;
     _cacheTime = Date.now();
     lsWrite(result);
@@ -139,7 +167,7 @@ export function invalidateCache() {
 }
 
 // Per-formation cache (id → {data, t})
-const LS_FORMATION_PREFIX = "pf_formation_v1_";
+const LS_FORMATION_PREFIX = "pf_formation_v2_";
 const FORMATION_TTL = 5 * 60 * 1000; // 5 min
 
 function lsReadFormation(id: number): { data: Formation; t: number } | null {
@@ -183,6 +211,31 @@ async function _fetchFormationRemote(id: number): Promise<Formation | null> {
       } else {
         (data as any).formateurs = data.formateur ? [data.formateur] : [];
       }
+      // Enrich sessions with organisme data (requires session_organisme.sql migration)
+      try {
+        const sessionOrgIds = new Set<number>();
+        ((data as any).sessions || []).forEach((s: any) => { if (s.organisme_id) sessionOrgIds.add(s.organisme_id); });
+        if (sessionOrgIds.size > 0) {
+          const { data: orgs } = await supabase.from("organismes").select("id,nom,site_url").in("id", Array.from(sessionOrgIds));
+          if (orgs) {
+            const orgMap: Record<number, any> = {};
+            orgs.forEach((o: any) => { orgMap[o.id] = o; });
+            ((data as any).sessions || []).forEach((s: any) => { if (s.organisme_id) s.organisme = orgMap[s.organisme_id] || null; });
+          }
+        }
+      } catch { /* column may not exist yet */ }
+      // Enrich organisme_ids
+      try {
+        const fOrgIds: number[] = ((data as any).organisme_ids || []);
+        if (fOrgIds.length > 0) {
+          const { data: formOrgs } = await supabase.from("organismes").select("id,nom,site_url").in("id", fOrgIds);
+          if (formOrgs) {
+            const orgMap: Record<number, any> = {};
+            formOrgs.forEach((o: any) => { orgMap[o.id] = o; });
+            (data as any).formOrganismes = fOrgIds.map(id => orgMap[id]).filter(Boolean);
+          }
+        }
+      } catch {}
       lsWriteFormation(id, data);
     }
     return data;

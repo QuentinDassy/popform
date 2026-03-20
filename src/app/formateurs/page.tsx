@@ -29,7 +29,6 @@ function FormateursContent() {
       const seen = new Set<string>();
       const unique = f.filter((fmt: any) => {
         if (fmt.hidden) return false;
-        if (fmt.organisme_id != null) return false;
         const nameKey = fmt.nom?.toLowerCase().trim();
         if (nameKey && seen.has(nameKey)) return false;
         if (nameKey) seen.add(nameKey);
@@ -97,7 +96,6 @@ function FormateursContent() {
               <h1 style={{ fontSize: mob ? 20 : 26, fontWeight: 800, color: C.text, margin: "0 0 4px" }}>{selected.nom}</h1>
               <div style={{ fontSize: 13, color: C.textTer }}>
                 {fmtTitle(selected)}
-                {selected.organisme ? <> · <span style={{ color: C.accent, fontWeight: 600 }}>{selected.organisme.nom}</span></> : null}
               </div>
               <div style={{ fontSize: 12, color: C.textTer, marginTop: 4 }}>
                 {fmtCounts[selected.id] || 0} formation{(fmtCounts[selected.id] || 0) > 1 ? "s" : ""}
@@ -162,7 +160,7 @@ function FormateursContent() {
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
-                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{f.organisme ? " · " + f.organisme.nom : ""}</div>
+                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}</div>
                 {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.bio}</div>}
               </div>
               <span style={{ fontSize: 12, color: C.textTer, flexShrink: 0 }}>›</span>

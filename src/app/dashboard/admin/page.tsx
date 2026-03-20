@@ -56,6 +56,7 @@ export default function DashboardAdminPage() {
           .select("*, sessions(*, session_parties(*)), formateur:formateurs(*), organisme:organismes(*)")
           .order("date_ajout", { ascending: false });
         if (fErr?.message?.includes("refresh") || fErr?.message?.includes("JWT")) { setLoading(false); return; }
+        if (fErr) { console.error("Admin formations query error:", fErr.message, fErr.details, fErr.hint); }
         setFormations(f || []);
         const notifs = await fetchAdminNotifications();
         setNotifications(notifs);
@@ -95,12 +96,12 @@ export default function DashboardAdminPage() {
   }, [user]);
 
   const handleStatus = async (id: number, status: string) => {
-    await supabase.from("formations").update({ status }).eq("id", id);
-    setFormations(prev => prev.map(f => f.id === id ? { ...f, status } : f));
-    // Invalide le cache public pour que la formation apparaisse immédiatement
+    const update: Record<string, any> = { status };
+    if (status === "supprimee") update.supprime_par = "admin";
+    await supabase.from("formations").update(update).eq("id", id);
+    setFormations(prev => prev.map(f => f.id === id ? { ...f, status, ...(status === "supprimee" ? { supprime_par: "admin" } : {}) } as any : f));
     const { invalidateCache } = await import("@/lib/data");
     invalidateCache();
-    // Email au formateur si la formation est publiée
     if (status === "publiee") {
       const f = formations.find(f => f.id === id);
       if (f) {
@@ -108,6 +109,20 @@ export default function DashboardAdminPage() {
         fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "formation_accepted", user_id: userId, formation_id: id, titre: f.titre }) }).catch(() => {});
       }
     }
+  };
+
+  const handleHardDelete = async (id: number, titre: string) => {
+    if (!confirm(`Supprimer DÉFINITIVEMENT "${titre}" ?\n\nCette action est irréversible.`)) return;
+    // Supprimer les enfants d'abord
+    const { data: sessIds } = await supabase.from("sessions").select("id").eq("formation_id", id);
+    if (sessIds && sessIds.length > 0) {
+      await supabase.from("session_parties").delete().in("session_id", sessIds.map((s: any) => s.id));
+    }
+    await supabase.from("sessions").delete().eq("formation_id", id);
+    await supabase.from("formations").delete().eq("id", id);
+    setFormations(prev => prev.filter(f => f.id !== id));
+    const { invalidateCache } = await import("@/lib/data");
+    invalidateCache();
   };
 
   const handleApprovePendingUpdate = async (id: number) => {
@@ -308,7 +323,8 @@ export default function DashboardAdminPage() {
   if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const normS = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const filteredBase = filter === "all" ? formations.filter(f => f.status !== "supprimee") : formations.filter(f => f.status === filter);
+  const isDeleted = (f: Formation) => f.status === "supprimee" || f.status === "refusee";
+  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : formations.filter(f => f.status === filter);
   const filteredSearched = formSearch.trim()
     ? filteredBase.filter(f => {
         const q = normS(formSearch);
@@ -323,7 +339,7 @@ export default function DashboardAdminPage() {
     if (formSort === "recent") return new Date(b.date_ajout).getTime() - new Date(a.date_ajout).getTime();
     return 0; // default: order from DB (already date_ajout desc)
   });
-  const deletedCount = formations.filter(f => f.status === "supprimee").length;
+  const deletedCount = formations.filter(isDeleted).length;
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
   const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
   const pendingFormationIds = new Set(formations.filter(f => f.status === "en_attente").map(f => f.id));
@@ -334,7 +350,7 @@ export default function DashboardAdminPage() {
     const styles: Record<string, { bg: string; color: string; label: string }> = {
       en_attente: { bg: C.yellowBg, color: C.yellowDark, label: "⏳ En attente" },
       publiee: { bg: C.greenBg, color: C.green, label: "✓ Publiée" },
-      refusee: { bg: C.pinkBg, color: C.pink, label: "✕ Refusée" },
+      refusee: { bg: C.pinkBg, color: C.pink, label: "🗑️ Supprimée" },
       archivee: { bg: C.bgAlt, color: C.textTer, label: "📦 Archivée" },
     };
     const s = styles[status] || styles.en_attente;
@@ -713,7 +729,6 @@ export default function DashboardAdminPage() {
         {[
           { v: "publiee", l: "✅ Publiées" },
           { v: "en_attente", l: "⏳ En attente (" + pendingCount + ")" },
-          { v: "refusee", l: "✕ Refusées" },
           { v: "all", l: "📋 Toutes" },
           { v: "supprimee", l: "🗑️ Supprimées" + (deletedCount > 0 ? " (" + deletedCount + ")" : "") },
         ].map(t => (
@@ -756,6 +771,7 @@ export default function DashboardAdminPage() {
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {statusBadge(f.status)}
                       {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
+                      {f.status === "supprimee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>🗑️ {(f as any).supprime_par ? "par " + (f as any).supprime_par : "origine inconnue"}</span>}
                       {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
                     {(f as any).pending_update && (
@@ -830,21 +846,21 @@ export default function DashboardAdminPage() {
                       {(f as any).pending_update && (
                         <button onClick={async () => { await supabase.from("formations").update({ pending_update: false }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, pending_update: false } as any : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Valider modif.</button>
                       )}
-                      {f.status !== "refusee" && (
-                        <button onClick={() => handleStatus(f.id, "refusee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.pink, background: "transparent", color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Refuser</button>
-                      )}
-                      {f.status !== "en_attente" && (
+                      {!isDeleted(f) && f.status !== "en_attente" && (
                         <button onClick={() => handleStatus(f.id, "en_attente")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.yellowDark, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>⏳ Remettre en attente</button>
                       )}
-                      <Link href={`/dashboard/admin/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.blue, background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>✏️ Modifier</Link>
+                      {!isDeleted(f) && <Link href={`/dashboard/admin/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.blue, background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>✏️ Modifier</Link>}
                       {f.status === "publiee" && (
                         <Link href={`/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>👁️ Voir sur le site</Link>
                       )}
-                      {f.status !== "supprimee" && <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>}
-                      {f.status !== "supprimee" ? (
-                        <button onClick={() => { if (confirm(`Supprimer "${f.titre}" ? Elle ira dans la corbeille.`)) handleStatus(f.id, "supprimee"); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️ Supprimer</button>
+                      {!isDeleted(f) && <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>}
+                      {!isDeleted(f) ? (
+                        <button onClick={() => { if (confirm(`Supprimer "${f.titre}" ?`)) handleStatus(f.id, "supprimee"); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️ Supprimer</button>
                       ) : (
-                        <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
+                        <>
+                          <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
+                          <button onClick={() => handleHardDelete(f.id, f.titre)} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.pinkBg, color: C.pink, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑️ Supprimer définitivement</button>
+                        </>
                       )}
                     </div>
                   </div>

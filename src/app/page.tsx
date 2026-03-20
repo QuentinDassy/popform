@@ -274,7 +274,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formations.length > 0 ? formations.length : "…"}</strong> formations.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{activeFormations.length > 0 ? activeFormations.length : "…"}</strong> formations.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
@@ -554,7 +554,7 @@ export default function HomePage() {
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
-        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({formations.length} formations) →</div></Link>
+        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({activeFormations.length} formations) →</div></Link>
       </div>
 
       {/* ===== NEWSLETTER ===== */}
