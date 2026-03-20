@@ -429,8 +429,8 @@ export default function DashboardOrganismePage() {
       modalite: computedModalite, modalites: data.modalites,
       prise_en_charge: data.prise_aucune ? [] : data.prise_en_charge,
       duree: data.duree || "7h", prix: data.prix ?? 0,
-      prix_salarie: data.prix_salarie || null, prix_liberal: data.prix_liberal || null, prix_dpc: data.prix_dpc || null,
-      is_new: true, populations: data.populations,
+      prix_salarie: null, prix_liberal: null, prix_dpc: null,
+      is_new: true, populations: [],
       mots_cles: data.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: data.professions.length ? data.professions : ["Orthophonie"],
       effectif: data.effectif || null, photo_url: photoUrl || null,
@@ -453,6 +453,9 @@ export default function DashboardOrganismePage() {
           lieu: s.modalite === "Visio" ? "Visio" : s.lieu,
           adresse: s.modalite === "Visio" ? (s.lien_visio || "") : s.lieu,
           modalite_session: s.modalite, lien_visio: s.lien_visio || null,
+          organisme_id: s.organisme_id || null,
+          organisme_libre: s.organisme_libre || null,
+          url_inscription: s.url_inscription || null,
         }))
       ).select();
       if (insertedSessions) {
@@ -565,7 +568,7 @@ export default function DashboardOrganismePage() {
             <button onClick={() => setTab("formateurs")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
             {/* Webinaires - désactivé v1 */}
             {/* Congrès - désactivé v1 */}
-            <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "44", background: C.accentBg, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✨ Mode guidé</button>
+            <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✨ Créer avec le mode guidé</button>
             <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
           </div>
         )}

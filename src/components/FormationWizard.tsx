@@ -8,10 +8,9 @@ import { useIsMobile } from "@/lib/hooks";
 export type WizardFormData = {
   titre: string; sous_titre: string; domaines: string[]; modalites: string[];
   description: string; duree: string; effectif: number | null;
-  prix: number | null; prix_salarie: number | null; prix_liberal: number | null;
-  prix_dpc: number | null; prix_from: boolean;
+  prix: number | null; prix_from: boolean;
   prise_en_charge: string[]; prise_aucune: boolean;
-  populations: string[]; professions: string[]; mots_cles: string;
+  professions: string[]; mots_cles: string;
   photo_url: string; video_url: string; url_inscription: string;
   organisme_ids: number[]; organismes_libres: string[];
   formateur_ids: number[];
@@ -20,6 +19,7 @@ export type WizardFormData = {
 export type WizardSession = {
   date_debut: string; date_fin: string; modalite: string;
   lieu: string; lien_visio: string;
+  organisme_id?: number | null; organisme_libre?: string; url_inscription?: string;
 };
 
 export type WizardContext = {
@@ -45,48 +45,48 @@ function defaultForm(init?: Partial<WizardFormData>): WizardFormData {
   return {
     titre: "", sous_titre: "", domaines: [], modalites: ["Présentiel"],
     description: "", duree: "", effectif: null,
-    prix: null, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_from: false,
+    prix: null, prix_from: false,
     prise_en_charge: [], prise_aucune: false,
-    populations: [], professions: ["Orthophonie"], mots_cles: "",
+    professions: ["Orthophonie"], mots_cles: "",
     photo_url: "", video_url: "", url_inscription: "",
     organisme_ids: [], organismes_libres: [], formateur_ids: [],
     ...init,
   };
 }
 
-const STEP_IDS = ["titre", "domaines", "modalites", "description", "prix", "prise", "public", "sessions", "media"] as const;
+const STEP_IDS = ["titre", "domaines", "modalites", "description", "prix", "prise", "professions", "organismes", "sessions", "media"] as const;
 type StepId = typeof STEP_IDS[number];
 
 const STEP_META: Record<StepId, { title: string; subtitle?: string; optional?: boolean }> = {
-  titre:       { title: "Quel est le titre de la formation ?",   subtitle: "Soyez précis et accrocheur." },
-  domaines:    { title: "Dans quel(s) domaine(s) ?",             subtitle: "Sélectionnez un ou plusieurs domaines." },
-  modalites:   { title: "Comment se déroule-t-elle ?",           subtitle: "Choisissez le(s) format(s) de la formation." },
-  description: { title: "Décrivez votre formation",              subtitle: "Objectifs, contenu, public visé…" },
-  prix:        { title: "Quel est le tarif ?",                   subtitle: "Laissez à 0 si gratuit.", optional: true },
-  prise:       { title: "Quelles prises en charge ?",            subtitle: "Sélectionnez les dispositifs acceptés." },
-  public:      { title: "À qui s'adresse-t-elle ?",              subtitle: "Définissez votre public cible.", optional: true },
-  sessions:    { title: "Ajoutez vos sessions",                  subtitle: "Dates et lieux de la formation.", optional: true },
-  media:       { title: "Derniers détails",                      subtitle: "Photo, vidéo et organismes associés.", optional: true },
+  titre:       { title: "Donnez un titre à votre formation",      subtitle: "Ce sera le premier élément vu par les professionnels de santé." },
+  domaines:    { title: "Dans quel(s) domaine(s) ?",              subtitle: "Sélectionnez un ou plusieurs domaines." },
+  modalites:   { title: "Comment se déroule-t-elle ?",            subtitle: "Choisissez le(s) format(s) de la formation." },
+  description: { title: "Décrivez votre formation",               subtitle: "Objectifs, contenu, public visé…" },
+  prix:        { title: "Quel est le tarif ?",                    subtitle: "Laissez à 0 si gratuit.", optional: true },
+  prise:       { title: "Quelles prises en charge ?",             subtitle: "Sélectionnez les dispositifs acceptés." },
+  professions: { title: "À qui s'adresse-t-elle ?",               subtitle: "Définissez les professions ciblées.", optional: true },
+  organismes:  { title: "Organismes co-organisateurs",            subtitle: "Sélectionnez les organismes impliqués dans cette formation. Vous pourrez ensuite les associer à chaque session.", optional: true },
+  sessions:    { title: "Ajoutez vos sessions",                   subtitle: "Dates et lieux de la formation.", optional: true },
+  media:       { title: "Derniers détails",                       subtitle: "Photo, vidéo et lien d'inscription.", optional: true },
 };
 
-const POPULATIONS = ["Étudiants", "Jeunes professionnels", "Professionnels expérimentés", "Tous niveaux"];
 const PROFESSIONS = ["Orthophonie", "Ergothérapie", "Psychomotricité", "Kinésithérapie", "Médecine", "Infirmerie", "Autre"];
-const PRISES = ["DPC", "FIF-PL", "OPCO", "Employeur", "Personnel"];
+const PRISES = ["DPC", "FIF-PL"];
 const DUREE_PRESETS = ["1h", "3h", "7h", "14h", "21h"];
 
 const MODALITE_CARDS: { id: string; emoji: string; label: string; desc: string }[] = [
   { id: "Présentiel", emoji: "📍", label: "Présentiel", desc: "En salle, en personne" },
   { id: "Visio",      emoji: "💻", label: "Visio",      desc: "À distance en direct" },
   { id: "E-learning", emoji: "📺", label: "E-learning", desc: "En ligne, en autonomie" },
-  { id: "Mixte",      emoji: "🔀", label: "Mixte",      desc: "Présentiel + Visio" },
 ];
 
 function defaultSession(): WizardSession {
-  return { date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", lien_visio: "" };
+  return { date_debut: "", date_fin: "", modalite: "Présentiel", lieu: "", lien_visio: "", organisme_id: null, organisme_libre: "", url_inscription: "" };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// see dashboard pages for trigger button style
 export default function FormationWizard({ open, onClose, onSubmit, context }: FormationWizardProps) {
   const mob = useIsMobile();
   const [step, setStep] = useState(0);
@@ -99,9 +99,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
 
   // Session mini-form state
   const [newSession, setNewSession] = useState<WizardSession>(defaultSession());
-
-  // Prix spécifiques toggle
-  const [showPrixSpec, setShowPrixSpec] = useState(false);
 
   // Organismes libres input
   const [orgLibreInput, setOrgLibreInput] = useState("");
@@ -119,7 +116,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       setSubmitting(false);
       setVisible(true);
       setNewSession(defaultSession());
-      setShowPrixSpec(false);
       setOrgLibreInput("");
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -133,9 +129,13 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
 
   if (!open) return null;
 
-  // ── Computed step list (skip "sessions" if e-learning only) ──────────────
+  // ── Computed step list ────────────────────────────────────────────────────
   const isElearningOnly = form.modalites.length === 1 && form.modalites[0] === "E-learning";
-  const activeSteps: StepId[] = STEP_IDS.filter(s => !(s === "sessions" && isElearningOnly));
+  const activeSteps: StepId[] = STEP_IDS.filter(s => {
+    if (s === "sessions" && isElearningOnly) return false;
+    if (s === "organismes" && context.mode !== "formateur" && context.mode !== "organisme") return false;
+    return true;
+  });
   const totalSteps = activeSteps.length;
   const currentStepId = activeSteps[step];
   const meta = STEP_META[currentStepId];
@@ -147,7 +147,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       case "titre":       return form.titre.trim().length >= 3;
       case "domaines":    return form.domaines.length >= 1;
       case "modalites":   return form.modalites.length >= 1;
-      case "description": return form.description.trim().length >= 20 && form.duree.trim().length >= 1;
+      case "description": return form.description.trim().length >= 20;
       default:            return true;
     }
   }
@@ -184,26 +184,9 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
 
   // ── Modalites toggle logic ────────────────────────────────────────────────
   function toggleModalite(id: string) {
-    let next: string[];
-    if (id === "Mixte") {
-      const isMixteSelected = form.modalites.includes("Mixte");
-      if (isMixteSelected) {
-        next = [];
-      } else {
-        next = ["Présentiel", "Visio", "Mixte"];
-      }
-    } else {
-      if (form.modalites.includes(id)) {
-        next = form.modalites.filter(m => m !== id && m !== "Mixte");
-      } else {
-        next = [...form.modalites.filter(m => m !== "Mixte"), id];
-        // if both Présentiel and Visio selected, auto-add Mixte
-        if (next.includes("Présentiel") && next.includes("Visio") && !next.includes("Mixte")) {
-          next = [...next, "Mixte"];
-        }
-      }
-      // If E-learning mixed with others, keep them separate
-    }
+    const next = form.modalites.includes(id)
+      ? form.modalites.filter(m => m !== id)
+      : [...form.modalites, id];
     setForm({ ...form, modalites: next });
   }
 
@@ -376,7 +359,9 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
               )}
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Durée *</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
+                Durée <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+              </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                 {DUREE_PRESETS.map(d => (
                   <button
@@ -394,9 +379,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 placeholder="Ou saisir une durée personnalisée…"
                 style={{ ...inputStyle, fontSize: 13 }}
               />
-              {showError && form.duree.trim().length === 0 && (
-                <p style={{ color: C.pink, fontSize: 12, marginTop: 4 }}>La durée est requise.</p>
-              )}
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
@@ -436,34 +418,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
               />
               Prix "à partir de" (afficher comme un minimum)
             </label>
-            <div>
-              <button
-                onClick={() => setShowPrixSpec(s => !s)}
-                style={{ fontSize: 13, color: C.accent, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit", fontWeight: 600 }}
-              >
-                {showPrixSpec ? "▲" : "▼"} Prix spécifiques (optionnel)
-              </button>
-              {showPrixSpec && (
-                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {[
-                    { label: "Prix salarié", key: "prix_salarie" as const },
-                    { label: "Prix libéral", key: "prix_liberal" as const },
-                    { label: "Prix DPC",     key: "prix_dpc" as const },
-                  ].map(({ label, key }) => (
-                    <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <label style={{ fontSize: 12, color: C.textSec, minWidth: 120 }}>{label} (€)</label>
-                      <input
-                        type="number" min="0"
-                        value={form[key] ?? ""}
-                        onChange={e => setForm({ ...form, [key]: e.target.value !== "" ? Number(e.target.value) : null })}
-                        placeholder="0"
-                        style={{ ...inputStyle, maxWidth: 120 }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         );
 
@@ -505,24 +459,10 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
           </div>
         );
 
-      // ─── PUBLIC ─────────────────────────────────────────────────────────
-      case "public":
+      // ─── PROFESSIONS ────────────────────────────────────────────────────
+      case "professions":
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Niveau / population</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {POPULATIONS.map(p => {
-                  const sel = form.populations.includes(p);
-                  return (
-                    <button key={p} onClick={() => {
-                      const next = sel ? form.populations.filter(x => x !== p) : [...form.populations, p];
-                      setForm({ ...form, populations: next });
-                    }} style={sel ? chipSel : chipBase}>{p}</button>
-                  );
-                })}
-              </div>
-            </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Professions ciblées</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -550,8 +490,95 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
           </div>
         );
 
+      // ─── ORGANISMES ─────────────────────────────────────────────────────
+      case "organismes":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Dropdown to add from list */}
+            <div>
+              <select
+                style={{ ...inputStyle }}
+                value=""
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val && !form.organisme_ids.includes(Number(val))) {
+                    setForm({ ...form, organisme_ids: [...form.organisme_ids, Number(val)] });
+                  }
+                }}
+              >
+                <option value="">— Choisir un organisme —</option>
+                {(context.organismes || []).map(o => (
+                  <option key={o.id} value={o.id}>{o.nom}</option>
+                ))}
+              </select>
+            </div>
+            {/* Selected organism tags */}
+            {form.organisme_ids.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {form.organisme_ids.map(oid => {
+                  const org = (context.organismes || []).find(o => o.id === oid);
+                  return org ? (
+                    <span key={oid} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: 13, color: C.accent, fontWeight: 600 }}>
+                      {org.nom}
+                      <button
+                        onClick={() => setForm({ ...form, organisme_ids: form.organisme_ids.filter(id => id !== oid) })}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 15, padding: "0 2px", lineHeight: 1 }}
+                      >×</button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+            {/* Free text input */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={orgLibreInput}
+                onChange={e => setOrgLibreInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && orgLibreInput.trim()) {
+                    e.preventDefault();
+                    setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
+                    setOrgLibreInput("");
+                  }
+                }}
+                placeholder="Ou saisir un nom libre…"
+                style={{ ...inputStyle, flex: 1, fontSize: 13 }}
+              />
+              <button
+                onClick={() => {
+                  if (orgLibreInput.trim()) {
+                    setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
+                    setOrgLibreInput("");
+                  }
+                }}
+                style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+              >+ Ajouter</button>
+            </div>
+            {/* Free organismes tags */}
+            {form.organismes_libres.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {form.organismes_libres.map((ol, i) => (
+                  <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
+                    🏢 {ol}
+                    <button onClick={() => setForm({ ...form, organismes_libres: form.organismes_libres.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
       // ─── SESSIONS ───────────────────────────────────────────────────────
-      case "sessions":
+      case "sessions": {
+        // All organismes available for session assignment
+        const allSessionOrgs: { label: string; orgId?: number; libreVal?: string }[] = [
+          ...(form.organisme_ids.map(oid => {
+            const org = (context.organismes || []).find(o => o.id === oid);
+            return org ? { label: org.nom, orgId: oid } : null;
+          }).filter(Boolean) as { label: string; orgId: number }[]),
+          ...form.organismes_libres.map(ol => ({ label: ol, libreVal: ol })),
+        ];
+
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Mini add form */}
@@ -589,6 +616,47 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                   <input value={newSession.lien_visio} onChange={e => setNewSession({ ...newSession, lien_visio: e.target.value })} placeholder="https://zoom.us/j/…" style={{ ...inputStyle, fontSize: 13 }} />
                 </div>
               )}
+              {/* Organisme selector for session */}
+              {allSessionOrgs.length > 0 && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 4 }}>Organisme</label>
+                  <select
+                    style={{ ...inputStyle, fontSize: 13 }}
+                    value={newSession.organisme_id != null ? String(newSession.organisme_id) : (newSession.organisme_libre || "")}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setNewSession({ ...newSession, organisme_id: null, organisme_libre: "" });
+                      } else {
+                        // Check if it's a numeric ID (from organisme_ids) or a libre string
+                        const asNum = Number(val);
+                        if (!isNaN(asNum) && form.organisme_ids.includes(asNum)) {
+                          setNewSession({ ...newSession, organisme_id: asNum, organisme_libre: "" });
+                        } else {
+                          setNewSession({ ...newSession, organisme_id: null, organisme_libre: val });
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">— Aucun organisme —</option>
+                    {allSessionOrgs.map((o, i) => (
+                      <option key={i} value={o.orgId != null ? String(o.orgId) : o.libreVal}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {/* URL d'inscription par session */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 4 }}>
+                  URL d&apos;inscription <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+                </label>
+                <input
+                  value={newSession.url_inscription || ""}
+                  onChange={e => setNewSession({ ...newSession, url_inscription: e.target.value })}
+                  placeholder="https://... (lien vers la session)"
+                  style={{ ...inputStyle, fontSize: 13 }}
+                />
+              </div>
               <button
                 onClick={() => {
                   if (!newSession.date_debut) return;
@@ -608,28 +676,39 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {sessions.map((s, i) => (
-                  <div key={i} style={{ padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1.5px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
-                        {s.modalite === "Visio" ? "💻 Visio" : "📍 " + (s.lieu || "Lieu non précisé")}
+                {sessions.map((s, i) => {
+                  const sessionOrgName = s.organisme_id != null
+                    ? (context.organismes || []).find(o => o.id === s.organisme_id)?.nom
+                    : s.organisme_libre || null;
+                  return (
+                    <div key={i} style={{ padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1.5px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                          {s.modalite === "Visio" ? "💻 Visio" : "📍 " + (s.lieu || "Lieu non précisé")}
+                          {sessionOrgName && (
+                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 10, background: C.accentBg, color: C.accent, border: "1px solid " + C.accent + "33" }}>
+                              {sessionOrgName}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textTer }}>
+                          {s.date_debut}{s.date_fin ? " → " + s.date_fin : ""}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: C.textTer }}>
-                        {s.date_debut}{s.date_fin ? " → " + s.date_fin : ""}
-                      </div>
+                      <button
+                        onClick={() => setSessions(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: C.pink, fontSize: 18, padding: "0 4px", fontFamily: "inherit" }}
+                      >
+                        ×
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setSessions(prev => prev.filter((_, j) => j !== i))}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: C.pink, fontSize: 18, padding: "0 4px", fontFamily: "inherit" }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         );
+      }
 
       // ─── MEDIA ──────────────────────────────────────────────────────────
       case "media":
@@ -675,7 +754,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
             </div>
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
-                URL d'inscription <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+                URL d&apos;inscription <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
               </label>
               <input
                 value={form.url_inscription}
@@ -684,59 +763,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 style={inputStyle}
               />
             </div>
-
-            {/* Organisme multi-select (formateur mode) */}
-            {context.mode === "formateur" && context.organismes && context.organismes.length > 0 && (
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
-                  Organismes associés <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
-                </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                  {context.organismes.map(o => {
-                    const sel = form.organisme_ids.includes(o.id);
-                    return (
-                      <button key={o.id} onClick={() => {
-                        const next = sel ? form.organisme_ids.filter(id => id !== o.id) : [...form.organisme_ids, o.id];
-                        setForm({ ...form, organisme_ids: next });
-                      }} style={sel ? chipSel : chipBase}>
-                        {sel ? "✓ " : ""}{o.nom}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    value={orgLibreInput}
-                    onChange={e => setOrgLibreInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && orgLibreInput.trim()) {
-                        e.preventDefault();
-                        setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
-                        setOrgLibreInput("");
-                      }
-                    }}
-                    placeholder="Organisme non répertorié…"
-                    style={{ ...inputStyle, flex: 1, fontSize: 13 }}
-                  />
-                  <button onClick={() => {
-                    if (orgLibreInput.trim()) {
-                      setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
-                      setOrgLibreInput("");
-                    }
-                  }} style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>+ Ajouter</button>
-                </div>
-                {form.organismes_libres.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                    {form.organismes_libres.map((ol, i) => (
-                      <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
-                        🏢 {ol}
-                        <button onClick={() => setForm({ ...form, organismes_libres: form.organismes_libres.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Formateur multi-select (organisme mode) */}
             {context.mode === "organisme" && context.formateurs && context.formateurs.length > 0 && (
@@ -768,7 +794,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
   }
 
   // ─── Header height for scroll offset ──────────────────────────────────────
-  const headerH = mob ? 100 : 110;
   const footerH = 70;
   const progressPct = totalSteps > 1 ? (step / (totalSteps - 1)) * 100 : 100;
 
@@ -799,7 +824,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
               ← Fermer
             </button>
             <span style={{ fontSize: 12, color: C.textTer, fontWeight: 600 }}>
-              Étape {step + 1} / {totalSteps}
+              ✨ Mode guidé &nbsp;·&nbsp; Étape {step + 1} / {totalSteps}
               {meta.optional && <span style={{ marginLeft: 6, color: C.textTer, fontWeight: 400 }}>(optionnel)</span>}
             </span>
           </div>

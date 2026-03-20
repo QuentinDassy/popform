@@ -19,6 +19,7 @@ type SessionRow = {
   lieu: string; adresse: string; ville: string; pays: string;
   code_postal: string; modalite_session: string; lien_visio: string; is_visio: boolean;
   parties: SessionPartieRow[];
+  organisme_id?: number | null; organisme_libre?: string; url_inscription?: string;
 };
 type FormState = {
   titre: string; sous_titre: string; description: string;
@@ -26,6 +27,7 @@ type FormState = {
   modalite: string; prise_en_charge: string[];
   duree: string;
   formateur_ids: number[]; organisme_id: number | null;
+  organisme_ids: number[]; organismes_libres: string[];
   prix: number; prix_salarie: number | null; prix_liberal: number | null; prix_dpc: number | null;
   prix_extras: { label: string; value: number }[];
   prix_from: boolean;
@@ -60,13 +62,14 @@ function formatMultipleDateRanges(ranges: { debut: string; fin: string }[]): str
 }
 
 function emptySession(): SessionRow {
-  return { dates: "", date_ranges: [{ debut: "", fin: "" }], lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [] };
+  return { dates: "", date_ranges: [{ debut: "", fin: "" }], lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, parties: [], organisme_id: null, organisme_libre: "", url_inscription: "" };
 }
 function emptyForm(): FormState {
   return {
     titre: "", sous_titre: "", description: "", domaine: "", domaines: [],
     modalite: "Présentiel", prise_en_charge: [],
     duree: "", formateur_ids: [], organisme_id: null,
+    organisme_ids: [], organismes_libres: [],
     prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [], prix_from: false,
     populations: [], mots_cles: "", professions: ["Orthophonistes"],
     effectif: 0, url_inscription: "", video_url: "",
@@ -119,6 +122,7 @@ export default function AdminFormationEditorPage() {
   const [editOrgLogoFile, setEditOrgLogoFile] = useState<File | null>(null);
   const editOrgLogoRef = useRef<HTMLInputElement>(null);
   const [savingOrg, setSavingOrg] = useState(false);
+  const [adminOrgLibreInput, setAdminOrgLibreInput] = useState("");
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -161,6 +165,8 @@ export default function AdminFormationEditorPage() {
               duree: f.duree || "",
               formateur_ids: (f as any).formateur_ids?.length ? (f as any).formateur_ids : (f.formateur_id ? [f.formateur_id] : []),
               organisme_id: f.organisme_id,
+              organisme_ids: (f as any).organisme_ids || (f.organisme_id ? [f.organisme_id] : []),
+              organismes_libres: (f as any).organismes_libres || [],
               prix: f.prix ?? 0,
               prix_salarie: f.prix_salarie,
               prix_liberal: f.prix_liberal,
@@ -195,6 +201,9 @@ export default function AdminFormationEditorPage() {
                 modalite_session: s.modalite_session || "Présentiel",
                 lien_visio: s.lien_visio || "",
                 is_visio: s.lieu === "Visio" || !!s.lien_visio,
+                organisme_id: (s as any).organisme_id || null,
+                organisme_libre: (s as any).organisme_libre || "",
+                url_inscription: (s as any).url_inscription || "",
                 parties: sp.filter((p: any) => !!p.titre).map((p: any) => ({
                   titre: p.titre || "",
                   date_debut: p.date_debut || "",
@@ -336,12 +345,15 @@ export default function AdminFormationEditorPage() {
       description: form.description.trim(),
       domaine: form.domaines[0] || form.domaine || "",
       domaines: form.domaines,
-      modalite: form.modalite,
+      modalite: (() => { const parts = (form.modalite || "").split(",").map((m: string) => m.trim()).filter(Boolean); return parts.length > 1 ? "Mixte" : (parts[0] || "Présentiel"); })(),
+      modalites: (form.modalite || "").split(",").map((m: string) => m.trim()).filter(Boolean),
       prise_en_charge: form.prise_en_charge,
       duree: form.duree || "",
       formateur_id: form.formateur_ids[0] || null,
       formateur_ids: form.formateur_ids,
       organisme_id: form.organisme_id,
+      organisme_ids: form.organisme_ids || [],
+      organismes_libres: form.organismes_libres || [],
       prix: form.prix ?? 0,
       prix_salarie: form.prix_salarie,
       prix_liberal: form.prix_liberal,
@@ -391,6 +403,9 @@ export default function AdminFormationEditorPage() {
             modalite_session: s.modalite_session || null,
             lien_visio: s.lien_visio || null,
             pays: s.pays || "France",
+            organisme_id: s.organisme_id || null,
+            organisme_libre: s.organisme_libre || null,
+            url_inscription: s.url_inscription || null,
           }))
         ).select();
 
@@ -672,6 +687,51 @@ export default function AdminFormationEditorPage() {
                 </button>
               </div>
             )}
+            {/* Organismes co-organisateurs */}
+            <div style={{ marginTop: 14 }}>
+              <label style={lbl}>Organismes co-organisateurs</label>
+              <select style={{ ...inp, marginBottom: 8 }} value="" onChange={e => {
+                const val = e.target.value;
+                if (val && !form.organisme_ids.includes(Number(val))) {
+                  setF("organisme_ids", [...form.organisme_ids, Number(val)]);
+                }
+              }}>
+                <option value="">— Ajouter un organisme co-organisateur —</option>
+                {organismes.filter(o => !form.organisme_ids.includes(o.id)).map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+              </select>
+              {form.organisme_ids.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                  {form.organisme_ids.map(oid => {
+                    const org = organismes.find(o => o.id === oid);
+                    return org ? (
+                      <span key={oid} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: 12, color: C.accent, fontWeight: 600 }}>
+                        {org.nom}
+                        <button onClick={() => setF("organisme_ids", form.organisme_ids.filter(id => id !== oid))} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input style={{ ...inp, flex: 1 }} value={adminOrgLibreInput} onChange={e => setAdminOrgLibreInput(e.target.value)} placeholder="Ou saisir un nom libre…" />
+                <button onClick={() => {
+                  if (adminOrgLibreInput.trim()) {
+                    setF("organismes_libres", [...form.organismes_libres, adminOrgLibreInput.trim()]);
+                    setAdminOrgLibreInput("");
+                  }
+                }} style={{ padding: "6px 12px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>+ Ajouter</button>
+              </div>
+              {form.organismes_libres.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {form.organismes_libres.map((ol, i) => (
+                    <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: "rgba(245,183,49,0.1)", border: "1.5px solid rgba(212,154,26,0.2)", fontSize: 12, color: "#D49A1A", fontWeight: 600 }}>
+                      🏢 {ol}
+                      <button onClick={() => setF("organismes_libres", form.organismes_libres.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -904,6 +964,23 @@ export default function AdminFormationEditorPage() {
                 </div>
               </div>
             )}
+
+            {/* Organisme de session */}
+            <div style={{ marginTop: 10 }}>
+              <label style={lbl}>Organisme (session)</label>
+              <select style={inp} value={s.organisme_id != null ? String(s.organisme_id) : ""} onChange={e => setSession(si, "organisme_id", e.target.value ? Number(e.target.value) : null)}>
+                <option value="">— Aucun organisme —</option>
+                {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label style={lbl}>Organisme libre (si hors liste)</label>
+              <input style={inp} value={s.organisme_libre || ""} onChange={e => setSession(si, "organisme_libre", e.target.value)} placeholder="Nom libre d'organisme" />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label style={lbl}>URL d&apos;inscription (session)</label>
+              <input style={inp} value={s.url_inscription || ""} onChange={e => setSession(si, "url_inscription", e.target.value)} placeholder="URL de la session (organisateur)" />
+            </div>
 
             {/* Parties de session */}
             <div style={{ marginTop: 12 }}>
