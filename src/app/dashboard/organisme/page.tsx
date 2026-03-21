@@ -227,6 +227,8 @@ export default function DashboardOrganismePage() {
     if (!organisme) return;
     setSaving(true); setMsg(null);
 
+    const hasPresentialOrVisio = form.modalites.some((m: string) => m === "Présentiel" || m === "Visio");
+    const isELearning = !hasPresentialOrVisio;
     const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
 
     // Calculer les prix supplémentaires

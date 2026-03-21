@@ -204,6 +204,8 @@ photo_url: (f as any).photo_url || "" };
     if (!formateur) return;
     setSaving(true); setMsg(null);
 
+    const hasPresentialOrVisio = form.modalites.some((m: string) => m === "Présentiel" || m === "Visio");
+    const isELearning = !hasPresentialOrVisio;
     const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
 
     // Calculer les prix supplémentaires
@@ -362,7 +364,7 @@ photo_url: (f as any).photo_url || "" };
     setAssocSending(true); setAssocMsg(null);
     for (const fid of assocSelected) {
       await supabase.from("formation_association_requests").insert({ formation_id: fid, formateur_id: formateur.id, user_id: user.id, status: "pending" });
-      await notifyAdmin({ type: "association_request", formation_id: fid, user_id: user.id, message: `${formateur.nom} demande à être associé·e à la formation #${fid}` });
+      await notifyAdmin(fid, user.id, `${formateur.nom} demande à être associé·e à la formation #${fid}`, "association_request");
     }
     setAssocMsg("✅ Demande(s) envoyée(s) à l'admin pour validation !");
     setAssocSelected([]);
