@@ -394,10 +394,20 @@ photo_url: (f as any).photo_url || "" };
 
   const handleMerge = async (orphanId: number) => {
     if (!formateur) return;
-    if (!confirm("Fusionner ce profil avec le vôtre ? Toutes ses formations vous seront attribuées et l'ancien profil sera supprimé.")) return;
+    if (!confirm("Fusionner ce profil avec le vôtre ? Toutes ses formations vous seront attribuées et l'ancien profil sera masqué (récupérable par l'admin en cas d'erreur).")) return;
     setMerging(true);
+    // Migrer formations liées via formateur_id
     await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
-    await supabase.from("formateurs").delete().eq("id", orphanId);
+    // Migrer formations liées via formateur_ids (remplacer orphanId par formateur.id dans le tableau)
+    const { data: fmtIdsRows } = await supabase.from("formations").select("id, formateur_ids").contains("formateur_ids", [orphanId]);
+    for (const row of fmtIdsRows || []) {
+      const newIds = ((row.formateur_ids as number[]) || []).map((id: number) => id === orphanId ? formateur.id : id);
+      // Éviter les doublons si formateur.id était déjà dans le tableau
+      const deduped = [...new Set(newIds)];
+      await supabase.from("formations").update({ formateur_ids: deduped }).eq("id", row.id);
+    }
+    // Soft-delete : masquer l'orphan plutôt que de le supprimer (réversible par l'admin)
+    await supabase.from("formateurs").update({ hidden: true, merged_into_id: formateur.id }).eq("id", orphanId);
     setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
     const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).order("date_ajout", { ascending: false });
     setFormations(f || []);

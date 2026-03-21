@@ -80,7 +80,7 @@ export default function DashboardAdminPage() {
         // Load utilisateurs
         try {
           const { data: orgs } = await supabase.from("organismes").select("id, nom, user_id, logo, description, hidden").order("nom");
-          const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo, hidden").order("nom");
+          const { data: fmts } = await supabase.from("formateurs").select("id, nom, user_id, organisme_id, bio, photo, hidden, merged_into_id").order("nom");
           setUtilisateurs({ organismes: orgs || [], formateurs: fmts || [] });
         } catch { /* ignore */ }
         // Load self-registered organisms (not admin-invited)
@@ -1164,6 +1164,20 @@ export default function DashboardAdminPage() {
                         style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.accent, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
                       >Détacher</button>
                     </div>
+                  )}
+                  {f.merged_into_id && (
+                    <button
+                      onClick={async () => {
+                        const target = utilisateurs.formateurs.find((x: any) => x.id === f.merged_into_id);
+                        if (!confirm(`Annuler la fusion de "${f.nom}" avec "${target?.nom || "#" + f.merged_into_id}" ? Le profil sera restauré et ses formations re-attribuées.`)) return;
+                        // Re-attribuer les formations liées via formateur_id
+                        await supabase.from("formations").update({ formateur_id: f.id }).eq("formateur_id", f.merged_into_id);
+                        // Restaurer le profil
+                        await supabase.from("formateurs").update({ hidden: false, merged_into_id: null }).eq("id", f.id);
+                        setUtilisateurs(prev => ({ ...prev, formateurs: prev.formateurs.map((x: any) => x.id === f.id ? { ...x, hidden: false, merged_into_id: null } : x) }));
+                      }}
+                      style={{ padding: "5px 10px", borderRadius: 8, border: "1.5px solid rgba(232,123,53,0.4)", background: "rgba(232,123,53,0.08)", color: "#e87b35", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                    >↩️ Annuler la fusion</button>
                   )}
                   <button
                     onClick={async () => {
