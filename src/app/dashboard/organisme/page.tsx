@@ -90,6 +90,13 @@ export default function DashboardOrganismePage() {
   const [cMsg, setCMsg] = useState<string | null>(null);
   const [cPhotoFile, setCPhotoFile] = useState<File | null>(null);
 
+  // Doublon warning avant sauvegarde
+  const [doublonWarning, setDoublonWarning] = useState<{ existing: { id: number; titre: string }[]; proceed: () => void } | null>(null);
+  // Formations filter tabs
+  const [formationsFilter, setFormationsFilter] = useState<"actives" | "expirees" | "supprimees">("actives");
+  // Delete confirmation with message
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; message: string } | null>(null);
+
   // Load organisme + formations
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -107,6 +114,7 @@ export default function DashboardOrganismePage() {
       setAllOrganismes((orgs as any) || []);
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`organisme_id.eq.${myOrg.id},organisme_ids.cs.{${myOrg.id}}`).order("date_ajout", { ascending: false });
+        // Note: supprimées are now included so formateurs/organismes can see them in the "Supprimées" tab
         let allF: any[] = f || [];
         try {
           // Essayer le RPC d'abord (bypass RLS), sinon fallback direct
@@ -193,6 +201,30 @@ export default function DashboardOrganismePage() {
     const isELearning = !hasPresentialOrVisio;
     const hasDate = !hasPresentialOrVisio || sessions.every(s => (s.parties || []).some(p => p.date_debut));
     if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return }
+
+    // Détection doublon AVANT la sauvegarde (seulement pour une nouvelle formation)
+    if (!editId) {
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
+      const { data: existingForms } = await supabase.from("formations").select("id, titre").or(`organisme_id.eq.${organisme.id},organisme_ids.cs.{${organisme.id}}`).not("status", "in", '("supprimee","refusee")');
+      if (existingForms && existingForms.length > 0) {
+        const newNorm = norm(form.titre.trim());
+        const duplicates = existingForms.filter((ef: { titre: string }) => {
+          const efNorm = norm(ef.titre);
+          if (efNorm === newNorm) return true;
+          if (efNorm.length > 10 && newNorm.length > 10 && (efNorm.includes(newNorm) || newNorm.includes(efNorm))) return true;
+          return false;
+        });
+        if (duplicates.length > 0) {
+          setDoublonWarning({ existing: duplicates, proceed: () => { setDoublonWarning(null); actualSave(); } });
+          return;
+        }
+      }
+    }
+    actualSave();
+  };
+
+  const actualSave = async () => {
+    if (!organisme) return;
     setSaving(true); setMsg(null);
 
     const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
@@ -409,10 +441,18 @@ export default function DashboardOrganismePage() {
     setMsg(null);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette formation ? Elle sera conservée dans l'historique admin.")) return;
-    await supabase.from("formations").update({ status: "supprimee", supprime_par: "organisme" } as any).eq("id", id);
-    setFormations(prev => prev.filter(f => f.id !== id));
+  const handleDelete = (id: number) => {
+    setDeleteConfirm({ id, message: "" });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm || !organisme) return;
+    const nomOrg = organisme.nom || "organisme";
+    const { error } = await supabase.from("formations").update({ status: "supprimee", supprime_par: "organisme:" + nomOrg, suppression_message: deleteConfirm.message || null } as any).eq("id", deleteConfirm.id);
+    if (error) { alert("Erreur suppression : " + error.message); setDeleteConfirm(null); return; }
+    setFormations(prev => prev.map(f => f.id === deleteConfirm.id ? { ...f, status: "supprimee", supprime_par: "organisme:" + nomOrg, suppression_message: deleteConfirm.message || null } as any : f));
+    invalidateCache();
+    setDeleteConfirm(null);
   };
 
   const handleWizardSubmit = async (data: WizardFormData, wizSessions: WizardSession[], photoFile: File | null) => {
@@ -497,6 +537,10 @@ export default function DashboardOrganismePage() {
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
   const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" };
+  const formationsActives = formations.filter(f => f.status !== "supprimee" && !(f.status === "publiee" && isFormationPast(f)));
+  const formationsExpirees = formations.filter(f => f.status === "publiee" && isFormationPast(f));
+  const formationsSupprimees = formations.filter(f => f.status === "supprimee");
+  const displayedFormations = formationsFilter === "supprimees" ? formationsSupprimees : formationsFilter === "expirees" ? formationsExpirees : formationsActives;
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: px }}>
@@ -576,9 +620,18 @@ export default function DashboardOrganismePage() {
 
 
       {/* ===== CONTACT ===== */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 12, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 16 }}>💬</span>
         <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
+      </div>
+
+      {/* ===== ANTI-DOUBLON ===== */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: C.blueBg, borderRadius: 10, border: "1px solid " + C.blue + "33", display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</span>
+        <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
+          <strong style={{ color: C.blue }}>PopForm n&apos;accepte pas les formations en doublon.</strong>{" "}
+          Si votre formation a plusieurs dates/sessions et/ou plusieurs organismes, il est possible de le signaler sur la même formation. Une formation peut également avoir des sessions <em>et</em> être en e-learning.
+        </span>
       </div>
 
       {/* ===== STATS ===== */}
@@ -586,9 +639,9 @@ export default function DashboardOrganismePage() {
         <>
           <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
-              { label: "Formations", value: formations.length, icon: "🎬" },
-              { label: "Sessions", value: formations.reduce((s, f) => s + (f.sessions?.length || 0), 0), icon: "📅" },
-              { label: "Note moyenne", value: (() => { const rated = formations.filter(f => f.nb_avis > 0); return rated.length ? (rated.reduce((s, f) => s + f.note, 0) / rated.length).toFixed(1) : "—"; })(), icon: "⭐" },
+              { label: "Formations actives", value: formationsActives.length, icon: "🎬" },
+              { label: "Sessions", value: formationsActives.reduce((s, f) => s + (f.sessions?.length || 0), 0), icon: "📅" },
+              { label: "Note moyenne", value: (() => { const rated = formationsActives.filter(f => f.nb_avis > 0); return rated.length ? (rated.reduce((s, f) => s + f.note, 0) / rated.length).toFixed(1) : "—"; })(), icon: "⭐" },
             ].map(s => (
               <div key={s.label} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, textAlign: "center" }}>
                 <div style={{ fontSize: 20 }}>{s.icon}</div>
@@ -598,40 +651,74 @@ export default function DashboardOrganismePage() {
             ))}
           </div>
 
+          {/* Filter tabs */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 14, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
+            {([
+              { v: "actives", l: `📋 Actives (${formationsActives.length})` },
+              { v: "expirees", l: `📅 Expirées (${formationsExpirees.length})` },
+              { v: "supprimees", l: `🗑️ Supprimées (${formationsSupprimees.length})` },
+            ] as const).map(t => (
+              <button key={t.v} onClick={() => setFormationsFilter(t.v)} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: formationsFilter === t.v ? C.surface : "transparent", color: formationsFilter === t.v ? C.text : C.textTer, fontSize: 11, fontWeight: formationsFilter === t.v ? 700 : 500, cursor: "pointer", boxShadow: formationsFilter === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
           {/* ===== LIST ===== */}
-          {formations.length === 0 ? (
+          {displayedFormations.length === 0 ? (
             <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎬</div>
-              <p>Aucune formation. Créez votre première !</p>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{formationsFilter === "supprimees" ? "🗑️" : formationsFilter === "expirees" ? "📅" : "🎬"}</div>
+              <p>{formationsFilter === "supprimees" ? "Aucune formation supprimée." : formationsFilter === "expirees" ? "Aucune formation expirée." : "Aucune formation. Créez votre première !"}</p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
-              {formations.map(f => {
-                const past = f.status === "publiee" && isFormationPast(f);
+              {displayedFormations.map(f => {
+                const isSupprimee = f.status === "supprimee";
+                const isExpired = f.status === "publiee" && isFormationPast(f);
+                const suppressedBy = (f as any).supprime_par as string | undefined;
+                const suppressedMsg = (f as any).suppression_message as string | undefined;
+                let suppressedLabel = "";
+                if (suppressedBy === "admin") suppressedLabel = "Supprimée par l'admin";
+                else if (suppressedBy?.startsWith("formateur:")) suppressedLabel = "Supprimée par " + suppressedBy.replace("formateur:", "");
+                else if (suppressedBy?.startsWith("organisme:")) suppressedLabel = "Supprimée par " + suppressedBy.replace("organisme:", "");
+                else if (suppressedBy) suppressedLabel = "Supprimée par " + suppressedBy;
                 return (
-                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap", opacity: past ? 0.5 : 1 }}>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
-                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
-                      {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
-                      {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
-                      {f.status === "publiee" && !past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
-                      {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
+                <div key={f.id} style={{ padding: mob ? 12 : 18, background: isSupprimee ? C.bgAlt : C.surface, borderRadius: 14, border: "1px solid " + (isSupprimee ? C.border : isExpired ? C.yellow + "44" : C.borderLight) }}>
+                  <div style={{ display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: isSupprimee ? C.textSec : C.text }}>{f.titre}</span>
+                        {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                        {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
+                        {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
+                        {f.status === "publiee" && !isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                        {isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>📅 Dates passées</span>}
+                        {isSupprimee && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>🗑️ Supprimée</span>}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
+                        <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                      </div>
+                      {(f.prise_en_charge || []).length > 0 && !isSupprimee && <div style={{ display: "flex", gap: 3, marginTop: 4 }}>{f.prise_en_charge.map(p => <PriseTag key={p} label={p} />)}</div>}
+                      {isSupprimee && suppressedLabel && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: C.pink, fontWeight: 600 }}>{suppressedLabel}</div>
+                      )}
+                      {isSupprimee && suppressedMsg && (
+                        <div style={{ marginTop: 2, fontSize: 11, color: C.textSec, fontStyle: "italic" }}>« {suppressedMsg} »</div>
+                      )}
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
-                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                    {!isSupprimee && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <StarRow rating={Math.round(f.note)} />
+                        <span style={{ fontSize: 12, color: C.textSec }}>{f.note}</span>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {f.status === "publiee" && !isExpired && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none", cursor: "pointer" }}>👁️ Voir</Link>}
+                      {isExpired && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🔄 Remettre sur le site</button>}
+                      {!isSupprimee && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️ Modifier</button>}
+                      {!isSupprimee && <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>}
+                      {isSupprimee && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>🔄 Modifier & re-soumettre</button>}
                     </div>
-                    {(f.prise_en_charge || []).length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4 }}>{f.prise_en_charge.map(p => <PriseTag key={p} label={p} />)}</div>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <StarRow rating={Math.round(f.note)} />
-                    <span style={{ fontSize: 12, color: C.textSec }}>{f.note}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {!past && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none", cursor: "pointer" }}>👁️ Voir</Link>}
-                    <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️ Modifier</button>
-                    <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
                 );
@@ -1460,6 +1547,53 @@ export default function DashboardOrganismePage() {
           initialSessions: undefined,
         }}
       />
+
+      {/* ===== DOUBLON WARNING MODAL ===== */}
+      {doublonWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 18, padding: 28, maxWidth: 460, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}>Formation similaire existante</h3>
+            <p style={{ fontSize: 13, color: C.textSec, marginBottom: 14, lineHeight: 1.5 }}>
+              PopForm n&apos;accepte pas les doublons. Une formation avec un titre proche existe déjà dans votre espace :
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+              {doublonWarning.existing.map(e => (
+                <div key={e.id} style={{ padding: "8px 12px", background: C.yellowBg, borderRadius: 9, border: "1px solid " + C.yellow + "44", fontSize: 13, fontWeight: 600, color: C.yellowDark }}>
+                  📌 {e.titre}
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Si c&apos;est la même formation avec de nouvelles dates ou sessions, modifiez la formation existante plutôt que d&apos;en créer une nouvelle.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDoublonWarning(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>← Annuler</button>
+              <button onClick={doublonWarning.proceed} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: C.yellowDark, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Créer quand même</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {deleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 18, padding: 28, maxWidth: 420, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}>Supprimer cette formation ?</h3>
+            <p style={{ fontSize: 13, color: C.textSec, marginBottom: 16 }}>Elle sera conservée dans l&apos;historique admin. Seul l&apos;admin peut la supprimer définitivement.</p>
+            <label style={labelStyle}>Raison (optionnel)</label>
+            <textarea
+              value={deleteConfirm.message}
+              onChange={e => setDeleteConfirm({ ...deleteConfirm, message: e.target.value })}
+              placeholder="Ex: formation obsolète, dates passées…"
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              <button onClick={confirmDelete} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: C.pink, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🗑️ Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

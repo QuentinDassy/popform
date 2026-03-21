@@ -18,7 +18,7 @@ export default function DashboardAdminPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("publiee");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [adminTab, setAdminTab] = useState<"formations" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs" | "clics">("formations");
+  const [adminTab, setAdminTab] = useState<"formations" | "doublons" | "affiche" | "villes" | "domaines" | "webinaires" | "congres" | "utilisateurs" | "clics">("formations");
   const [clickStats, setClickStats] = useState<{ formation_id: number; titre: string; nb: number }[]>([]);
   const [utilisateurs, setUtilisateurs] = useState<{ organismes: any[]; formateurs: any[] }>({ organismes: [], formateurs: [] });
   const [linkingOrg, setLinkingOrg] = useState<number | null>(null);
@@ -29,6 +29,8 @@ export default function DashboardAdminPage() {
   const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
   const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
   const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
+  const [assocRequests, setAssocRequests] = useState<{ id: number; formation_id: number; formateur_id: number; user_id: string; status: string; created_at: string; formation?: { titre: string }; formateur?: { nom: string } }[]>([]);
+  const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(new Set());
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -86,6 +88,11 @@ export default function DashboardAdminPage() {
           const res = await fetch("/api/admin/self-registered-orgs");
           if (res.ok) { const data = await res.json(); setSelfRegisteredOrgs(data.orgs || []); }
         } catch { /* ignore */ }
+        // Load association requests
+        try {
+          const { data: ar } = await supabase.from("formation_association_requests").select("*, formation:formations(titre), formateur:formateurs(nom)").eq("status", "pending").order("created_at", { ascending: false });
+          setAssocRequests((ar || []) as any);
+        } catch { /* table may not exist yet */ }
       } catch (e: any) {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
           window.location.href = "/";
@@ -224,6 +231,25 @@ export default function DashboardAdminPage() {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
   };
 
+  const handleApproveAssoc = async (req: { id: number; formation_id: number; formateur_id: number }) => {
+    // Add formateur_id to formation's formateur_ids array
+    const { data: f } = await supabase.from("formations").select("formateur_ids").eq("id", req.formation_id).single();
+    const existing: number[] = (f as any)?.formateur_ids || [];
+    if (!existing.includes(req.formateur_id)) {
+      const updated = [...existing, req.formateur_id];
+      await supabase.from("formations").update({ formateur_ids: updated }).eq("id", req.formation_id);
+      const { invalidateCache } = await import("@/lib/data");
+      invalidateCache();
+    }
+    await supabase.from("formation_association_requests").update({ status: "approved" }).eq("id", req.id);
+    setAssocRequests(prev => prev.filter(r => r.id !== req.id));
+  };
+
+  const handleRejectAssoc = async (id: number) => {
+    await supabase.from("formation_association_requests").update({ status: "rejected" }).eq("id", id);
+    setAssocRequests(prev => prev.filter(r => r.id !== id));
+  };
+
   // Domaines management handlers
   const [domaineError, setDomaineError] = useState<string | null>(null);
   
@@ -323,7 +349,31 @@ export default function DashboardAdminPage() {
   if (profile && profile.role !== "admin") { if (typeof window !== "undefined") window.location.href = "/"; return null }
 
   const normS = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const normTitle = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
   const isDeleted = (f: Formation) => f.status === "supprimee" || f.status === "refusee";
+
+  // Détection des doublons potentiels côté admin
+  const potentialDoublons = (() => {
+    const active = formations.filter(f => !isDeleted(f));
+    const groups: { key: string; formations: Formation[] }[] = [];
+    const seen = new Set<number>();
+    for (const f of active) {
+      if (seen.has(f.id)) continue;
+      const fNorm = normTitle(f.titre);
+      if (fNorm.length < 8) continue;
+      const similar = active.filter(g => {
+        if (g.id === f.id || seen.has(g.id)) return false;
+        const gNorm = normTitle(g.titre);
+        return gNorm === fNorm || (gNorm.length > 8 && (gNorm.includes(fNorm) || fNorm.includes(gNorm)));
+      });
+      if (similar.length > 0) {
+        const group = [f, ...similar];
+        group.forEach(g => seen.add(g.id));
+        groups.push({ key: f.id + "", formations: group });
+      }
+    }
+    return groups;
+  })();
   const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : formations.filter(f => f.status === filter);
   const filteredSearched = formSearch.trim()
     ? filteredBase.filter(f => {
@@ -371,7 +421,7 @@ export default function DashboardAdminPage() {
           { label: "En attente", value: pendingCount, icon: "⏳", highlight: pendingCount > 0 },
           { label: "Publiées", value: formations.filter(f => f.status === "publiee").length, icon: "✅" },
           { label: "Webinaires ⏳", value: pendingWebCount, icon: "📡", highlight: pendingWebCount > 0 },
-          { label: "Notifications", value: unreadNotifs, icon: "🔔", highlight: unreadNotifs > 0 },
+          { label: "Notifications", value: unreadNotifs + assocRequests.length, icon: "🔔", highlight: unreadNotifs > 0 || assocRequests.length > 0 },
         ].map(s => (
           <div key={s.label} style={{ padding: mob ? 10 : 14, background: s.highlight ? C.yellowBg : C.surface, borderRadius: 14, border: "1px solid " + (s.highlight ? C.yellow + "44" : C.borderLight), textAlign: "center" }}>
             <div style={{ fontSize: 18 }}>{s.icon}</div>
@@ -384,6 +434,10 @@ export default function DashboardAdminPage() {
       {/* Admin section tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
+        <button onClick={() => setAdminTab("doublons")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "doublons" ? C.surface : "transparent", color: adminTab === "doublons" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "doublons" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
+          🔁 Doublons
+          {potentialDoublons.length > 0 && <span style={{ position: "absolute" as const, top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: C.orange, color: "#fff", fontSize: 9, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{potentialDoublons.length}</span>}
+        </button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
         <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
@@ -479,6 +533,51 @@ export default function DashboardAdminPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== DOUBLONS TAB ===== */}
+      {adminTab === "doublons" && (
+        <div style={{ paddingBottom: 40 }}>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>
+            Formations avec des titres identiques ou très proches. À examiner pour fusionner ou conserver si elles sont légitimement différentes.
+          </p>
+          {potentialDoublons.filter(g => !ignoredDoublonKeys.has(g.key)).length === 0 ? (
+            <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <p>Aucun doublon potentiel détecté.</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {potentialDoublons.filter(g => !ignoredDoublonKeys.has(g.key)).map(group => (
+                <div key={group.key} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "2px solid " + C.orange + "55" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, textTransform: "uppercase", letterSpacing: "0.05em" }}>🔁 {group.formations.length} formations similaires</div>
+                    <button onClick={() => setIgnoredDoublonKeys(prev => new Set([...prev, group.key]))} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid " + C.green + "55", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      ✅ Pas un doublon — ignorer
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {group.formations.map(f => (
+                      <div key={f.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 12px", background: C.bgAlt, borderRadius: 10 }}>
+                        <div style={{ flex: 1, minWidth: 180 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{f.titre}</div>
+                          <div style={{ fontSize: 11, color: C.textTer }}>
+                            {(f as any).organisme?.nom || (f as any).formateur?.nom || "—"} · {f.status} · {f.date_ajout}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <Link href={`/dashboard/admin/formation/${f.id}`} style={{ padding: "5px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, textDecoration: "none", fontWeight: 600 }}>✏️ Éditer</Link>
+                          <Link href={`/formation/${f.id}`} target="_blank" style={{ padding: "5px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none" }}>👁️ Voir</Link>
+                          <button onClick={() => handleStatus(f.id, "supprimee")} style={{ padding: "5px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑️ Supprimer</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -722,6 +821,27 @@ export default function DashboardAdminPage() {
         </div>
       )}
 
+      {/* Association requests */}
+      {adminTab === "formations" && assocRequests.length > 0 && (
+        <div style={{ marginBottom: 20, padding: mob ? 12 : 16, background: C.blueBg, borderRadius: 14, border: "1px solid " + C.blue + "33" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.blue, marginBottom: 10 }}>🔗 Demandes d&apos;association formateur ({assocRequests.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {assocRequests.map(req => (
+              <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{req.formateur?.nom || "Formateur"} → {req.formation?.titre || `Formation #${req.formation_id}`}</div>
+                  <div style={{ fontSize: 11, color: C.textTer }}>{req.created_at?.slice(0, 16).replace("T", " ")}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => handleApproveAssoc(req)} style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: C.green, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Approuver</button>
+                  <button onClick={() => handleRejectAssoc(req.id)} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + C.pink, background: "transparent", color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Refuser</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {adminTab === "formations" && <>
       {/* Filter tabs + bouton nouvelle formation */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
@@ -771,7 +891,16 @@ export default function DashboardAdminPage() {
                       <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
                       {statusBadge(f.status)}
                       {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
-                      {f.status === "supprimee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>🗑️ {(f as any).supprime_par ? "par " + (f as any).supprime_par : "origine inconnue"}</span>}
+                      {f.status === "supprimee" && (
+                        <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>
+                          🗑️ {(() => { const sp = (f as any).supprime_par || ""; if (sp === "admin") return "par l'admin"; if (sp.startsWith("formateur:")) return "par " + sp.replace("formateur:", ""); if (sp.startsWith("organisme:")) return "par " + sp.replace("organisme:", ""); return sp || "origine inconnue"; })()}
+                        </span>
+                      )}
+                      {f.status === "supprimee" && (f as any).suppression_message && (
+                        <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, background: C.bgAlt, color: C.textSec, fontStyle: "italic" }}>
+                          « {(f as any).suppression_message} »
+                        </span>
+                      )}
                       {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
                     {(f as any).pending_update && (

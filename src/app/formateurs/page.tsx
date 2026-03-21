@@ -37,10 +37,13 @@ function FormateursContent() {
       const { data: allFmtFormations } = await supabase
         .from("formations")
         .select("formateur_id, formateur_ids, status")
-        .neq("status", "refusee");
+        .eq("status", "publiee");
       const counts: Record<number, number> = {};
       for (const row of allFmtFormations || []) {
-        const ids: number[] = (row.formateur_ids?.length ? row.formateur_ids : (row.formateur_id != null ? [row.formateur_id] : []));
+        // Union des deux champs pour éviter les doublons de comptage
+        const ids = new Set<number>();
+        if (row.formateur_id != null) ids.add(row.formateur_id as number);
+        for (const id of (row.formateur_ids || [])) ids.add(id as number);
         for (const id of ids) counts[id] = (counts[id] || 0) + 1;
       }
       setFmts(unique);
@@ -98,7 +101,7 @@ function FormateursContent() {
                 {fmtTitle(selected)}
               </div>
               <div style={{ fontSize: 12, color: C.textTer, marginTop: 4 }}>
-                {fmtCounts[selected.id] || 0} formation{(fmtCounts[selected.id] || 0) > 1 ? "s" : ""}
+                {selectedFormations.length} formation{selectedFormations.length > 1 ? "s" : ""} publiée{selectedFormations.length > 1 ? "s" : ""}
               </div>
             </div>
           </div>
@@ -114,7 +117,14 @@ function FormateursContent() {
           Formations ({selectedFormations.length})
         </h2>
         {selectedFormations.length === 0 ? (
-          <p style={{ color: C.textTer, fontSize: 13 }}>Aucune formation publiée pour l&apos;instant.</p>
+          <div style={{ padding: "20px 24px", background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <p style={{ color: C.textTer, fontSize: 13, marginBottom: 10 }}>Aucune formation publiée pour l&apos;instant.</p>
+            <p style={{ color: C.textSec, fontSize: 12, lineHeight: 1.6 }}>
+              Si vous êtes ce·tte formateur·rice, vous pouvez{" "}
+              <strong>associer des formations existantes</strong> depuis votre espace formateur (bouton « 🔗 Associer une formation »),
+              ou <strong>rattacher ce profil à votre compte</strong> depuis l&apos;onglet « Mon profil » de votre tableau de bord.
+            </p>
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(280px,100%),1fr))", gap: 14 }}>
             {selectedFormations.map(f => <FormationCard key={f.id} f={f} mob={mob} />)}

@@ -63,6 +63,21 @@ export default function DashboardFormateurPage() {
   const [merging, setMerging] = useState(false);
   const [orgLibreInput, setOrgLibreInput] = useState("");
 
+  // Doublon warning avant sauvegarde
+  const [doublonWarning, setDoublonWarning] = useState<{ existing: { id: number; titre: string }[]; proceed: () => void } | null>(null);
+  // Formations filter tabs
+  const [formationsFilter, setFormationsFilter] = useState<"actives" | "expirees" | "supprimees">("actives");
+  // Delete confirmation with message
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; message: string } | null>(null);
+  // Associer modal
+  const [assocOpen, setAssocOpen] = useState(false);
+  const [assocSearch, setAssocSearch] = useState("");
+  const [assocResults, setAssocResults] = useState<{ id: number; titre: string; formateur?: string; organisme?: string }[]>([]);
+  const [assocSelected, setAssocSelected] = useState<number[]>([]);
+  const [assocLoading, setAssocLoading] = useState(false);
+  const [assocSending, setAssocSending] = useState(false);
+  const [assocMsg, setAssocMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user) { setLoading(false); return; }
     const safetyTimer = setTimeout(() => setLoading(false), 12000);
@@ -106,7 +121,7 @@ export default function DashboardFormateurPage() {
         const nom = parts.pop() || "";
         const prenom = parts.join(" ");
         setFmtPrenom(prenom); setFmtNom(nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
-        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", fmt.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+        const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${fmt.id},formateur_ids.cs.{${fmt.id}}`).order("date_ajout", { ascending: false });
         setFormations(f || []);
         // Fetch unlinked formateurs with formations (candidates for manual merge)
         const { data: unlinkedFmts } = await supabase.from("formateurs").select("id, nom").is("user_id", null);
@@ -163,6 +178,30 @@ photo_url: (f as any).photo_url || "" };
     const isELearning = !hasPresentialOrVisio;
     const hasDate = !hasPresentialOrVisio || sessions.every(s => (s.parties || []).some(p => p.date_debut));
     if (hasPresentialOrVisio && sessions.length > 0 && !hasDate) { setMsg("Chaque session doit avoir au moins une date."); return; }
+
+    // Détection doublon AVANT la sauvegarde (seulement pour une nouvelle formation)
+    if (!editId) {
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
+      const { data: existingForms } = await supabase.from("formations").select("id, titre").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).not("status", "in", '("supprimee","refusee")');
+      if (existingForms && existingForms.length > 0) {
+        const newNorm = norm(form.titre.trim());
+        const duplicates = existingForms.filter((ef: { titre: string }) => {
+          const efNorm = norm(ef.titre);
+          if (efNorm === newNorm) return true;
+          if (efNorm.length > 10 && newNorm.length > 10 && (efNorm.includes(newNorm) || newNorm.includes(efNorm))) return true;
+          return false;
+        });
+        if (duplicates.length > 0) {
+          setDoublonWarning({ existing: duplicates, proceed: () => { setDoublonWarning(null); actualSave(); } });
+          return;
+        }
+      }
+    }
+    actualSave();
+  };
+
+  const actualSave = async () => {
+    if (!formateur) return;
     setSaving(true); setMsg(null);
 
     const computedModalite = form.modalites.length > 1 ? "Mixte" : (form.modalites[0] || "Présentiel");
@@ -273,28 +312,12 @@ photo_url: (f as any).photo_url || "" };
       if (prixError) { setMsg("Formation soumise mais erreur sur les prix supplémentaires : " + prixError.message); setSaving(false); return; }
     }
 
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     // Email à l'admin pour nouvelle soumission (pas pour les modifications)
     if (!editId) {
       fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_formation", titre: payload.titre, formateur_nom: formateur.nom }) }).catch(() => {});
-      // Détection de doublons : chercher si une formation du même formateur avec un titre similaire existe déjà
-      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
-      const { data: existingForms } = await supabase.from("formations").select("titre").eq("formateur_id", formateur.id).neq("status", "supprimee").neq("status", "refusee");
-      if (existingForms) {
-        const newNorm = norm(payload.titre);
-        const duplicate = existingForms.find((ef: { titre: string }) => {
-          const efNorm = norm(ef.titre);
-          if (efNorm === newNorm) return true;
-          // Vérifier si l'un contient l'autre (titre similaire)
-          if (efNorm.length > 10 && newNorm.length > 10 && (efNorm.includes(newNorm) || newNorm.includes(efNorm))) return true;
-          return false;
-        });
-        if (duplicate) {
-          fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "duplicate_formation", titre: payload.titre, formateur_nom: formateur.nom, existing_titre: duplicate.titre }) }).catch(() => {});
-        }
-      }
     }
     setFormPhotoFile(null);
     setExtraPrix([]);
@@ -302,12 +325,48 @@ photo_url: (f as any).photo_url || "" };
     setTab("list");
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette formation ? Elle sera conservée dans l'historique admin.")) return;
-    const { error } = await supabase.from("formations").update({ status: "supprimee", supprime_par: "formateur" } as any).eq("id", id);
-    if (error) { alert("Erreur suppression : " + error.message + "\n\nVérifiez les droits RLS dans Supabase."); return; }
-    setFormations(prev => prev.filter(f => f.id !== id));
+  const handleDelete = (id: number) => {
+    setDeleteConfirm({ id, message: "" });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm || !formateur) return;
+    const nomFormateur = [fmtPrenom, fmtNom].filter(Boolean).join(" ") || formateur.nom || "formateur";
+    const { error } = await supabase.from("formations").update({ status: "supprimee", supprime_par: "formateur:" + nomFormateur, suppression_message: deleteConfirm.message || null } as any).eq("id", deleteConfirm.id);
+    if (error) { alert("Erreur suppression : " + error.message + "\n\nVérifiez les droits RLS dans Supabase."); setDeleteConfirm(null); return; }
+    setFormations(prev => prev.map(f => f.id === deleteConfirm.id ? { ...f, status: "supprimee", supprime_par: "formateur:" + nomFormateur, suppression_message: deleteConfirm.message || null } as any : f));
     invalidateCache();
+    setDeleteConfirm(null);
+  };
+
+  const handleAssocSearch = async (query?: string) => {
+    const q = (query ?? assocSearch).trim();
+    if (!q || q.length < 2) { setAssocResults([]); return; }
+    setAssocLoading(true);
+    const { data } = await supabase.from("formations").select("id, titre, formateur:formateurs(nom), organisme:organismes(nom)").ilike("titre", `%${q}%`).neq("status", "supprimee").limit(20);
+    setAssocResults((data || []).map((f: any) => ({ id: f.id, titre: f.titre, formateur: f.formateur?.nom, organisme: f.organisme?.nom })));
+    setAssocLoading(false);
+  };
+
+  // Auto-search avec debounce
+  const assocSearchRef = { current: 0 };
+  const triggerAssocSearch = (q: string) => {
+    clearTimeout(assocSearchRef.current);
+    if (q.trim().length < 2) { setAssocResults([]); return; }
+    setAssocLoading(true);
+    assocSearchRef.current = window.setTimeout(() => handleAssocSearch(q), 350);
+  };
+
+  const handleAssocSubmit = async () => {
+    if (!formateur || !user || assocSelected.length === 0) return;
+    setAssocSending(true); setAssocMsg(null);
+    for (const fid of assocSelected) {
+      await supabase.from("formation_association_requests").insert({ formation_id: fid, formateur_id: formateur.id, user_id: user.id, status: "pending" });
+      await notifyAdmin({ type: "association_request", formation_id: fid, user_id: user.id, message: `${formateur.nom} demande à être associé·e à la formation #${fid}` });
+    }
+    setAssocMsg("✅ Demande(s) envoyée(s) à l'admin pour validation !");
+    setAssocSelected([]);
+    setAssocSending(false);
   };
 
   const handleSaveProfil = async () => {
@@ -338,7 +397,7 @@ photo_url: (f as any).photo_url || "" };
     await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
     await supabase.from("formateurs").delete().eq("id", orphanId);
     setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).order("date_ajout", { ascending: false });
     setFormations(f || []);
     invalidateCache();
     setMerging(false);
@@ -401,7 +460,7 @@ photo_url: (f as any).photo_url || "" };
         }
       }
     }
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("formateur_id", formateur.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     const { invalidateCache } = await import("@/lib/supabase-data");
@@ -415,8 +474,12 @@ photo_url: (f as any).photo_url || "" };
   const px = mob ? "0 16px" : "0 40px";
   const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
   const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" };
-  const published = formations.filter(f => f.status === "publiee").length;
-  const pending = formations.filter(f => f.status === "en_attente").length;
+  const formationsActives = formations.filter(f => f.status !== "supprimee" && !(f.status === "publiee" && isFormationPast(f)));
+  const formationsExpirees = formations.filter(f => f.status === "publiee" && isFormationPast(f));
+  const formationsSupprimees = formations.filter(f => f.status === "supprimee");
+  const displayedFormations = formationsFilter === "supprimees" ? formationsSupprimees : formationsFilter === "expirees" ? formationsExpirees : formationsActives;
+  const published = formationsActives.filter(f => f.status === "publiee").length;
+  const pending = formationsActives.filter(f => f.status === "en_attente").length;
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: px }}>
@@ -429,6 +492,7 @@ photo_url: (f as any).photo_url || "" };
           {tab === "list" && (
             <>
               <button onClick={() => setTab("profil")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Mon profil</button>
+              <button onClick={() => setAssocOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🔗 Associer une formation</button>
               <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✨ Créer avec le mode guidé</button>
               <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
             </>
@@ -437,10 +501,47 @@ photo_url: (f as any).photo_url || "" };
       </div>
 
       {/* ===== CONTACT ===== */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 12, padding: "12px 16px", background: "rgba(212,43,43,0.04)", borderRadius: 10, border: "1px solid " + C.borderLight, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 16 }}>💬</span>
         <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
       </div>
+
+      {/* ===== ANTI-DOUBLON ===== */}
+      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(232,123,53,0.08)", borderRadius: 10, border: "1px solid rgba(232,123,53,0.25)", display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+        <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
+          <strong style={{ color: "#e87b35" }}>PopForm n&apos;accepte pas les formations en doublon.</strong>{" "}
+          Si votre formation a plusieurs dates/sessions et/ou plusieurs organismes, il est possible de le signaler sur la même formation. Une formation peut également avoir des sessions <em>et</em> être en e-learning.
+        </span>
+      </div>
+
+      {/* ===== CARDS RATTACHER / ASSOCIER ===== */}
+      {tab === "list" && (orphanFmts.length > 0 || formations.length === 0) && (
+        <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : (orphanFmts.length > 0 && formations.length === 0 ? "1fr 1fr" : "1fr"), gap: 10, marginBottom: 16 }}>
+          {orphanFmts.length > 0 && (
+            <div style={{ padding: "16px 18px", background: C.accentBg, borderRadius: 12, border: "1.5px solid " + C.accent + "33", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>🔗 Un profil à votre nom existe déjà</div>
+              <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
+                {orphanFmts.length} profil{orphanFmts.length > 1 ? "s non liés ont" : " non lié a"} des formations enregistrées à votre nom. Fusionnez-les pour les récupérer dans votre espace.
+              </div>
+              <button onClick={() => setTab("profil")} style={{ alignSelf: "flex-start", padding: "8px 16px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Rattacher mon profil →
+              </button>
+            </div>
+          )}
+          {formations.length === 0 && (
+            <div style={{ padding: "16px 18px", background: C.blueBg, borderRadius: 12, border: "1.5px solid " + C.blue + "33", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.blue }}>💡 Vos formations sont peut-être déjà sur PopForm</div>
+              <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
+                Si une formation à votre nom a été créée par un organisme ou un admin, vous pouvez demander à y être associé·e.
+              </div>
+              <button onClick={() => setAssocOpen(true)} style={{ alignSelf: "flex-start", padding: "8px 16px", borderRadius: 9, border: "none", background: C.blue, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                🔗 Associer une formation existante
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "list" && (
         <>
@@ -458,33 +559,74 @@ photo_url: (f as any).photo_url || "" };
               </div>
             ))}
           </div>
-          {formations.length === 0 ? (
+          {/* Filter tabs */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 14, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
+            {([
+              { v: "actives", l: `📋 Actives (${formationsActives.length})` },
+              { v: "expirees", l: `📅 Expirées (${formationsExpirees.length})` },
+              { v: "supprimees", l: `🗑️ Supprimées (${formationsSupprimees.length})` },
+            ] as const).map(t => (
+              <button key={t.v} onClick={() => setFormationsFilter(t.v)} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: formationsFilter === t.v ? C.surface : "transparent", color: formationsFilter === t.v ? C.text : C.textTer, fontSize: 11, fontWeight: formationsFilter === t.v ? 700 : 500, cursor: "pointer", boxShadow: formationsFilter === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
+          {displayedFormations.length === 0 ? (
             <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎤</div>
-              <p>Aucune formation. Proposez votre première !</p>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{formationsFilter === "supprimees" ? "🗑️" : formationsFilter === "expirees" ? "📅" : "✨"}</div>
+              {formationsFilter === "actives" ? (
+                <>
+                  <p style={{ marginBottom: 16 }}>Vous n&apos;avez pas encore de formation.</p>
+                  <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 22px", borderRadius: 12, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    ✨ Créer ma première formation en mode guidé
+                  </button>
+                </>
+              ) : (
+                <p>{formationsFilter === "supprimees" ? "Aucune formation supprimée." : "Aucune formation expirée."}</p>
+              )}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
-              {formations.map(f => {
-                const past = f.status === "publiee" && isFormationPast(f);
+              {displayedFormations.map(f => {
+                const isSupprimee = f.status === "supprimee";
+                const isExpired = f.status === "publiee" && isFormationPast(f);
+                const suppressedBy = (f as any).supprime_par as string | undefined;
+                const suppressedMsg = (f as any).suppression_message as string | undefined;
+                let suppressedLabel = "";
+                if (suppressedBy === "admin") suppressedLabel = "Supprimée par l'admin";
+                else if (suppressedBy?.startsWith("formateur:")) suppressedLabel = "Supprimée par " + suppressedBy.replace("formateur:", "");
+                else if (suppressedBy?.startsWith("organisme:")) suppressedLabel = "Supprimée par " + suppressedBy.replace("organisme:", "");
+                else if (suppressedBy) suppressedLabel = "Supprimée par " + suppressedBy;
                 return (
-                <div key={f.id} style={{ padding: mob ? 12 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap", opacity: past ? 0.5 : 1 }}>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: C.text }}>{f.titre}</span>
-                      {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
-                      {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
-                      {f.status === "publiee" && !past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
-                      {past && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.borderLight, color: C.textTer }}>📅 Dates passées</span>}
+                <div key={f.id} style={{ padding: mob ? 12 : 18, background: isSupprimee ? C.bgAlt : C.surface, borderRadius: 14, border: "1px solid " + (isSupprimee ? C.border : isExpired ? C.yellow + "44" : C.borderLight), opacity: isSupprimee ? 0.8 : 1 }}>
+                  <div style={{ display: "flex", gap: mob ? 8 : 16, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: isSupprimee ? C.textSec : C.text }}>{f.titre}</span>
+                        {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                        {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
+                        {f.status === "publiee" && !isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
+                        {isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>📅 Dates passées</span>}
+                        {isSupprimee && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>🗑️ Supprimée</span>}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
+                        <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                      </div>
+                      {isSupprimee && suppressedLabel && (
+                        <div style={{ marginTop: 6, fontSize: 11, color: C.pink, fontWeight: 600 }}>{suppressedLabel}</div>
+                      )}
+                      {isSupprimee && suppressedMsg && (
+                        <div style={{ marginTop: 2, fontSize: 11, color: C.textSec, fontStyle: "italic" }}>« {suppressedMsg} »</div>
+                      )}
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
-                      <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span><span>·</span>{f.modalite === "E-learning" || (f.modalite || "").split(",").every(m => m.trim() === "E-learning") ? <span>📺 E-learning</span> : <span>{(f.sessions || []).length} session{(f.sessions || []).length > 1 ? "s" : ""}</span>}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {f.status === "publiee" && !isExpired && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none" }}>👁️ Voir</Link>}
+                      {isExpired && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: C.green, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🔄 Remettre sur le site</button>}
+                      {!isSupprimee && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>}
+                      {!isSupprimee && <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>}
+                      {isSupprimee && <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>🔄 Modifier & re-soumettre</button>}
                     </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {f.status === "publiee" && !past && <Link href={`/formation/${f.id}`} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, textDecoration: "none" }}>👁️ Voir</Link>}
-                    <button onClick={() => openEdit(f)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
-                    <button onClick={() => handleDelete(f.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
                 );
@@ -932,6 +1074,101 @@ photo_url: (f as any).photo_url || "" };
           initialSessions: undefined,
         }}
       />
+
+      {/* ===== DOUBLON WARNING MODAL ===== */}
+      {doublonWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 18, padding: 28, maxWidth: 460, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}>Formation similaire existante</h3>
+            <p style={{ fontSize: 13, color: C.textSec, marginBottom: 14, lineHeight: 1.5 }}>
+              PopForm n&apos;accepte pas les doublons. Une formation avec un titre proche existe déjà dans votre espace :
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+              {doublonWarning.existing.map(e => (
+                <div key={e.id} style={{ padding: "8px 12px", background: C.yellowBg, borderRadius: 9, border: "1px solid " + C.yellow + "44", fontSize: 13, fontWeight: 600, color: C.yellowDark }}>
+                  📌 {e.titre}
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Si c&apos;est la même formation avec de nouvelles dates ou sessions, modifiez la formation existante plutôt que d&apos;en créer une nouvelle.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDoublonWarning(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>← Annuler</button>
+              <button onClick={doublonWarning.proceed} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: C.yellowDark, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Créer quand même</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {deleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 18, padding: 28, maxWidth: 420, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}>Supprimer cette formation ?</h3>
+            <p style={{ fontSize: 13, color: C.textSec, marginBottom: 16 }}>Elle sera conservée dans l&apos;historique admin. Seul l&apos;admin peut la supprimer définitivement.</p>
+            <label style={labelStyle}>Raison (optionnel)</label>
+            <textarea
+              value={deleteConfirm.message}
+              onChange={e => setDeleteConfirm({ ...deleteConfirm, message: e.target.value })}
+              placeholder="Ex: formation obsolète, dates passées…"
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>
+              <button onClick={confirmDelete} style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: C.pink, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🗑️ Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ASSOCIER UNE FORMATION MODAL ===== */}
+      {assocOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: C.surface, borderRadius: 18, padding: 28, maxWidth: 560, width: "100%", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: C.text }}>🔗 Associer une formation existante</h3>
+              <button onClick={() => { setAssocOpen(false); setAssocMsg(null); setAssocResults([]); setAssocSelected([]); setAssocSearch(""); }} style={{ padding: "4px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>✕</button>
+            </div>
+            <p style={{ fontSize: 12, color: C.textSec, marginBottom: 16, lineHeight: 1.5 }}>
+              Recherchez une formation existante sur PopForm à laquelle vous souhaitez être associé·e. Votre demande sera validée par l&apos;admin.
+            </p>
+            <div style={{ position: "relative", marginBottom: 14 }}>
+              <input
+                value={assocSearch}
+                onChange={e => { setAssocSearch(e.target.value); triggerAssocSearch(e.target.value); }}
+                onKeyDown={e => e.key === "Enter" && handleAssocSearch()}
+                placeholder="Rechercher par titre… (résultats automatiques)"
+                style={{ ...inputStyle }}
+              />
+              {assocLoading && <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>⏳</span>}
+            </div>
+            {assocResults.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                {assocResults.map(r => {
+                  const sel = assocSelected.includes(r.id);
+                  return (
+                    <label key={r.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + (sel ? C.blue + "55" : C.borderLight), background: sel ? C.blueBg : C.bgAlt, cursor: "pointer" }}>
+                      <input type="checkbox" checked={sel} onChange={() => setAssocSelected(prev => sel ? prev.filter(x => x !== r.id) : [...prev, r.id])} style={{ marginTop: 2, accentColor: C.blue }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{r.titre}</div>
+                        <div style={{ fontSize: 11, color: C.textTer }}>{[r.formateur, r.organisme].filter(Boolean).join(" · ") || "Formation PopForm"}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {assocResults.length === 0 && assocSearch && !assocLoading && (
+              <p style={{ fontSize: 12, color: C.textTer, textAlign: "center", marginBottom: 16 }}>Aucune formation trouvée pour « {assocSearch} »</p>
+            )}
+            {assocMsg && <p style={{ fontSize: 13, color: C.green, fontWeight: 700, marginBottom: 12 }}>{assocMsg}</p>}
+            <button onClick={handleAssocSubmit} disabled={assocSelected.length === 0 || assocSending} style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: assocSelected.length === 0 ? C.bgAlt : C.blue, color: assocSelected.length === 0 ? C.textTer : "#fff", fontSize: 14, fontWeight: 700, cursor: assocSelected.length === 0 ? "not-allowed" : "pointer", opacity: assocSending ? 0.6 : 1 }}>
+              {assocSending ? "⏳ Envoi…" : `Demander l'association (${assocSelected.length} sélectionnée${assocSelected.length > 1 ? "s" : ""})`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
