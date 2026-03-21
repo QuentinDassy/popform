@@ -61,6 +61,7 @@ export default function DashboardFormateurPage() {
   const [profilPhotoRemoved, setProfilPhotoRemoved] = useState(false);
   const [orphanFmts, setOrphanFmts] = useState<{ id: number; nom: string; count: number }[]>([]);
   const [merging, setMerging] = useState(false);
+  const [pendingMerges, setPendingMerges] = useState<{ id: number; orphan_id: number; orphan_nom: string }[]>([]);
   const [orgLibreInput, setOrgLibreInput] = useState("");
 
   // Doublon warning avant sauvegarde
@@ -135,6 +136,11 @@ export default function DashboardFormateurPage() {
           }
           setOrphanFmts(orphansWithCounts);
         }
+        // Demandes de fusion en attente (envoyées par cet utilisateur)
+        try {
+          const { data: mr } = await supabase.from("formateur_merge_requests").select("id, orphan_id, orphan:formateurs!orphan_id(nom)").eq("target_id", fmt.id).eq("status", "pending");
+          setPendingMerges((mr || []).map((r: any) => ({ id: r.id, orphan_id: r.orphan_id, orphan_nom: r.orphan?.nom || "#" + r.orphan_id })));
+        } catch { /* table may not exist yet */ }
       }
       // Load admin villes
       supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
@@ -394,26 +400,16 @@ photo_url: (f as any).photo_url || "" };
     setTimeout(() => { setMsg(null); setProfilSaved(false); }, 3000);
   };
 
-  const handleMerge = async (orphanId: number) => {
-    if (!formateur) return;
-    if (!confirm("Fusionner ce profil avec le vôtre ? Toutes ses formations vous seront attribuées et l'ancien profil sera masqué (récupérable par l'admin en cas d'erreur).")) return;
+  const handleMerge = async (orphan: { id: number; nom: string }) => {
+    if (!formateur || !user) return;
+    if (!confirm(`Demander à fusionner le profil "${orphan.nom}" avec le vôtre ? Un admin devra valider avant que les formations soient transférées.`)) return;
     setMerging(true);
-    // Migrer formations liées via formateur_id
-    await supabase.from("formations").update({ formateur_id: formateur.id }).eq("formateur_id", orphanId);
-    // Migrer formations liées via formateur_ids (remplacer orphanId par formateur.id dans le tableau)
-    const { data: fmtIdsRows } = await supabase.from("formations").select("id, formateur_ids").contains("formateur_ids", [orphanId]);
-    for (const row of fmtIdsRows || []) {
-      const newIds = ((row.formateur_ids as number[]) || []).map((id: number) => id === orphanId ? formateur.id : id);
-      // Éviter les doublons si formateur.id était déjà dans le tableau
-      const deduped = [...new Set(newIds)];
-      await supabase.from("formations").update({ formateur_ids: deduped }).eq("id", row.id);
+    const { error } = await supabase.from("formateur_merge_requests").insert({ orphan_id: orphan.id, target_id: formateur.id, user_id: user.id, status: "pending" });
+    if (!error) {
+      await notifyAdmin(0, user.id, `${formateur.nom} demande à fusionner avec le profil "${orphan.nom}" (id: ${orphan.id})`, "merge_request");
+      setPendingMerges(prev => [...prev, { id: Date.now(), orphan_id: orphan.id, orphan_nom: orphan.nom }]);
+      setOrphanFmts(prev => prev.filter(o => o.id !== orphan.id));
     }
-    // Soft-delete : masquer l'orphan plutôt que de le supprimer (réversible par l'admin)
-    await supabase.from("formateurs").update({ hidden: true, merged_into_id: formateur.id }).eq("id", orphanId);
-    setOrphanFmts(prev => prev.filter(o => o.id !== orphanId));
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${formateur.id},formateur_ids.cs.{${formateur.id}}`).order("date_ajout", { ascending: false });
-    setFormations(f || []);
-    invalidateCache();
     setMerging(false);
   };
 
@@ -713,12 +709,20 @@ photo_url: (f as any).photo_url || "" };
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.nom}</div>
                       <div style={{ fontSize: 11, color: C.textTer }}>{o.count} formation{o.count > 1 ? "s" : ""}</div>
                     </div>
-                    <button onClick={() => handleMerge(o.id)} disabled={merging} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: merging ? 0.5 : 1, whiteSpace: "nowrap" }}>
-                      {merging ? "⏳..." : "Fusionner →"}
+                    <button onClick={() => handleMerge(o)} disabled={merging} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: merging ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                      {merging ? "⏳..." : "Demander la fusion →"}
                     </button>
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {pendingMerges.length > 0 && (
+            <div style={{ marginTop: 16, padding: "12px 16px", background: C.yellowBg, borderRadius: 12, border: "1px solid " + C.yellow + "44" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.yellowDark, marginBottom: 6 }}>⏳ Demandes de fusion en attente de validation admin</div>
+              {pendingMerges.map(m => (
+                <div key={m.id} style={{ fontSize: 12, color: C.textSec }}>· Fusion avec « {m.orphan_nom} » en cours de validation</div>
+              ))}
             </div>
           )}
         </div>

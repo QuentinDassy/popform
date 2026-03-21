@@ -30,6 +30,7 @@ export default function DashboardAdminPage() {
   const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
   const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
   const [assocRequests, setAssocRequests] = useState<{ id: number; formation_id: number; formateur_id: number; user_id: string; status: string; created_at: string; formation?: { titre: string }; formateur?: { nom: string } }[]>([]);
+  const [mergeRequests, setMergeRequests] = useState<{ id: number; orphan_id: number; target_id: number; user_id: string; created_at: string; orphan?: { nom: string }; target?: { nom: string } }[]>([]);
   const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(new Set());
 
   // Villes management
@@ -92,6 +93,11 @@ export default function DashboardAdminPage() {
         try {
           const { data: ar } = await supabase.from("formation_association_requests").select("*, formation:formations(titre), formateur:formateurs(nom)").eq("status", "pending").order("created_at", { ascending: false });
           setAssocRequests((ar || []) as any);
+        } catch { /* table may not exist yet */ }
+        // Load merge requests
+        try {
+          const { data: mr } = await supabase.from("formateur_merge_requests").select("*, orphan:formateurs!orphan_id(nom), target:formateurs!target_id(nom)").eq("status", "pending").order("created_at", { ascending: false });
+          setMergeRequests((mr || []) as any);
         } catch { /* table may not exist yet */ }
       } catch (e: any) {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
@@ -248,6 +254,28 @@ export default function DashboardAdminPage() {
   const handleRejectAssoc = async (id: number) => {
     await supabase.from("formation_association_requests").update({ status: "rejected" }).eq("id", id);
     setAssocRequests(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleApproveMerge = async (req: { id: number; orphan_id: number; target_id: number }) => {
+    // Migrer formations via formateur_id
+    await supabase.from("formations").update({ formateur_id: req.target_id }).eq("formateur_id", req.orphan_id);
+    // Migrer formations via formateur_ids
+    const { data: fmtIdsRows } = await supabase.from("formations").select("id, formateur_ids").contains("formateur_ids", [req.orphan_id]);
+    for (const row of (fmtIdsRows || []) as { id: number; formateur_ids: number[] }[]) {
+      const deduped = [...new Set(row.formateur_ids.map((id: number) => id === req.orphan_id ? req.target_id : id))];
+      await supabase.from("formations").update({ formateur_ids: deduped }).eq("id", row.id);
+    }
+    // Soft-delete l'orphan
+    await supabase.from("formateurs").update({ hidden: true, merged_into_id: req.target_id }).eq("id", req.orphan_id);
+    await supabase.from("formateur_merge_requests").update({ status: "approved" }).eq("id", req.id);
+    setMergeRequests(prev => prev.filter(r => r.id !== req.id));
+    const { invalidateCache } = await import("@/lib/data");
+    invalidateCache();
+  };
+
+  const handleRejectMerge = async (id: number) => {
+    await supabase.from("formateur_merge_requests").update({ status: "rejected" }).eq("id", id);
+    setMergeRequests(prev => prev.filter(r => r.id !== id));
   };
 
   // Domaines management handlers
@@ -421,7 +449,7 @@ export default function DashboardAdminPage() {
           { label: "En attente", value: pendingCount, icon: "⏳", highlight: pendingCount > 0 },
           { label: "Publiées", value: formations.filter(f => f.status === "publiee").length, icon: "✅" },
           { label: "Webinaires ⏳", value: pendingWebCount, icon: "📡", highlight: pendingWebCount > 0 },
-          { label: "Notifications", value: unreadNotifs + assocRequests.length, icon: "🔔", highlight: unreadNotifs > 0 || assocRequests.length > 0 },
+          { label: "Notifications", value: unreadNotifs + assocRequests.length + mergeRequests.length, icon: "🔔", highlight: unreadNotifs > 0 || assocRequests.length > 0 || mergeRequests.length > 0 },
         ].map(s => (
           <div key={s.label} style={{ padding: mob ? 10 : 14, background: s.highlight ? C.yellowBg : C.surface, borderRadius: 14, border: "1px solid " + (s.highlight ? C.yellow + "44" : C.borderLight), textAlign: "center" }}>
             <div style={{ fontSize: 18 }}>{s.icon}</div>
@@ -818,6 +846,29 @@ export default function DashboardAdminPage() {
               <button onClick={() => markRead(n.id)} style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 10, cursor: "pointer" }}>✓ Lu</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Merge requests */}
+      {adminTab === "formations" && mergeRequests.length > 0 && (
+        <div style={{ marginBottom: 20, padding: mob ? 12 : 16, background: "rgba(232,123,53,0.08)", borderRadius: 14, border: "1px solid rgba(232,123,53,0.25)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#e87b35", marginBottom: 10 }}>🔗 Demandes de fusion de profil formateur ({mergeRequests.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {mergeRequests.map(req => (
+              <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight, gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                    {req.target?.nom || "#" + req.target_id} ← fusionner « {req.orphan?.nom || "#" + req.orphan_id} »
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textTer }}>Les formations de l&apos;orphan seront transférées · {req.created_at?.slice(0, 16).replace("T", " ")}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => handleApproveMerge(req)} style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: C.green, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Approuver</button>
+                  <button onClick={() => handleRejectMerge(req.id)} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + C.pink, background: "transparent", color: C.pink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Refuser</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
