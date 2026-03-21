@@ -128,8 +128,10 @@ export default function DashboardFormateurPage() {
         if (unlinkedFmts && unlinkedFmts.length > 0) {
           const orphansWithCounts: { id: number; nom: string; count: number }[] = [];
           for (const u of unlinkedFmts) {
-            const { count } = await supabase.from("formations").select("id", { count: "exact", head: true }).eq("formateur_id", u.id);
-            if (count && count > 0) orphansWithCounts.push({ id: u.id, nom: u.nom, count });
+            const { count: c1 } = await supabase.from("formations").select("id", { count: "exact", head: true }).eq("formateur_id", u.id);
+            const { count: c2 } = await supabase.from("formations").select("id", { count: "exact", head: true }).contains("formateur_ids", [u.id]);
+            const total = (c1 || 0) + (c2 || 0);
+            if (total > 0) orphansWithCounts.push({ id: u.id, nom: u.nom, count: total });
           }
           setOrphanFmts(orphansWithCounts);
         }
