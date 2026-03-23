@@ -736,8 +736,11 @@ photo_url: (f as any).photo_url || "" };
 
           <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 14 }}>
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Titre *</label><input value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} style={inputStyle} /></div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Sous-titre</label><input value={form.sous_titre} onChange={e => setForm({ ...form, sous_titre: e.target.value })} style={inputStyle} /></div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Description *</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} /></div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Domaine(s) *</label>
@@ -768,6 +771,7 @@ photo_url: (f as any).photo_url || "" };
                 })}
               </div>
             </div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
             <div>
               <label style={labelStyle}>Prix (€)</label>
@@ -777,6 +781,7 @@ photo_url: (f as any).photo_url || "" };
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -789,6 +794,7 @@ photo_url: (f as any).photo_url || "" };
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Mots-clés (virgules)</label><input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: aphasie, dyslexie, tdl" style={inputStyle} /></div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
@@ -801,6 +807,7 @@ photo_url: (f as any).photo_url || "" };
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Photo de la formation</label>
               {/* Domain photo picker */}
@@ -828,9 +835,11 @@ photo_url: (f as any).photo_url || "" };
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL vidéo (YouTube)</label><input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} style={inputStyle} /></div>
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>URL d&apos;inscription</label><input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} /></div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
   <label style={labelStyle}>Organismes rattachés (optionnel)</label>
   <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera visible dans le(s) espace(s) organisme(s) sélectionné(s).</p>
@@ -988,33 +997,37 @@ photo_url: (f as any).photo_url || "" };
                         </div>
                       </div>
                     ))}
-                    {/* Organisme par session */}
-                    <div style={{ marginTop: 12, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
-                      <label style={{ ...labelStyle, marginBottom: 8 }}>Organisme pour cette session (optionnel)</label>
-                      <select value={s.organisme_id != null ? String(s.organisme_id) : (s.organisme_libre ? "__libre__" : "")}
-                        onChange={e => {
-                          const n = [...sessions];
-                          if (e.target.value === "") { n[i].organisme_id = null; n[i].organisme_libre = ""; }
-                          else if (e.target.value === "__libre__") { n[i].organisme_id = null; n[i].organisme_libre = n[i].organisme_libre || " "; }
-                          else { n[i].organisme_id = Number(e.target.value); n[i].organisme_libre = ""; }
-                          setSessions(n);
-                        }}
-                        style={inputStyle}>
-                        <option value="">— Aucun organisme —</option>
-                        {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-                        <option value="__libre__">✏️ Autre (nom libre)…</option>
-                      </select>
-                      {s.organisme_id == null && s.organisme_libre !== undefined && s.organisme_libre !== "" && (
-                        <input value={s.organisme_libre} onChange={e => { const n = [...sessions]; n[i].organisme_libre = e.target.value; setSessions(n); }}
-                          placeholder="Nom de l'organisme (non référencé sur PopForm)"
-                          style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
-                      )}
-                      {(s.organisme_id != null || (s.organisme_libre !== undefined && s.organisme_libre !== "")) && (
-                        <input value={s.url_inscription || ""} onChange={e => { const n = [...sessions]; n[i].url_inscription = e.target.value; setSessions(n); }}
-                          placeholder="URL directe vers cette formation (optionnel)"
-                          style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
-                      )}
-                    </div>
+                    {/* Organisme par session — seulement si 2+ orgs sélectionnés */}
+                    {(() => {
+                      const selOrgIds = form.organisme_ids || [];
+                      const selOrgLibres = form.organismes_libres || [];
+                      const totalOrgs = selOrgIds.length + selOrgLibres.length;
+                      if (totalOrgs <= 1) return null;
+                      const selOrgs = organismes.filter(o => selOrgIds.includes(o.id));
+                      return (
+                        <div style={{ marginTop: 12, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                          <label style={{ ...labelStyle, marginBottom: 8 }}>Organisme pour cette session (optionnel)</label>
+                          <select value={s.organisme_id != null ? String(s.organisme_id) : (s.organisme_libre ? "__libre__" : "")}
+                            onChange={e => {
+                              const n = [...sessions];
+                              if (e.target.value === "") { n[i].organisme_id = null; n[i].organisme_libre = ""; }
+                              else if (e.target.value.startsWith("__libre__:")) { n[i].organisme_id = null; n[i].organisme_libre = e.target.value.slice(10); }
+                              else { n[i].organisme_id = Number(e.target.value); n[i].organisme_libre = ""; }
+                              setSessions(n);
+                            }}
+                            style={inputStyle}>
+                            <option value="">— Aucun organisme —</option>
+                            {selOrgs.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                            {selOrgLibres.map((ol, li) => <option key={"libre_" + li} value={"__libre__:" + ol}>{ol}</option>)}
+                          </select>
+                          {(s.organisme_id != null || (s.organisme_libre !== undefined && s.organisme_libre !== "")) && (
+                            <input value={s.url_inscription || ""} onChange={e => { const n = [...sessions]; n[i].url_inscription = e.target.value; setSessions(n); }}
+                              placeholder="URL directe vers cette formation (optionnel)"
+                              style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

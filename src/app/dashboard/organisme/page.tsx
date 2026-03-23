@@ -16,7 +16,7 @@ const PRISES = ["DPC", "FIF-PL"];
 const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
 
 type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; pays: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
-type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[] };
+type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[]; organisme_id?: number | null; organisme_libre?: string; url_inscription?: string };
 type FormateurRow = { id: number; nom: string; bio: string; sexe: string; organisme_id: number | null; user_id: string | null; photo_url?: string | null };
 
 function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
@@ -316,7 +316,9 @@ export default function DashboardOrganismePage() {
           pays: (s.parties && s.parties.length > 0)
             ? (s.parties.find((p: any) => p.pays && p.pays !== "France")?.pays || "France")
             : "France",
-          organisme_id: organisme.id,
+          organisme_id: s.organisme_id != null ? s.organisme_id : organisme.id,
+          organisme_libre: s.organisme_libre || null,
+          url_inscription: s.url_inscription || null,
         }))).select();
         // Save parties for each session
         if (insertedSessions) {
@@ -862,18 +864,21 @@ export default function DashboardOrganismePage() {
               <label style={labelStyle}>Titre *</label>
               <input value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} placeholder="Ex: Prise en charge du langage oral" style={inputStyle} />
             </div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
 
             {/* Sous-titre */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Sous-titre</label>
               <input value={form.sous_titre} onChange={e => setForm({ ...form, sous_titre: e.target.value })} placeholder="Ex: Approche fondée sur les preuves" style={inputStyle} />
             </div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
 
             {/* Description */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Description *</label>
               <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Décrivez la formation..." style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} />
             </div>
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
 
             {/* Formateur */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
@@ -976,6 +981,7 @@ export default function DashboardOrganismePage() {
               )}
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Domaine */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Domaine(s) *</label>
@@ -991,6 +997,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Modalité */}
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Modalité(s) *</label>
@@ -1009,6 +1016,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Durée */}
             <div>
               <label style={labelStyle}>Durée</label>
@@ -1024,6 +1032,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Prise en charge */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Prise en charge</label>
@@ -1041,6 +1050,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Mots-clés */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Mots-clés (séparés par des virgules)</label>
@@ -1073,6 +1083,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Photo upload */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Photo de la formation</label>
@@ -1111,6 +1122,7 @@ export default function DashboardOrganismePage() {
               </div>
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Video URL */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>URL vidéo (YouTube)</label>
@@ -1123,6 +1135,7 @@ export default function DashboardOrganismePage() {
               <input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} />
             </div>
 
+            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Co-organismes */}
             <div style={{ gridColumn: "1 / -1" }}>
   <label style={labelStyle}>Co-organismes (optionnel)</label>
@@ -1201,6 +1214,40 @@ export default function DashboardOrganismePage() {
                       </div>
                       {s.nb_parties > 1 && <p style={{ fontSize: 11, color: C.textTer, marginTop: 6, fontStyle: "italic" }}>Chaque partie peut avoir sa propre ville, modalité et dates.</p>}
                     </div>
+
+                    {/* Organisme par session — seulement si 2+ orgs (soi-même + co-organismes) */}
+                    {(() => {
+                      const coOrgIds = (form.organisme_ids || []).filter((id: number) => id !== organisme?.id);
+                      const coOrgLibres = form.organismes_libres || [];
+                      const totalCoOrgs = coOrgIds.length + coOrgLibres.length;
+                      if (totalCoOrgs < 1) return null;
+                      const coOrgs = allOrganismes.filter(o => coOrgIds.includes(o.id));
+                      const selfOrg = organisme ? [{ id: organisme.id, nom: organisme.nom }] : [];
+                      const allSelOrgs = [...selfOrg, ...coOrgs];
+                      return (
+                        <div style={{ marginBottom: 14, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                          <label style={{ ...labelStyle, marginBottom: 8 }}>Organisme pour cette session (optionnel)</label>
+                          <select value={s.organisme_id != null ? String(s.organisme_id) : (s.organisme_libre ? "__libre__:" + s.organisme_libre : "")}
+                            onChange={e => {
+                              const n = [...sessions];
+                              if (e.target.value === "") { n[i].organisme_id = null; n[i].organisme_libre = ""; }
+                              else if (e.target.value.startsWith("__libre__:")) { n[i].organisme_id = null; n[i].organisme_libre = e.target.value.slice(10); }
+                              else { n[i].organisme_id = Number(e.target.value); n[i].organisme_libre = ""; }
+                              setSessions(n);
+                            }}
+                            style={inputStyle}>
+                            <option value="">— Aucun organisme —</option>
+                            {allSelOrgs.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+                            {coOrgLibres.map((ol: string, li: number) => <option key={"libre_" + li} value={"__libre__:" + ol}>{ol}</option>)}
+                          </select>
+                          {(s.organisme_id != null || (s.organisme_libre !== undefined && s.organisme_libre !== "")) && (
+                            <input value={s.url_inscription || ""} onChange={e => { const n = [...sessions]; n[i].url_inscription = e.target.value; setSessions(n); }}
+                              placeholder="URL directe vers cette formation (optionnel)"
+                              style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Step 2: Fill each partie */}
                     {(s.parties || []).slice(0, s.nb_parties).map((p, pi) => (
