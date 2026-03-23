@@ -86,7 +86,7 @@ export default function OrganismesPage() {
         const orgId = row.organisme_id || (row.formateur_id ? fmtOrgMap[row.formateur_id] : null);
         if (orgId) counts[orgId] = (counts[orgId] || 0) + 1;
       }
-      setOrgs(unique);
+      setOrgs([...unique].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0)));
       setOrgCounts(counts);
     } finally {
       setLoading(false);

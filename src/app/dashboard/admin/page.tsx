@@ -382,6 +382,18 @@ export default function DashboardAdminPage() {
   const normTitle = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, " ").replace(/\s+/g, " ").trim();
   const isDeleted = (f: Formation) => f.status === "supprimee" || f.status === "refusee";
 
+  // Organismes libres saisis dans des formations mais pas encore créés dans la table
+  const orphanOrganismesLibres = (() => {
+    const allLibres = [...new Set(formations.flatMap(f => ((f as any).organismes_libres as string[] | null) || []).filter(Boolean))];
+    const existingNoms = new Set(utilisateurs.organismes.map((o: any) => (o.nom || "").toLowerCase().trim()));
+    return allLibres.filter(nom => !existingNoms.has(nom.toLowerCase().trim()));
+  })();
+
+  const handleCreateOrganismeLibre = async (nom: string) => {
+    const { data, error } = await supabase.from("organismes").insert({ nom, logo: "", description: "", hidden: false }).select().single();
+    if (!error && data) setUtilisateurs(prev => ({ ...prev, organismes: [...prev.organismes, data] }));
+  };
+
   // Détection des doublons potentiels côté admin
   const potentialDoublons = (() => {
     const active = formations.filter(f => !isDeleted(f));
@@ -1188,6 +1200,21 @@ export default function DashboardAdminPage() {
               </div>
             ))}
           </div>
+
+          {orphanOrganismesLibres.length > 0 && (
+            <div style={{ marginBottom: 28, padding: "14px 18px", background: C.yellowBg, borderRadius: 12, border: "1.5px solid " + C.yellow + "66" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.yellowDark, marginBottom: 8 }}>⚠️ {orphanOrganismesLibres.length} organisme{orphanOrganismesLibres.length > 1 ? "s" : ""} libre{orphanOrganismesLibres.length > 1 ? "s" : ""} non créé{orphanOrganismesLibres.length > 1 ? "s" : ""}</div>
+              <p style={{ fontSize: 12, color: C.yellowDark, margin: "0 0 10px" }}>Ces noms ont été saisis librement dans des formations mais n&apos;existent pas encore dans la liste des organismes.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {orphanOrganismesLibres.map(nom => (
+                  <div key={nom} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: C.surface, borderRadius: 9, border: "1.5px solid " + C.yellow + "88", fontSize: 12 }}>
+                    <span style={{ fontWeight: 600, color: C.text }}>{nom}</span>
+                    <button onClick={() => handleCreateOrganismeLibre(nom)} style={{ padding: "3px 10px", borderRadius: 7, border: "none", background: C.accent, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+ Créer</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 4 }}>🎤 Formateurs ({utilisateurs.formateurs.length})</h2>
           <p style={{ fontSize: 12, color: C.textTer, marginBottom: 12 }}>Les formateurs ne doivent pas être liés à un organisme. Utilisez le bouton "Détacher" si nécessaire.</p>
