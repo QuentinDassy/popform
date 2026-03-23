@@ -430,7 +430,7 @@ export default function DashboardAdminPage() {
       if (similar.length > 0) {
         const group = [f, ...similar];
         group.forEach(g => seen.add(g.id));
-        groups.push({ key: f.id + "", formations: group });
+        groups.push({ key: group.map(g => g.id).sort((a, b) => a - b).join("-"), formations: group });
       }
     }
     return groups;
