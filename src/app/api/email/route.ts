@@ -1,4 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createSupabaseClient(url, key, { auth: { persistSession: false } });
+}
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = "PopForm <noreply@popform.fr>";
@@ -161,23 +169,14 @@ export async function POST(request: NextRequest) {
       if (!to) return NextResponse.json({ ok: true });
 
       // Insert into newsletter_subscribers via service role (bypasses RLS)
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (serviceKey && supabaseUrl) {
-        const res = await fetch(`${supabaseUrl}/rest/v1/newsletter_subscribers`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${serviceKey}`,
-            apikey: serviceKey,
-            "Content-Type": "application/json",
-            Prefer: "resolution=merge-duplicates",
-          },
-          body: JSON.stringify({ email: to.trim().toLowerCase(), created_at: new Date().toISOString() }),
-        });
-        if (!res.ok) {
-          const errBody = await res.text().catch(() => "");
-          console.error(`[newsletter] insert failed ${res.status}:`, errBody);
-        }
+      const sb = getServiceClient();
+      if (sb) {
+        const { error } = await sb.from("newsletter_subscribers").upsert(
+          { email: to.trim().toLowerCase() },
+          { onConflict: "email", ignoreDuplicates: true }
+        );
+        if (error) console.error("[newsletter] upsert failed:", error.message, error.details);
+        else console.log("[newsletter] inserted:", to.trim().toLowerCase());
       } else {
         console.error("[newsletter] missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL");
       }
