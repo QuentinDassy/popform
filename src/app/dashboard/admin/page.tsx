@@ -31,6 +31,8 @@ export default function DashboardAdminPage() {
   const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
   const [assocRequests, setAssocRequests] = useState<{ id: number; formation_id: number; formateur_id: number; user_id: string; status: string; created_at: string; formation?: { titre: string }; formateur?: { nom: string } }[]>([]);
   const [mergeRequests, setMergeRequests] = useState<{ id: number; orphan_id: number; target_id: number; user_id: string; created_at: string; orphan?: { nom: string }; target?: { nom: string } }[]>([]);
+  const [mergingFormateurId, setMergingFormateurId] = useState<number | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
   const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(() => {
     try { const s = localStorage.getItem("admin_ignored_doublons"); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
   });
@@ -278,6 +280,23 @@ export default function DashboardAdminPage() {
   const handleRejectMerge = async (id: number) => {
     await supabase.from("formateur_merge_requests").update({ status: "rejected" }).eq("id", id);
     setMergeRequests(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleManualMerge = async (orphanId: number, targetId: number) => {
+    const orphan = utilisateurs.formateurs.find((x: any) => x.id === orphanId);
+    const target = utilisateurs.formateurs.find((x: any) => x.id === targetId);
+    if (!confirm(`Fusionner "${orphan?.nom}" → "${target?.nom}" ?\n\nLes formations de "${orphan?.nom}" seront transférées à "${target?.nom}". Cette action est réversible via "Annuler la fusion".`)) return;
+    await supabase.from("formations").update({ formateur_id: targetId }).eq("formateur_id", orphanId);
+    const { data: fmtIdsRows } = await supabase.from("formations").select("id, formateur_ids").contains("formateur_ids", [orphanId]);
+    for (const row of (fmtIdsRows || []) as { id: number; formateur_ids: number[] }[]) {
+      const deduped = [...new Set(row.formateur_ids.map((id: number) => id === orphanId ? targetId : id))];
+      await supabase.from("formations").update({ formateur_ids: deduped }).eq("id", row.id);
+    }
+    await supabase.from("formateurs").update({ hidden: true, merged_into_id: targetId }).eq("id", orphanId);
+    setUtilisateurs(prev => ({ ...prev, formateurs: prev.formateurs.map((x: any) => x.id === orphanId ? { ...x, hidden: true, merged_into_id: targetId } : x) }));
+    setMergingFormateurId(null); setMergeTargetId("");
+    const { invalidateCache } = await import("@/lib/data");
+    invalidateCache();
   };
 
   // Domaines management handlers
@@ -1244,6 +1263,24 @@ export default function DashboardAdminPage() {
                         style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.accent, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
                       >Détacher</button>
                     </div>
+                  )}
+                  {!f.merged_into_id && !f.hidden && (
+                    mergingFormateurId === f.id ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <select value={mergeTargetId} onChange={e => setMergeTargetId(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none" }}>
+                          <option value="">— Fusionner dans… —</option>
+                          {utilisateurs.formateurs.filter((x: any) => x.id !== f.id && !x.hidden && !x.merged_into_id).map((x: any) => (
+                            <option key={x.id} value={x.id}>{x.nom}</option>
+                          ))}
+                        </select>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => { if (mergeTargetId) handleManualMerge(f.id, Number(mergeTargetId)); }} disabled={!mergeTargetId} style={{ flex: 1, padding: "6px", borderRadius: 8, background: mergeTargetId ? C.accent : C.bgAlt, color: mergeTargetId ? "#fff" : C.textTer, border: "none", fontSize: 11, fontWeight: 700, cursor: mergeTargetId ? "pointer" : "default" }}>Confirmer</button>
+                          <button onClick={() => { setMergingFormateurId(null); setMergeTargetId(""); }} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer" }}>✕</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setMergingFormateurId(f.id); setMergeTargetId(""); }} style={{ padding: "5px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>🔗 Fusionner</button>
+                    )
                   )}
                   {f.merged_into_id && (
                     <button
