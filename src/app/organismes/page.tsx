@@ -70,23 +70,16 @@ export default function OrganismesPage() {
         if (nameKey) seen.add("n:" + nameKey);
         return true;
       });
-      // Fetch formation counts (all non-refused)
+      // Fetch formation counts (publiées uniquement, via liens directs organisme seulement)
       const { data: allOrgFormations } = await supabase
         .from("formations")
-        .select("organisme_id, organisme_ids, formateur_id, status")
+        .select("organisme_id, organisme_ids")
         .eq("status", "publiee");
-      // Also fetch formateurs to get their organisme_id
-      const { data: fmts } = await supabase.from("formateurs").select("id, organisme_id");
-      const fmtOrgMap: Record<number, number> = {};
-      for (const f of fmts || []) {
-        if (f.organisme_id) fmtOrgMap[f.id] = f.organisme_id;
-      }
       const counts: Record<number, number> = {};
       for (const row of allOrgFormations || []) {
         const ids = new Set<number>();
         if (row.organisme_id) ids.add(row.organisme_id);
         if (row.organisme_ids?.length) row.organisme_ids.forEach((id: number) => ids.add(id));
-        if (row.formateur_id && fmtOrgMap[row.formateur_id]) ids.add(fmtOrgMap[row.formateur_id]);
         ids.forEach(orgId => { counts[orgId] = (counts[orgId] || 0) + 1; });
       }
       setOrgs([...unique].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0)));
