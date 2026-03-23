@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (serviceKey && supabaseUrl) {
-        await fetch(`${supabaseUrl}/rest/v1/newsletter_subscribers`, {
+        const res = await fetch(`${supabaseUrl}/rest/v1/newsletter_subscribers`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${serviceKey}`,
@@ -172,8 +172,14 @@ export async function POST(request: NextRequest) {
             "Content-Type": "application/json",
             Prefer: "resolution=merge-duplicates",
           },
-          body: JSON.stringify({ email: to.trim().toLowerCase() }),
+          body: JSON.stringify({ email: to.trim().toLowerCase(), created_at: new Date().toISOString() }),
         });
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          console.error(`[newsletter] insert failed ${res.status}:`, errBody);
+        }
+      } else {
+        console.error("[newsletter] missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL");
       }
 
       await sendEmail(

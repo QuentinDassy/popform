@@ -32,7 +32,7 @@ type FormState = {
   prix_extras: { label: string; value: number }[];
   prix_from: boolean;
   populations: string[]; mots_cles: string; professions: string[];
-  effectif: number; url_inscription: string; video_url: string;
+  effectif: number; url_inscription: string; video_url: string; lien_elearning: string;
   sans_limite: boolean; status: string;
   photo_url: string;
 };
@@ -72,7 +72,7 @@ function emptyForm(): FormState {
     organisme_ids: [], organismes_libres: [],
     prix: 0, prix_salarie: null, prix_liberal: null, prix_dpc: null, prix_extras: [], prix_from: false,
     populations: [], mots_cles: "", professions: ["Orthophonistes"],
-    effectif: 0, url_inscription: "", video_url: "",
+    effectif: 0, url_inscription: "", video_url: "", lien_elearning: "",
     sans_limite: false, status: "publiee", photo_url: "",
   };
 }
@@ -160,7 +160,6 @@ export default function AdminFormationEditorPage() {
               description: f.description || "",
               domaine: f.domaine || "",
               domaines: (f as any).domaines?.length ? (f as any).domaines : (f.domaine ? [f.domaine] : []),
-              modalite: f.modalite || "Présentiel",
               prise_en_charge: f.prise_en_charge || [],
               duree: f.duree || "",
               formateur_ids: (f as any).formateur_ids?.length ? (f as any).formateur_ids : (f.formateur_id ? [f.formateur_id] : []),
@@ -179,6 +178,8 @@ export default function AdminFormationEditorPage() {
               effectif: f.effectif ?? 0,
               url_inscription: f.url_inscription || "",
               video_url: f.video_url || "",
+              lien_elearning: (f as any).lien_elearning || "",
+              modalite: ((f as any).modalites?.length ? (f as any).modalites.join(",") : f.modalite) || "Présentiel",
               sans_limite: f.sans_limite || false,
               status: f.status || "publiee",
               photo_url: (f as any).photo_url || "",
@@ -374,6 +375,7 @@ export default function AdminFormationEditorPage() {
       effectif: (form.effectif != null && form.effectif > 0) ? form.effectif : null,
       url_inscription: form.url_inscription || "",
       video_url: form.video_url || "",
+      lien_elearning: form.lien_elearning || "",
       sans_limite: form.sans_limite,
       status: form.status,
       photo_url: photoUrl || null,
@@ -804,6 +806,15 @@ export default function AdminFormationEditorPage() {
             <input style={inp} value={form.video_url} onChange={e => setF("video_url", e.target.value)} placeholder="https://youtube.com/…" />
           </div>
         </div>
+        {form.modalite.split(",").map(m => m.trim()).includes("E-learning") && (
+          <div style={{ marginTop: 12 }}>
+            <label style={lbl}>Lien E-learning</label>
+            <div style={{ display: "flex", alignItems: "center", border: "1.5px solid " + C.border, borderRadius: 8, overflow: "hidden", background: "#fff" }}>
+              <span style={{ padding: "8px 10px", background: C.bgAlt, color: C.textTer, fontSize: 12, whiteSpace: "nowrap", borderRight: "1px solid " + C.border }}>https://www.popform.fr/formation/</span>
+              <input style={{ ...inp, border: "none", borderRadius: 0, flex: 1 }} value={form.lien_elearning} onChange={e => setF("lien_elearning", e.target.value)} placeholder="slug-ou-id-du-module" />
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 20, marginTop: 12 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", color: C.textSec }}>
             <input type="checkbox" checked={form.sans_limite} onChange={e => setF("sans_limite", e.target.checked)} />
