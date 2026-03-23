@@ -19,10 +19,32 @@
       "Bash(git add src/lib/auth-context.tsx src/app/formation/[id]/page.tsx src/lib/supabase.ts)",
       "Bash(git commit -m \"fix: INITIAL_SESSION for instant auth, fix formation page timeout, 15s fetch timeout\")",
       "Bash(git add src/lib/auth-context.tsx)",
-      "Bash(git commit -m \"fix: read auth session from localStorage synchronously, no network on init\")"
+      "Bash(git commit -m \"fix: read auth session from localStorage synchronously, no network on init\")",
+      "Bash(cat /c/Users/quent/formortho/src/app/formation/[id]/page.tsx)",
+      "Bash(find /c/Users/quent/formortho/public -type f \\\\\\(-name *.png -o -name *.jpg -o -name *.jpeg -o -name *.webp \\\\\\))",
+      "Bash(git add:*)",
+      "Bash(node -e \":*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(powershell -Command \":*)",
+      "Read(//c/Users/quent/.claude/projects/c--Users-quent-formortho/**)",
+      "Bash(python3:*)",
+      "Bash(ls -lah /c/Users/quent/formortho/public/*.png /c/Users/quent/formortho/public/*.svg)",
+      "Read(//c/Users/quent/formortho/**)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(xargs grep:*)",
+      "Bash(cat /c/Users/quent/formortho/supabase/*.sql)",
+      "Bash(ls -la /c/Users/quent/formortho/src/app/dashboard/admin/formation/[id]/)",
+      "Bash(grep -r \"use server\\\\|useTransition\\\\|startTransition\" /c/Users/quent/formortho/src --include=*.ts --include=*.tsx)",
+      "Bash(ls .env*)",
+      "Bash(grep -r \"CREATE TABLE\\\\|create table\" /c/Users/quent/formortho/supabase/ --include=*.sql)",
+      "Bash(grep -r \"class\\\\|interface\\\\|type.*=\" /c/Users/quent/formortho/src/app/dashboard/admin/formation/[id]/page.tsx)",
+      "Bash(grep -n \"saveFormation\\\\|await supabase.*insert\\\\|await supabase.*update\" /c/Users/quent/formortho/src/app/dashboard/admin/formation/[id]/page.tsx)",
+      "Bash(grep -n \"formation\\\\[id\\\\]\\\\|formation/new\\\\|formation/$\" /c/Users/quent/formortho/src/app/dashboard/admin/page.tsx)"
     ],
     "additionalDirectories": [
-      "c:\\Users\\quent\\formortho\\src\\app\\auth"
+      "c:\\Users\\quent\\formortho\\src\\app\\auth",
+      "c:\\Users\\quent\\formortho\\public"
     ]
   }
 }
