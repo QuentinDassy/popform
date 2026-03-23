@@ -323,6 +323,15 @@ export default function AdminFormationEditorPage() {
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
+  const ensureOrganismesLibres = async (libres: string[]) => {
+    const noms = libres.map(n => n.trim()).filter(Boolean);
+    if (!noms.length) return;
+    const { data: existing } = await supabase.from("organismes").select("nom").in("nom", noms);
+    const existingNoms = new Set((existing || []).map((o: any) => o.nom));
+    const toCreate = noms.filter(n => !existingNoms.has(n));
+    if (toCreate.length) await supabase.from("organismes").insert(toCreate.map(nom => ({ nom, logo: "", description: "", hidden: false })));
+  };
+
   const handleSave = async () => {
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return; }
     setSaving(true); setMsg(null);
@@ -382,6 +391,7 @@ export default function AdminFormationEditorPage() {
       const { error } = await supabase.from("formations").update(payload).eq("id", formationId);
       if (error) { setMsg("Erreur : " + error.message); setSaving(false); return; }
     }
+    await ensureOrganismesLibres(form.organismes_libres || []);
 
     // Sessions
     if (formationId) {

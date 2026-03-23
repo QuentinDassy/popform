@@ -191,6 +191,15 @@ export default function DashboardOrganismePage() {
     setTab("edit");
   };
 
+  const ensureOrganismesLibres = async (libres: string[]) => {
+    const noms = libres.map(n => n.trim()).filter(Boolean);
+    if (!noms.length) return;
+    const { data: existing } = await supabase.from("organismes").select("nom").in("nom", noms);
+    const existingNoms = new Set((existing || []).map((o: any) => o.nom));
+    const toCreate = noms.filter(n => !existingNoms.has(n));
+    if (toCreate.length) await supabase.from("organismes").insert(toCreate.map(nom => ({ nom, logo: "", description: "", hidden: false })));
+  };
+
   const handleSave = async () => {
     if (!organisme) return;
     if (!form.titre.trim()) { setMsg("Le titre est obligatoire."); return }
@@ -296,6 +305,7 @@ export default function DashboardOrganismePage() {
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
       formationId = data.id;
     }
+    await ensureOrganismesLibres(form.organismes_libres || []);
     // Sessions: delete old, insert new (skip for E-learning)
     if (formationId) {
       await supabase.from("sessions").delete().eq("formation_id", formationId);
@@ -491,6 +501,7 @@ export default function DashboardOrganismePage() {
     };
     const { data: inserted, error } = await supabase.from("formations").insert(payload).select().single();
     if (error) { setSaving(false); alert("Erreur: " + error.message); return; }
+    await ensureOrganismesLibres(data.organismes_libres || []);
     if (inserted && wizSessions.length > 0) {
       const { data: insertedSessions } = await supabase.from("sessions").insert(
         wizSessions.map((s: WizardSession) => ({
