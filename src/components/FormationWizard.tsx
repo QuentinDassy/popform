@@ -340,6 +340,19 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 <span style={{ fontSize: 13, color: C.blue }}>Pas de session requise pour une formation e-learning.</span>
               </div>
             )}
+            {form.modalites.includes("E-learning") && (
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
+                  📺 Lien E-learning <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+                </label>
+                <input
+                  value={form.lien_elearning}
+                  onChange={e => setForm({ ...form, lien_elearning: e.target.value })}
+                  placeholder="https://… (lien vers le contenu en ligne)"
+                  style={inputStyle}
+                />
+              </div>
+            )}
             {showError && form.modalites.length === 0 && (
               <p style={{ color: C.pink, fontSize: 12 }}>Sélectionnez au moins une modalité.</p>
             )}
@@ -771,23 +784,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 style={inputStyle}
               />
             </div>
-
-            {form.modalites.includes("E-learning") && (
-              <>
-                <div style={{ height: 1, background: C.borderLight, margin: "0 0 18px" }} />
-                <div style={{ paddingBottom: 18 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
-                    📺 Lien E-learning <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
-                  </label>
-                  <input
-                    value={form.lien_elearning}
-                    onChange={e => setForm({ ...form, lien_elearning: e.target.value })}
-                    placeholder="https://… (lien vers le contenu en ligne)"
-                    style={inputStyle}
-                  />
-                </div>
-              </>
-            )}
 
             {/* Formateur multi-select (organisme mode) */}
             {context.mode === "organisme" && context.formateurs && context.formateurs.length > 0 && (
