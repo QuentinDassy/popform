@@ -73,7 +73,7 @@ export default function OrganismesPage() {
       // Fetch formation counts (all non-refused)
       const { data: allOrgFormations } = await supabase
         .from("formations")
-        .select("organisme_id, formateur_id, status")
+        .select("organisme_id, organisme_ids, formateur_id, status")
         .eq("status", "publiee");
       // Also fetch formateurs to get their organisme_id
       const { data: fmts } = await supabase.from("formateurs").select("id, organisme_id");
@@ -83,8 +83,11 @@ export default function OrganismesPage() {
       }
       const counts: Record<number, number> = {};
       for (const row of allOrgFormations || []) {
-        const orgId = row.organisme_id || (row.formateur_id ? fmtOrgMap[row.formateur_id] : null);
-        if (orgId) counts[orgId] = (counts[orgId] || 0) + 1;
+        const ids = new Set<number>();
+        if (row.organisme_id) ids.add(row.organisme_id);
+        if (row.organisme_ids?.length) row.organisme_ids.forEach((id: number) => ids.add(id));
+        if (row.formateur_id && fmtOrgMap[row.formateur_id]) ids.add(fmtOrgMap[row.formateur_id]);
+        ids.forEach(orgId => { counts[orgId] = (counts[orgId] || 0) + 1; });
       }
       setOrgs([...unique].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0)));
       setOrgCounts(counts);

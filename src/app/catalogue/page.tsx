@@ -122,7 +122,9 @@ function CatalogueContent() {
       if (!selDomaines.some(d => fDomaines.includes(d))) return false;
     }
     if (selModalites.length > 0) {
-      const fModalites = f.modalite === "Mixte" ? ["Présentiel", "Visio"] : (f.modalite || "").split(",").map(m => m.trim()).filter(Boolean);
+      const fModalites: string[] = (f as any).modalites?.length > 0
+        ? (f as any).modalites
+        : (f.modalite === "Mixte" ? ["Présentiel", "Visio"] : (f.modalite || "").split(",").map(m => m.trim()).filter(Boolean));
       if (!selModalites.some(m => fModalites.includes(m))) return false;
     }
     if (selPrises.length > 0 && !selPrises.every(p => (f.prise_en_charge || []).includes(p))) return false;
