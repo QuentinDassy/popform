@@ -809,10 +809,7 @@ export default function AdminFormationEditorPage() {
         {form.modalite.split(",").map(m => m.trim()).includes("E-learning") && (
           <div style={{ marginTop: 12 }}>
             <label style={lbl}>Lien E-learning</label>
-            <div style={{ display: "flex", alignItems: "center", border: "1.5px solid " + C.border, borderRadius: 8, overflow: "hidden", background: "#fff" }}>
-              <span style={{ padding: "8px 10px", background: C.bgAlt, color: C.textTer, fontSize: 12, whiteSpace: "nowrap", borderRight: "1px solid " + C.border }}>https://www.popform.fr/formation/</span>
-              <input style={{ ...inp, border: "none", borderRadius: 0, flex: 1 }} value={form.lien_elearning} onChange={e => setF("lien_elearning", e.target.value)} placeholder="slug-ou-id-du-module" />
-            </div>
+            <input style={inp} value={form.lien_elearning} onChange={e => setF("lien_elearning", e.target.value)} placeholder="https://…" />
           </div>
         )}
         <div style={{ display: "flex", gap: 20, marginTop: 12 }}>

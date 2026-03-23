@@ -515,7 +515,7 @@ export default function FormationPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#1A5FA8", marginBottom: 6 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</div>
                   {f.lien_elearning && (
                     <a href={f.lien_elearning} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 8, padding: "10px 20px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
-                      📺 Accéder à la formation →
+                      Accéder à la formation →
                     </a>
                   )}
                 </div>
