@@ -216,8 +216,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       // ─── TITRE ──────────────────────────────────────────────────────────
       case "titre":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div style={{ paddingBottom: 20 }}>
               <input
                 ref={titleInputRef}
                 value={form.titre}
@@ -239,6 +239,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 <p style={{ color: C.pink, fontSize: 12, marginTop: 6 }}>Le titre doit comporter au moins 3 caractères.</p>
               )}
             </div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 20px" }} />
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
                 Sous-titre <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
@@ -346,8 +347,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       // ─── DESCRIPTION ────────────────────────────────────────────────────
       case "description":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div style={{ paddingBottom: 16 }}>
               <textarea
                 value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
@@ -358,7 +359,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 <p style={{ color: C.pink, fontSize: 12, marginTop: 4 }}>La description doit comporter au moins 20 caractères.</p>
               )}
             </div>
-            <div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 16px" }} />
+            <div style={{ paddingBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
                 Durée <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
               </label>
@@ -380,6 +382,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 style={{ ...inputStyle, fontSize: 13 }}
               />
             </div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 16px" }} />
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
                 Effectif maximum <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
@@ -462,8 +465,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       // ─── PROFESSIONS ────────────────────────────────────────────────────
       case "professions":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div style={{ paddingBottom: 20 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Professions ciblées</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {PROFESSIONS.map(p => {
@@ -477,6 +480,7 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 })}
               </div>
             </div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 20px" }} />
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>Mots-clés</label>
               <input
@@ -616,8 +620,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                   <input value={newSession.lien_visio} onChange={e => setNewSession({ ...newSession, lien_visio: e.target.value })} placeholder="https://zoom.us/j/…" style={{ ...inputStyle, fontSize: 13 }} />
                 </div>
               )}
-              {/* Organisme selector for session */}
-              {allSessionOrgs.length > 0 && (
+              {/* Organisme selector for session — only if multiple organisms */}
+              {allSessionOrgs.length > 1 && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 4 }}>Organisme</label>
                   <select
@@ -713,8 +717,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       // ─── MEDIA ──────────────────────────────────────────────────────────
       case "media":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div style={{ paddingBottom: 18 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
                 Photo de couverture <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
               </label>
@@ -741,7 +745,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 </div>
               )}
             </div>
-            <div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 18px" }} />
+            <div style={{ paddingBottom: 18 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
                 Vidéo YouTube <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
               </label>
@@ -752,7 +757,8 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 style={inputStyle}
               />
             </div>
-            <div>
+            <div style={{ height: 1, background: C.borderLight, margin: "0 0 18px" }} />
+            <div style={{ paddingBottom: 18 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
                 URL d&apos;inscription <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
               </label>
@@ -766,24 +772,27 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
 
             {/* Formateur multi-select (organisme mode) */}
             {context.mode === "organisme" && context.formateurs && context.formateurs.length > 0 && (
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
-                  Formateurs associés <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
-                </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {context.formateurs.map(f => {
-                    const sel = form.formateur_ids.includes(f.id);
-                    return (
-                      <button key={f.id} onClick={() => {
-                        const next = sel ? form.formateur_ids.filter(id => id !== f.id) : [...form.formateur_ids, f.id];
-                        setForm({ ...form, formateur_ids: next });
-                      }} style={sel ? chipSel : chipBase}>
-                        {sel ? "✓ " : ""}{f.nom}
-                      </button>
-                    );
-                  })}
+              <>
+                <div style={{ height: 1, background: C.borderLight, margin: "0 0 18px" }} />
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
+                    Formateurs associés <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+                  </label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {context.formateurs.map(f => {
+                      const sel = form.formateur_ids.includes(f.id);
+                      return (
+                        <button key={f.id} onClick={() => {
+                          const next = sel ? form.formateur_ids.filter(id => id !== f.id) : [...form.formateur_ids, f.id];
+                          setForm({ ...form, formateur_ids: next });
+                        }} style={sel ? chipSel : chipBase}>
+                          {sel ? "✓ " : ""}{f.nom}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         );

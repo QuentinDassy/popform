@@ -74,7 +74,7 @@ export default function OrganismesPage() {
       const { data: allOrgFormations } = await supabase
         .from("formations")
         .select("organisme_id, formateur_id, status")
-        .neq("status", "refusee");
+        .eq("status", "publiee");
       // Also fetch formateurs to get their organisme_id
       const { data: fmts } = await supabase.from("formateurs").select("id, organisme_id");
       const fmtOrgMap: Record<number, number> = {};
