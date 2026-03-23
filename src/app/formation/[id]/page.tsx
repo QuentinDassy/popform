@@ -505,11 +505,12 @@ export default function FormationPage() {
             )}
             {(() => {
               const isElearning = f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning");
+              const hasSessions = sessions.length > 0;
               return (
               <section id="sessions" style={{ marginBottom: 40 }}>
-              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>{isElearning ? "Formation en ligne - E-Learning" : "Sessions disponibles"}</h2>
-              {isElearning ? (
-                <div style={{ padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
+              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>{isElearning && !hasSessions ? "Formation en ligne - E-Learning" : "Sessions disponibles"}</h2>
+              {isElearning && (
+                <div style={{ padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF", marginBottom: hasSessions ? 16 : 0 }}>
                   <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#1A5FA8", marginBottom: 6 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</div>
                   {f.lien_elearning && (
@@ -518,9 +519,10 @@ export default function FormationPage() {
                     </a>
                   )}
                 </div>
-              ) : sessions.length === 0 ? (
+              )}
+              {!isElearning && !hasSessions ? (
                 <p style={{ color: C.textTer }}>Aucune session programmée pour le moment.</p>
-              ) : (
+              ) : hasSessions ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: sessions.length > 2 ? 6 : 12 }}>
                   {sessions.map((s, si) => {
                     const parts = (s as any).session_parties as Array<{titre:string;date_debut:string;date_fin:string;jours:string|null;modalite:string;lieu:string;adresse:string;ville:string;lien_visio:string}> | null;
@@ -626,7 +628,7 @@ export default function FormationPage() {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
             </section>
               );
             })()}

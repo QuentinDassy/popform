@@ -61,7 +61,9 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
     return s.lieu ? [s.lieu] : [];
   }))];
   const modaliteList = (f.modalite || "").split(",").map(m => m.trim()).filter(Boolean);
-  const isElearning = modaliteList.length > 0 && modaliteList.every(m => m === "E-learning");
+  const allModalites: string[] = (f as any).modalites?.length > 0 ? (f as any).modalites : modaliteList;
+  const hasElearning = allModalites.includes("E-learning");
+  const hasNonElearning = allModalites.some((m: string) => m !== "E-learning");
   const lieuDisplay = uniqueLieux.length > 1 ? "Plusieurs lieux" : (uniqueLieux[0] || "—");
   const isVisioOnly = uniqueLieux.length > 0 && uniqueLieux.every((l: string) => /visio/i.test(l));
   const domaines: string[] = (f as any).domaines?.length > 0 ? (f as any).domaines : [f.domaine];
@@ -116,7 +118,10 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
             </div>
           )}
           {/* Location */}
-          <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isElearning ? "📺 E-learning" : isVisioOnly ? "💻 " + lieuDisplay : "📍 " + lieuDisplay}</div>
+          <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {hasElearning && <span>📺 E-learning</span>}
+            {hasNonElearning && <span>{isVisioOnly ? "💻 " + lieuDisplay : "📍 " + lieuDisplay}</span>}
+          </div>
           {/* Price + rating */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
