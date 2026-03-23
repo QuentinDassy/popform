@@ -31,7 +31,9 @@ export default function DashboardAdminPage() {
   const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
   const [assocRequests, setAssocRequests] = useState<{ id: number; formation_id: number; formateur_id: number; user_id: string; status: string; created_at: string; formation?: { titre: string }; formateur?: { nom: string } }[]>([]);
   const [mergeRequests, setMergeRequests] = useState<{ id: number; orphan_id: number; target_id: number; user_id: string; created_at: string; orphan?: { nom: string }; target?: { nom: string } }[]>([]);
-  const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(new Set());
+  const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(() => {
+    try { const s = localStorage.getItem("admin_ignored_doublons"); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+  });
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -464,7 +466,7 @@ export default function DashboardAdminPage() {
         <button onClick={() => setAdminTab("formations")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "formations" ? C.surface : "transparent", color: adminTab === "formations" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "formations" ? 700 : 500, cursor: "pointer" }}>🎬 Formations</button>
         <button onClick={() => setAdminTab("doublons")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "doublons" ? C.surface : "transparent", color: adminTab === "doublons" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "doublons" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
           🔁 Doublons
-          {potentialDoublons.length > 0 && <span style={{ position: "absolute" as const, top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: C.orange, color: "#fff", fontSize: 9, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{potentialDoublons.length}</span>}
+          {potentialDoublons.filter(g => !ignoredDoublonKeys.has(g.key)).length > 0 && <span style={{ position: "absolute" as const, top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, background: C.orange, color: "#fff", fontSize: 9, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{potentialDoublons.filter(g => !ignoredDoublonKeys.has(g.key)).length}</span>}
         </button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
@@ -583,7 +585,7 @@ export default function DashboardAdminPage() {
                 <div key={group.key} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "2px solid " + C.orange + "55" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, textTransform: "uppercase", letterSpacing: "0.05em" }}>🔁 {group.formations.length} formations similaires</div>
-                    <button onClick={() => setIgnoredDoublonKeys(prev => new Set([...prev, group.key]))} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid " + C.green + "55", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    <button onClick={() => setIgnoredDoublonKeys(prev => { const next = new Set([...prev, group.key]); try { localStorage.setItem("admin_ignored_doublons", JSON.stringify([...next])); } catch {} return next; })} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid " + C.green + "55", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       ✅ Pas un doublon — ignorer
                     </button>
                   </div>
