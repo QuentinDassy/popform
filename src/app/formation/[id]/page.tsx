@@ -488,15 +488,6 @@ export default function FormationPage() {
         <div style={{ display: mob ? "block" : "grid", gridTemplateColumns: "2fr 1fr", gap: 40 }}>
           {/* LEFT COLUMN */}
           <div>
-            {/* E-learning info box — at top */}
-            {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning")) && (
-              <section style={{ marginBottom: 28, padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
-                <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#1A5FA8", marginBottom: 4 }}>Formation en ligne</div>
-                <p style={{ fontSize: 14, color: "#3A6EA0", margin: 0 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</p>
-              </section>
-            )}
-
             {/* Description */}
             <section style={{ marginBottom: 40 }}>
               <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>À propos de cette formation</h2>
@@ -512,9 +503,22 @@ export default function FormationPage() {
                 </div>
               </section>
             )}
-            {f.modalite !== "E-learning" && <section id="sessions" style={{ marginBottom: 40 }}>
-              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sessions disponibles</h2>
-              {sessions.length === 0 ? (
+            {(() => {
+              const isElearning = f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning");
+              return (
+              <section id="sessions" style={{ marginBottom: 40 }}>
+              <h2 style={{ fontSize: mob ? 20 : 24, fontWeight: 800, color: C.text, marginBottom: 16 }}>{isElearning ? "Formation en ligne - E-Learning" : "Sessions disponibles"}</h2>
+              {isElearning ? (
+                <div style={{ padding: "20px 24px", background: "#F0F7FF", borderRadius: 14, border: "1.5px solid #C7DEFF" }}>
+                  <div style={{ fontSize: 18, marginBottom: 6 }}>📺</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#1A5FA8", marginBottom: 6 }}>Ce contenu est accessible en autonomie, à tout moment, sans contrainte de date ou de lieu.</div>
+                  {f.lien_elearning && (
+                    <a href={f.lien_elearning} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 8, padding: "10px 20px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+                      📺 Accéder à la formation →
+                    </a>
+                  )}
+                </div>
+              ) : sessions.length === 0 ? (
                 <p style={{ color: C.textTer }}>Aucune session programmée pour le moment.</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: sessions.length > 2 ? 6 : 12 }}>
@@ -623,7 +627,9 @@ export default function FormationPage() {
                   })}
                 </div>
               )}
-            </section>}
+            </section>
+              );
+            })()}
 
             {/* Avis */}
             <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} onDelete={handleDeleteAvis} mob={mob} userId={user?.id} />

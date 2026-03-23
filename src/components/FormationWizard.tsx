@@ -12,6 +12,7 @@ export type WizardFormData = {
   prise_en_charge: string[]; prise_aucune: boolean;
   professions: string[]; mots_cles: string;
   photo_url: string; video_url: string; url_inscription: string;
+  lien_elearning: string;
   organisme_ids: number[]; organismes_libres: string[];
   formateur_ids: number[];
 };
@@ -49,6 +50,7 @@ function defaultForm(init?: Partial<WizardFormData>): WizardFormData {
     prise_en_charge: [], prise_aucune: false,
     professions: ["Orthophonie"], mots_cles: "",
     photo_url: "", video_url: "", url_inscription: "",
+    lien_elearning: "",
     organisme_ids: [], organismes_libres: [], formateur_ids: [],
     ...init,
   };
@@ -769,6 +771,23 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 style={inputStyle}
               />
             </div>
+
+            {form.modalites.includes("E-learning") && (
+              <>
+                <div style={{ height: 1, background: C.borderLight, margin: "0 0 18px" }} />
+                <div style={{ paddingBottom: 18 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>
+                    📺 Lien E-learning <span style={{ fontWeight: 400, textTransform: "none" as const }}>(optionnel)</span>
+                  </label>
+                  <input
+                    value={form.lien_elearning}
+                    onChange={e => setForm({ ...form, lien_elearning: e.target.value })}
+                    placeholder="https://… (lien vers le contenu en ligne)"
+                    style={inputStyle}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Formateur multi-select (organisme mode) */}
             {context.mode === "organisme" && context.formateurs && context.formateurs.length > 0 && (

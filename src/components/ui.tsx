@@ -116,7 +116,7 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
             </div>
           )}
           {/* Location */}
-          <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isElearning ? "💻" : isVisioOnly ? "💻" : "📍"} {isElearning ? "En ligne" : lieuDisplay}</div>
+          <div style={{ fontSize: 11, color: C.textTer, marginBottom: 4 }}>{isElearning ? "📺 E-learning" : isVisioOnly ? "💻 " + lieuDisplay : "📍 " + lieuDisplay}</div>
           {/* Price + rating */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>

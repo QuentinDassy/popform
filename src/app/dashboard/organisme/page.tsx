@@ -27,7 +27,7 @@ function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
     duree: "", prix: null as number | null, prix_salarie: null as number | null,
     prix_liberal: null as number | null, prix_dpc: null as number | null, prix_from: false,
     is_new: false, populations: [] as string[], mots_cles: "",
-    professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", photo_url: "" as string,
+    professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", lien_elearning: "", photo_url: "" as string,
     organisme_ids: [] as number[],
     organismes_libres: [] as string[],
   };
@@ -170,7 +170,7 @@ export default function DashboardOrganismePage() {
         duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
         prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [],
         mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
-        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", photo_url: (f as any).photo_url || "",
+        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", lien_elearning: (f as any).lien_elearning || "", photo_url: (f as any).photo_url || "",
         organisme_ids: (f as any).organisme_ids || [],
         organismes_libres: (f as any).organismes_libres || [],
       });
@@ -262,6 +262,7 @@ export default function DashboardOrganismePage() {
       effectif: (form.effectif != null && form.effectif > 0) ? form.effectif : null, photo_url: form.photo_url || null,
       video_url: form.video_url,
       url_inscription: form.url_inscription || "",
+      lien_elearning: form.lien_elearning || null,
       organisme_id: organisme.id,
       organisme_ids: [...new Set([(organisme as any).id, ...(form.organisme_ids || [])])],
       organismes_libres: form.organismes_libres || [],
@@ -479,6 +480,7 @@ export default function DashboardOrganismePage() {
       professions: data.professions.length ? data.professions : ["Orthophonie"],
       effectif: data.effectif || null, photo_url: photoUrl || null,
       video_url: data.video_url, url_inscription: data.url_inscription || "",
+      lien_elearning: data.lien_elearning || null,
       organisme_id: organisme.id,
       organisme_ids: [...new Set([organisme.id, ...(data.organisme_ids || [])])],
       organismes_libres: data.organismes_libres || [],
@@ -1134,6 +1136,13 @@ export default function DashboardOrganismePage() {
               <label style={labelStyle}>URL d&apos;inscription (lien vers votre site)</label>
               <input value={form.url_inscription || ""} onChange={e => setForm({ ...form, url_inscription: e.target.value })} placeholder="https://monsite.fr/inscription" style={inputStyle} />
             </div>
+
+            {(form.modalites || []).includes("E-learning") && (
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={labelStyle}>📺 Lien E-learning</label>
+                <input value={form.lien_elearning || ""} onChange={e => setForm({ ...form, lien_elearning: e.target.value })} placeholder="https://… (lien vers le contenu en ligne)" style={inputStyle} />
+              </div>
+            )}
 
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Co-organismes */}

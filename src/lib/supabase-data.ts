@@ -19,6 +19,7 @@ export type Formation = {
   effectif: number; video_url: string; url_inscription: string;
   date_fin: string | null; sans_limite: boolean;
   status: string; photo_url?: string | null;
+  lien_elearning?: string | null;
   organisme_ids?: number[] | null;
   organismes_libres?: string[] | null;
   pending_update?: boolean;
