@@ -1,3 +1,11 @@
 {
-  "regions": ["cdg1"]
+  "regions": ["cdg1"],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "popform-lake.vercel.app" }],
+      "destination": "https://www.popform.fr/$1",
+      "permanent": true
+    }
+  ]
 }
