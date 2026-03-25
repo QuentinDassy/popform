@@ -642,13 +642,6 @@ export default function DashboardOrganismePage() {
                 />
               </div>
               <p style={{ fontSize: 12, color: C.textTer }}>{formations.length} formation{formations.length > 1 ? "s" : ""} · <span style={{ fontSize: 11, color: C.textTer }}>📷 Cliquez sur le logo pour le changer</span></p>
-              {organisme && (
-                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-                  <span style={{ fontSize: 11, color: C.accent, fontFamily: "monospace" }}>popform.fr/organisme/{organisme.id}</span>
-                  <button onClick={() => navigator.clipboard.writeText(`https://popform.fr/organisme/${organisme.id}`)} style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid " + C.borderLight, background: C.surface, color: C.textSec, fontSize: 10, cursor: "pointer" }}>Copier</button>
-                  <a href={`/organisme/${organisme.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid " + C.borderLight, background: C.surface, color: C.accent, fontSize: 10, textDecoration: "none" }}>Voir</a>
-                </div>
-              )}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                 <span style={{ fontSize: 11, color: C.textTer }}>🌐</span>
                 <input
@@ -685,6 +678,21 @@ export default function DashboardOrganismePage() {
       </div>
 
 
+
+      {/* ===== PROFIL PUBLIC ===== */}
+      {tab === "list" && organisme && (
+        <div style={{ marginBottom: 12, padding: "16px 20px", background: `linear-gradient(135deg, ${C.accentBg} 0%, #f0f4ff 100%)`, borderRadius: 14, border: "1.5px solid " + C.accent + "33", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Mon profil public</div>
+            <div style={{ fontSize: 13, color: C.textSec, marginBottom: 2 }}>Partagez votre profil sur les réseaux sociaux pour promouvoir vos formations.</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.accent, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>popform.fr/organisme/{organisme.id}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button onClick={() => navigator.clipboard.writeText(`https://popform.fr/organisme/${organisme.id}`)} style={{ padding: "9px 16px", borderRadius: 10, border: "1.5px solid " + C.accent + "55", background: "#fff", color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Copier le lien</button>
+            <a href={`/organisme/${organisme.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>Voir mon profil</a>
+          </div>
+        </div>
+      )}
 
       {/* ===== STATS ===== */}
       {tab === "list" && (
