@@ -82,6 +82,7 @@ export default function HomePage() {
   const [nlEmail, setNlEmail] = useState("");
   const [nlSent, setNlSent] = useState(false);
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [formationsCount, setFormationsCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [webinaires, setWebinaires] = useState<any[]>([]);
   const [congres, setCongres] = useState<any[]>([]);
@@ -183,6 +184,10 @@ export default function HomePage() {
           ]);
           const shuffled = [...formationsData]; for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
           setFormations(shuffled);
+          // Fetch exact live count from Supabase (bypasses cache)
+          supabase.from("formations").select("*", { count: "exact", head: true }).eq("status", "publiee")
+            .then((res: { count: number | null }) => { if (res.count != null) setFormationsCount(res.count); });
+
         } catch (e) {
           console.error("Error loading formations:", e);
         } finally {
@@ -275,7 +280,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formations.length > 0 ? formations.length : "…"}</strong> formations.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formationsCount ?? (formations.length > 0 ? formations.length : "…")}</strong> formations.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
