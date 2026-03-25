@@ -136,6 +136,7 @@ export default function DashboardAdminPage() {
     // Supprimer les enfants d'abord
     const { data: sessIds } = await supabase.from("sessions").select("id").eq("formation_id", id);
     if (sessIds && sessIds.length > 0) {
+      await supabase.from("inscriptions").update({ session_id: null }).in("session_id", sessIds.map((s: any) => s.id));
       await supabase.from("session_parties").delete().in("session_id", sessIds.map((s: any) => s.id));
     }
     await supabase.from("sessions").delete().eq("formation_id", id);
@@ -153,6 +154,7 @@ export default function DashboardAdminPage() {
       const { sessions: pendingSessions, status: _status, ...pendingData } = pending;
       await supabase.from("formations").update({ ...pendingData, pending_update: false }).eq("id", id);
       if (pendingSessions) {
+        await supabase.from("inscriptions").update({ session_id: null }).eq("formation_id", id);
         await supabase.from("sessions").delete().eq("formation_id", id);
         if (pendingSessions.length > 0) {
           await supabase.from("sessions").insert(pendingSessions.map((s: any) => ({

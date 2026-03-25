@@ -409,6 +409,8 @@ export default function AdminFormationEditorPage() {
 
     // Sessions
     if (formationId) {
+      // Nullify session_id on inscriptions before deleting sessions (FK constraint)
+      await supabase.from("inscriptions").update({ session_id: null }).eq("formation_id", formationId);
       const { error: delErr } = await supabase.from("sessions").delete().eq("formation_id", formationId);
       if (delErr) { setMsg("Erreur suppression sessions : " + delErr.message); setSaving(false); return; }
       const validSessions = sessions.filter(s =>

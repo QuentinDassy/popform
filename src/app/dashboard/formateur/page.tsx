@@ -333,6 +333,7 @@ photo_url: (f as any).photo_url || "" };
           }
           // Supprimer les ANCIENNES sessions seulement après que les nouvelles sont insérées avec succès
           if (oldSessionIds.length > 0) {
+            await supabase.from("inscriptions").update({ session_id: null }).in("session_id", oldSessionIds);
             await supabase.from("sessions").delete().in("id", oldSessionIds);
           }
         }
