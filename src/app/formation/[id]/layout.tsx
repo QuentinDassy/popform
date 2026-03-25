@@ -26,7 +26,7 @@ export async function generateMetadata({
   const org = orgNom ?? fmtNom ?? "";
   const title = org ? `${f.titre} — ${org} | PopForm` : `${f.titre} | PopForm`;
   const description = (f.description || f.sous_titre || "Découvrez cette formation en orthophonie sur PopForm.").slice(0, 160);
-  const image = f.photo_url || "https://popform.fr/og-image.png";
+  const image = (f.photo_url && f.photo_url.startsWith("http")) ? f.photo_url : "https://popform.fr/og-image.png";
   const url = `https://popform.fr/formation/${id}`;
 
   return {
@@ -39,7 +39,7 @@ export async function generateMetadata({
       siteName: "PopForm",
       locale: "fr_FR",
       type: "website",
-      images: [{ url: image, width: 1200, height: 630 }],
+      images: [{ url: image, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
