@@ -33,9 +33,7 @@ export default function DashboardAdminPage() {
   const [mergeRequests, setMergeRequests] = useState<{ id: number; orphan_id: number; target_id: number; user_id: string; created_at: string; orphan?: { nom: string }; target?: { nom: string } }[]>([]);
   const [mergingFormateurId, setMergingFormateurId] = useState<number | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
-  const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(() => {
-    try { const s = localStorage.getItem("admin_ignored_doublons"); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
-  });
+  const [ignoredDoublonKeys, setIgnoredDoublonKeys] = useState<Set<string>>(new Set());
 
   // Villes management
   const [villesList, setVillesList] = useState<{ id?: number; nom: string; image: string }[]>([]);
@@ -103,6 +101,11 @@ export default function DashboardAdminPage() {
           const { data: mr } = await supabase.from("formateur_merge_requests").select("*, orphan:formateurs!orphan_id(nom), target:formateurs!target_id(nom)").eq("status", "pending").order("created_at", { ascending: false });
           setMergeRequests((mr || []) as any);
         } catch { /* table may not exist yet */ }
+        // Load ignored doublons from shared Supabase config
+        try {
+          const { data: cfg } = await supabase.from("admin_config").select("value").eq("key", "ignored_doublons").single();
+          if (cfg?.value) setIgnoredDoublonKeys(new Set(cfg.value as string[]));
+        } catch { /* table may not exist yet — fall back to empty */ }
       } catch (e: any) {
         if (e?.message?.includes("refresh") || e?.message?.includes("JWT") || e?.message?.includes("Refresh Token")) {
           window.location.href = "/";
@@ -617,7 +620,13 @@ export default function DashboardAdminPage() {
                 <div key={group.key} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "2px solid " + C.orange + "55" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, textTransform: "uppercase", letterSpacing: "0.05em" }}>🔁 {group.formations.length} formations similaires</div>
-                    <button onClick={() => setIgnoredDoublonKeys(prev => { const next = new Set([...prev, group.key]); try { localStorage.setItem("admin_ignored_doublons", JSON.stringify([...next])); } catch {} return next; })} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid " + C.green + "55", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    <button onClick={() => {
+                      setIgnoredDoublonKeys(prev => {
+                        const next = new Set([...prev, group.key]);
+                        supabase.from("admin_config").upsert({ key: "ignored_doublons", value: [...next] as any }, { onConflict: "key" }).then(() => {});
+                        return next;
+                      });
+                    }} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid " + C.green + "55", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                       ✅ Pas un doublon — ignorer
                     </button>
                   </div>
