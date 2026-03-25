@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/lib/auth-context";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -57,6 +58,7 @@ window.addEventListener('error',function(e){
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
