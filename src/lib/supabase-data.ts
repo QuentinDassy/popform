@@ -181,10 +181,29 @@ function lsWriteFormation(id: number, data: Formation) {
   try { if (typeof window !== "undefined") localStorage.setItem(LS_FORMATION_PREFIX + id, JSON.stringify({ data, t: Date.now() })); } catch {}
 }
 
+function dedupSessions(sessions: any[]): any[] {
+  if (!sessions || sessions.length <= 1) return sessions;
+  const seen = new Set<string>();
+  return sessions.filter((s: any) => {
+    // Key on session_parties first party if available, else sessions.dates+lieu
+    const parts: any[] = s.session_parties || [];
+    const key = parts.length > 0
+      ? parts.map((p: any) => `${p.date_debut || ""}|${p.ville || p.lieu || ""}|${p.modalite || ""}`).join(";")
+      : `${s.dates || ""}|${s.lieu || ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function fetchFormation(id: number): Promise<Formation | null> {
   // 1. Per-formation localStorage cache (< 5 min)
   const cached = lsReadFormation(id);
   if (cached && Date.now() - cached.t < FORMATION_TTL) {
+    // Apply dedup on cached data too
+    if (cached.data && (cached.data as any).sessions) {
+      (cached.data as any).sessions = dedupSessions((cached.data as any).sessions);
+    }
     // Revalidate in background
     _fetchFormationRemote(id).then(f => { if (f) lsWriteFormation(id, f); }).catch(() => {});
     return cached.data;
@@ -212,15 +231,9 @@ async function _fetchFormationRemote(id: number): Promise<Formation | null> {
       } else {
         (data as any).formateurs = data.formateur ? [data.formateur] : [];
       }
-      // Deduplicate sessions by content (dates + lieu) to handle accidental duplicates in DB
+      // Deduplicate sessions by content to handle accidental duplicates in DB
       if ((data as any).sessions?.length > 1) {
-        const seen = new Set<string>();
-        (data as any).sessions = ((data as any).sessions as any[]).filter((s: any) => {
-          const key = `${s.dates || ""}|${s.lieu || ""}|${s.adresse || ""}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        (data as any).sessions = dedupSessions((data as any).sessions);
       }
       // Enrich sessions with organisme data (requires session_organisme.sql migration)
       try {
