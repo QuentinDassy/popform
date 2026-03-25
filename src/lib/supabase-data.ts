@@ -212,6 +212,16 @@ async function _fetchFormationRemote(id: number): Promise<Formation | null> {
       } else {
         (data as any).formateurs = data.formateur ? [data.formateur] : [];
       }
+      // Deduplicate sessions by content (dates + lieu) to handle accidental duplicates in DB
+      if ((data as any).sessions?.length > 1) {
+        const seen = new Set<string>();
+        (data as any).sessions = ((data as any).sessions as any[]).filter((s: any) => {
+          const key = `${s.dates || ""}|${s.lieu || ""}|${s.adresse || ""}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
       // Enrich sessions with organisme data (requires session_organisme.sql migration)
       try {
         const sessionOrgIds = new Set<number>();
