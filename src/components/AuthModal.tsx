@@ -162,9 +162,8 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                     {!showProOptions ? (
                       <>
                         <button type="button" onClick={() => setRole("user")} style={{ width: "100%", padding: 10, borderRadius: 10, border: `1.5px solid ${C.accent + "55"}`, background: C.accentBg, color: C.accent, fontSize: 13, cursor: "pointer", fontWeight: 700, textAlign: "left" }}>🎧 Orthophoniste</button>
-                        <p style={{ fontSize: 12, color: C.textTer, marginTop: 8, marginBottom: 0 }}>
-                          Vous êtes un organisme et/ou formateur·rice ?{" "}
-                          <span onClick={() => { setShowProOptions(true); setRole("organisme"); }} style={{ color: C.accent, cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>Cliquez ici</span>
+                        <p onClick={() => { setShowProOptions(true); setRole("organisme"); }} style={{ fontSize: 13, color: C.accent, marginTop: 8, marginBottom: 0, cursor: "pointer", padding: "8px 12px", borderRadius: 8, border: `1px dashed ${C.accent + "55"}`, background: C.accentBg, textAlign: "center", fontWeight: 600 }}>
+                          Vous êtes un organisme et/ou formateur·rice ?{" "}<span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>Cliquez ici</span>
                         </p>
                       </>
                     ) : (
