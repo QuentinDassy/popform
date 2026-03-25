@@ -184,8 +184,8 @@ export default function HomePage() {
           ]);
           const shuffled = [...formationsData]; for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
           setFormations(shuffled);
-          // Fetch exact live count from Supabase (bypasses cache)
-          supabase.from("formations").select("*", { count: "exact", head: true }).eq("status", "publiee")
+          // Fetch exact live count from Supabase (bypasses cache, all statuses)
+          supabase.from("formations").select("*", { count: "exact", head: true })
             .then((res: { count: number | null }) => { if (res.count != null) setFormationsCount(res.count); });
 
         } catch (e) {
