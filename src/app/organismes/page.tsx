@@ -12,7 +12,7 @@ function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean 
   const long = (o.description || "").length > MAX_DESC;
   const desc = long && !expanded ? o.description!.slice(0, MAX_DESC) + "…" : (o.description || "");
   return (
-    <Link href={`/catalogue?organisme=${o.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
+    <Link href={`/organisme/${o.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>
       <div style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, cursor: "pointer", height: "100%", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>

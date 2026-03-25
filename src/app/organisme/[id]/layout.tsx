@@ -11,19 +11,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const sb = createClient(supabaseUrl, supabaseKey);
-  const { data: f } = await sb
-    .from("formateurs")
-    .select("nom, bio, sexe, photo_url")
+  const { data: o } = await sb
+    .from("organismes")
+    .select("nom, description, logo, site_url")
     .eq("id", id)
     .single();
 
-  if (!f) return {};
+  if (!o) return {};
 
-  const title = `${f.nom} — Formateur·rice | PopForm`;
-  const description = f.bio ? f.bio.slice(0, 160) : `Découvrez le profil et les formations de ${f.nom} sur PopForm.`;
-  const hasPhoto = !!(f.photo_url && f.photo_url.startsWith("http"));
-  const image = hasPhoto ? f.photo_url : "https://popform.fr/og-image.png";
-  const url = `https://popform.fr/formateur/${id}`;
+  const title = `${o.nom} | PopForm`;
+  const description = o.description ? o.description.slice(0, 160) : `Découvrez les formations de ${o.nom} sur PopForm.`;
+  const hasLogo = !!(o.logo && o.logo.startsWith("http"));
+  const image = hasLogo ? o.logo : "https://popform.fr/og-image.png";
+  const url = `https://popform.fr/organisme/${id}`;
 
   return {
     title,
@@ -34,8 +34,8 @@ export async function generateMetadata({
       url,
       siteName: "PopForm",
       locale: "fr_FR",
-      type: "profile",
-      images: [{ url: image, width: hasPhoto ? 400 : 1200, height: hasPhoto ? 400 : 630, alt: f.nom }],
+      type: "website",
+      images: [{ url: image, width: hasLogo ? 400 : 1200, height: hasLogo ? 400 : 630, alt: o.nom }],
     },
     twitter: {
       card: "summary_large_image",
@@ -46,6 +46,6 @@ export async function generateMetadata({
   };
 }
 
-export default function FormateurLayout({ children }: { children: React.ReactNode }) {
+export default function OrganismeLayout({ children }: { children: React.ReactNode }) {
   return children;
 }
