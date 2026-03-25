@@ -420,24 +420,36 @@ export default function FormationPage() {
                   <span style={{ fontSize: 14, color: C.textSec }}>{f.effectif} places</span>
                 </div>
                 )}
-                {f.modalite !== "E-learning" && (() => {
-                  const ul = [...new Set(sessions.flatMap((s: any) => {
-                    const parts = (s as any).session_parties as any[] | null;
-                    if (parts && parts.length > 0) {
-                      const lieux = parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean);
-                      if (lieux.length > 0) return lieux;
-                    }
-                    return s.lieu ? [s.lieu] : [];
-                  }))];
-                  if (ul.length === 0) return null;
-                  const isAllVisio = ul.every((l: string) => /visio/i.test(l));
-                  const lieu = ul.length > 1 ? "Plusieurs lieux" : ul[0];
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
-                      <span style={{ fontSize: 14, color: C.textSec }}>{lieu}</span>
-                    </div>
-                  );
+                {(() => {
+                  const hasElearning = f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning") || (f.modalite || "").split(",").some((m: string) => m.trim() === "E-learning");
+                  const isPureElearning = hasElearning && sessions.length === 0;
+                  return (<>
+                    {hasElearning && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 18 }}>📺</span>
+                        <span style={{ fontSize: 14, color: C.textSec }}>E-learning</span>
+                      </div>
+                    )}
+                    {!isPureElearning && (() => {
+                      const ul = [...new Set(sessions.flatMap((s: any) => {
+                        const parts = (s as any).session_parties as any[] | null;
+                        if (parts && parts.length > 0) {
+                          const lieux = parts.map((p: any) => p.modalite === "Visio" ? "Visio" : ((p as any).ville || p.lieu || p.adresse || "")).filter(Boolean);
+                          if (lieux.length > 0) return lieux;
+                        }
+                        return s.lieu ? [s.lieu] : [];
+                      }))];
+                      if (ul.length === 0) return null;
+                      const isAllVisio = ul.every((l: string) => /visio/i.test(l));
+                      const lieu = ul.length > 1 ? "Plusieurs lieux" : ul[0];
+                      return (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
+                          <span style={{ fontSize: 14, color: C.textSec }}>{lieu}</span>
+                        </div>
+                      );
+                    })()}
+                  </>);
                 })()}
               </div>
 

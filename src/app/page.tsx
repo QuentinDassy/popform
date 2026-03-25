@@ -133,7 +133,7 @@ export default function HomePage() {
     setHeroSearch(val);
     if (val.length >= 2) {
       const q = normalize(val);
-      const allFormationsMatch = formations.filter(f =>
+      const allFormationsMatch = formations.filter((f, i, a) => a.findIndex(x => x.id === f.id) === i).filter(f =>
         normalize(f.titre).includes(q) ||
         normalize(f.domaine).includes(q) ||
         (f.mots_cles || []).some((m: string) => normalize(m).includes(q)) ||
