@@ -20,11 +20,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const { data: formations } = await supabase
-      .from("formations")
-      .select("id, date_ajout")
-      .eq("status", "publiee")
-      .order("date_ajout", { ascending: false });
+    const [{ data: formations }, { data: formateurs }, { data: organismes }] = await Promise.all([
+      supabase.from("formations").select("id, date_ajout").eq("status", "publiee").order("date_ajout", { ascending: false }),
+      supabase.from("formateurs").select("id, updated_at").not("user_id", "is", null),
+      supabase.from("organismes").select("id").eq("hidden", false),
+    ]);
 
     const formationRoutes: MetadataRoute.Sitemap = (formations || []).map((f) => ({
       url: `${BASE}/formation/${f.id}`,
@@ -33,7 +33,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
-    return [...staticRoutes, ...formationRoutes];
+    const formateurRoutes: MetadataRoute.Sitemap = (formateurs || []).map((f) => ({
+      url: `${BASE}/formateur/${f.id}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }));
+
+    const organismeRoutes: MetadataRoute.Sitemap = (organismes || []).map((o) => ({
+      url: `${BASE}/organisme/${o.id}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }));
+
+    return [...staticRoutes, ...formationRoutes, ...formateurRoutes, ...organismeRoutes];
   } catch {
     return staticRoutes;
   }

@@ -713,6 +713,16 @@ photo_url: (f as any).photo_url || "" };
               <label style={labelStyle}>Site web</label>
               <input value={fmtSiteUrl} onChange={e => setFmtSiteUrl(e.target.value)} placeholder="https://monsite.fr" style={inputStyle} />
             </div>
+            {formateur && (
+              <div style={{ padding: "12px 16px", background: C.bgAlt, borderRadius: 12, border: "1px solid " + C.borderLight }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Mon profil public</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ flex: 1, fontSize: 12, color: C.accent, fontFamily: "monospace" }}>popform.fr/formateur/{formateur.id}</span>
+                  <button onClick={() => navigator.clipboard.writeText(`https://popform.fr/formateur/${formateur.id}`)} style={{ padding: "5px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>Copier le lien</button>
+                  <a href={`/formateur/${formateur.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "5px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap" }}>Voir</a>
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <button onClick={handleSaveProfil} disabled={saving} style={{ padding: "12px 28px", borderRadius: 12, border: "none", background: profilSaved ? C.green : C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.5 : 1, transition: "background 0.3s" }}>
                 {saving ? "⏳ ..." : profilSaved ? "✅ Enregistré !" : "Enregistrer"}
