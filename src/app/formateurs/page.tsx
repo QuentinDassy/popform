@@ -149,7 +149,7 @@ function FormateursContent() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px", background: C.surface, border: "1.5px solid " + C.border, borderRadius: 12, height: 42, maxWidth: 400 }}>
           <span style={{ color: C.textTer, fontSize: 16 }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un formateur·rice..."
-            style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 13 }} />
+            style={{ flex: 1, background: "none", border: "none", outline: "none", color: C.text, fontSize: 16 }} />
           {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 14 }}>✕</button>}
         </div>
       </div>

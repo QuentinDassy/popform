@@ -49,6 +49,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
   const [firstName, setFirstName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [role, setRole] = useState("user");
+  const [showProOptions, setShowProOptions] = useState(false);
   const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -158,24 +159,35 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                   </div>
                   <div>
                     <label style={{ fontSize: 12, color: C.textTer, marginBottom: 6, display: "block" }}>Je suis :</label>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {[{ v: "user", l: "🎧 Ortho" }, { v: "organisme", l: "🏢 Organisme" }, { v: "formateur", l: "🎤 Formateur" }].map(r => (
-                        <button key={r.v} type="button" onClick={() => setRole(r.v)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1.5px solid ${role === r.v ? C.accent + "55" : C.border}`, background: role === r.v ? C.accentBg : C.bgAlt, color: role === r.v ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: role === r.v ? 700 : 400 }}>{r.l}</button>
-                      ))}
-                    </div>
+                    {!showProOptions ? (
+                      <>
+                        <button type="button" onClick={() => setRole("user")} style={{ width: "100%", padding: 10, borderRadius: 10, border: `1.5px solid ${C.accent + "55"}`, background: C.accentBg, color: C.accent, fontSize: 13, cursor: "pointer", fontWeight: 700, textAlign: "left" }}>🎧 Orthophoniste</button>
+                        <p style={{ fontSize: 12, color: C.textTer, marginTop: 8, marginBottom: 0 }}>
+                          Vous êtes un organisme et/ou formateur·rice ?{" "}
+                          <span onClick={() => { setShowProOptions(true); setRole("organisme"); }} style={{ color: C.accent, cursor: "pointer", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>Cliquez ici</span>
+                        </p>
+                      </>
+                    ) : (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {[{ v: "user", l: "🎧 Orthophoniste" }, { v: "organisme", l: "🏢 Organisme" }, { v: "formateur", l: "🎤 Formateur" }].map(r => (
+                          <button key={r.v} type="button" onClick={() => setRole(r.v)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1.5px solid ${role === r.v ? C.accent + "55" : C.border}`, background: role === r.v ? C.accentBg : C.bgAlt, color: role === r.v ? C.accent : C.textSec, fontSize: 11, cursor: "pointer", fontWeight: role === r.v ? 700 : 400 }}>{r.l}</button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {role === "organisme" && (
                     <input placeholder="Nom de l'organisme *" value={orgName} onChange={e => setOrgName(e.target.value)} style={inputStyle} />
                   )}
                 </>
               )}
-              <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={inputStyle} />
+              <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} autoComplete="email" style={inputStyle} />
               <div style={{ position: "relative" }}>
                 <input
                   placeholder="Mot de passe"
                   type={showPw ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSubmit()}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   style={{ ...inputStyle, paddingRight: 44 }}
                 />
