@@ -19,10 +19,9 @@ export async function generateMetadata({
 
   if (!f) return {};
 
-  const title = `${f.nom} — Formateur·rice | PopForm`;
+  const title = `${f.nom} · Formateur·rice | PopForm 🍿`;
   const description = f.bio ? f.bio.slice(0, 160) : `Découvrez le profil et les formations de ${f.nom} sur PopForm.`;
-  const hasPhoto = !!(f.photo_url && f.photo_url.startsWith("http"));
-  const image = hasPhoto ? f.photo_url : "https://popform.fr/og-image.png";
+  const image = `https://www.popform.fr/api/og/formateur?id=${id}`;
   const url = `https://popform.fr/formateur/${id}`;
 
   return {
@@ -35,7 +34,7 @@ export async function generateMetadata({
       siteName: "PopForm",
       locale: "fr_FR",
       type: "profile",
-      images: [{ url: image, width: hasPhoto ? 400 : 1200, height: hasPhoto ? 400 : 630, alt: f.nom }],
+      images: [{ url: image, width: 1200, height: 630, alt: f.nom }],
     },
     twitter: {
       card: "summary_large_image",
