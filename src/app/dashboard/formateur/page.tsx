@@ -24,8 +24,7 @@ function emptyFormation() {
     is_new: false, populations: [] as string[], mots_cles: "",
     professions: ["Orthophonie"], effectif: null as number | null, video_url: "", url_inscription: "", lien_elearning: "", photo_url: "" as string,
     organisme_id: null as number | null,
-    organisme_ids: [] as number[],
-    organismes_libres: [] as string[],
+    organisme_libre: "" as string,
   };
 }
 
@@ -62,7 +61,6 @@ export default function DashboardFormateurPage() {
   const [orphanFmts, setOrphanFmts] = useState<{ id: number; nom: string; count: number }[]>([]);
   const [merging, setMerging] = useState(false);
   const [pendingMerges, setPendingMerges] = useState<{ id: number; orphan_id: number; orphan_nom: string }[]>([]);
-  const [orgLibreInput, setOrgLibreInput] = useState("");
 
   // Doublon warning avant sauvegarde
   const [doublonWarning, setDoublonWarning] = useState<{ existing: { id: number; titre: string }[]; proceed: () => void } | null>(null);
@@ -157,8 +155,7 @@ export default function DashboardFormateurPage() {
       const rawModalite = f.modalite || "Présentiel";
       const loadedModalites = (f as any).modalites?.length > 0 ? (f as any).modalites : (rawModalite === "Mixte" ? ["Présentiel", "Visio"] : rawModalite.split(",").map((x: string) => x.trim()).filter(Boolean));
       const loadedForm = { titre: f.titre, sous_titre: f.sous_titre || "", description: f.description, domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []), modalites: loadedModalites, prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0, duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal, prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [], mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [], effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", lien_elearning: (f as any).lien_elearning || "", organisme_id: f.organisme_id,
-organisme_ids: (f as any).organisme_ids || (f.organisme_id ? [f.organisme_id] : []),
-organismes_libres: (f as any).organismes_libres || [],
+organisme_libre: ((f as any).organismes_libres || [])[0] || "",
 photo_url: (f as any).photo_url || "" };
       setForm(loadedForm);
       setOriginalForm(loadedForm);
@@ -249,9 +246,9 @@ photo_url: (f as any).photo_url || "" };
       url_inscription: form.url_inscription || "",
       lien_elearning: form.lien_elearning || null,
       formateur_id: formateur.id,
-      organisme_id: (form.organisme_ids || [])[0] || form.organisme_id || null,
-      organisme_ids: form.organisme_ids || [],
-      organismes_libres: form.organismes_libres || [],
+      organisme_id: form.organisme_id || null,
+      organisme_ids: form.organisme_id ? [form.organisme_id] : [],
+      organismes_libres: form.organisme_libre?.trim() ? [form.organisme_libre.trim()] : [],
       note: 0, nb_avis: 0, sans_limite: false, date_fin: null as string | null,
       date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
     };
@@ -272,15 +269,33 @@ photo_url: (f as any).photo_url || "" };
     if (formPhotoUrl2) payload.photo_url = formPhotoUrl2;
 
     if (editId) {
-      // Modification: repasse en attente de validation
-      const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
+      const currentFormation = formations.find(f => f.id === editId);
+      const isPublished = currentFormation?.status === "publiee";
+      let modifChanges: { label: string; from: string; to: string }[] = [];
+      if (isPublished && originalForm) {
+        if (originalForm.titre !== form.titre) modifChanges.push({ label: "Titre", from: originalForm.titre, to: form.titre });
+        if (originalForm.sous_titre !== form.sous_titre) modifChanges.push({ label: "Sous-titre", from: originalForm.sous_titre || "—", to: form.sous_titre || "—" });
+        if (originalForm.description !== form.description) modifChanges.push({ label: "Description", from: originalForm.description.slice(0, 60) + "…", to: form.description.slice(0, 60) + "…" });
+        if (originalForm.duree !== form.duree) modifChanges.push({ label: "Durée", from: originalForm.duree || "—", to: form.duree || "—" });
+        if (originalForm.prix !== form.prix) modifChanges.push({ label: "Prix", from: String(originalForm.prix ?? "—"), to: String(form.prix ?? "—") });
+        if (JSON.stringify(originalForm.domaines) !== JSON.stringify(form.domaines)) modifChanges.push({ label: "Domaine(s)", from: (originalForm.domaines || []).join(", ") || "—", to: (form.domaines || []).join(", ") || "—" });
+        if (JSON.stringify(originalForm.modalites) !== JSON.stringify(form.modalites)) modifChanges.push({ label: "Modalité(s)", from: (originalForm.modalites || []).join(", ") || "—", to: (form.modalites || []).join(", ") || "—" });
+        if (originalForm.organisme_id !== form.organisme_id) modifChanges.push({ label: "Organisme", from: organismes.find(o => o.id === originalForm.organisme_id)?.nom || originalForm.organisme_libre || "Aucun", to: organismes.find(o => o.id === form.organisme_id)?.nom || form.organisme_libre || "Aucun" });
+      }
+      const pendingUpdateValue = isPublished && modifChanges.length > 0
+        ? JSON.stringify({ type: "modification", changes: modifChanges, modified_at: new Date().toISOString() })
+        : undefined;
+      const updatePayload: any = isPublished
+        ? { ...payload, status: "publiee", ...(pendingUpdateValue !== undefined ? { pending_update: pendingUpdateValue } : {}) }
+        : { ...payload, status: "en_attente" };
+      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
     } else {
       const { data, error } = await supabase.from("formations").insert(payload).select().single();
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return; }
       formationId = data.id;
     }
-    await ensureOrganismesLibres(form.organismes_libres || []);
+    await ensureOrganismesLibres(form.organisme_libre?.trim() ? [form.organisme_libre.trim()] : []);
 
     if (formationId) {
       // Sauvegarder les IDs des anciennes sessions AVANT toute modification
@@ -446,13 +461,14 @@ photo_url: (f as any).photo_url || "" };
       video_url: data.video_url, url_inscription: data.url_inscription || "",
       lien_elearning: data.lien_elearning || null,
       organisme_id: (data.organisme_ids || [])[0] || null,
-      organisme_ids: data.organisme_ids || [], organismes_libres: data.organismes_libres || [],
+      organisme_ids: (data.organisme_ids || []).slice(0, 1),
+      organismes_libres: (data.organismes_libres || []).slice(0, 1),
       formateur_id: formateur.id, note: 0, nb_avis: 0, sans_limite: false,
       date_fin: null, date_ajout: new Date().toISOString().slice(0, 10), status: "en_attente",
     };
     const { data: inserted, error } = await supabase.from("formations").insert(payload).select().single();
     if (error) { setSaving(false); alert("Erreur: " + error.message); return; }
-    await ensureOrganismesLibres(data.organismes_libres || []);
+    await ensureOrganismesLibres((data.organismes_libres || []).slice(0, 1));
     if (inserted && wizSessions.length > 0) {
       const { data: insertedSessions } = await supabase.from("sessions").insert(
         wizSessions.map((s: WizardSession) => ({
@@ -530,13 +546,6 @@ photo_url: (f as any).photo_url || "" };
       </div>
 
       {/* ===== ANTI-DOUBLON ===== */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "rgba(232,123,53,0.08)", borderRadius: 10, border: "1px solid rgba(232,123,53,0.25)", display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-        <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
-          <strong style={{ color: "#e87b35" }}>PopForm n&apos;accepte pas les formations en doublon.</strong>{" "}
-          Si votre formation a plusieurs dates/sessions et/ou plusieurs organismes, il est possible de le signaler sur la même formation. Une formation peut également avoir des sessions <em>et</em> être en e-learning.
-        </span>
-      </div>
 
       {/* ===== CARDS RATTACHER / ASSOCIER ===== */}
       {tab === "list" && (orphanFmts.length > 0 || formations.length === 0) && (
@@ -783,14 +792,23 @@ photo_url: (f as any).photo_url || "" };
                   );
                 })}
               </div>
+              {(form.modalites || []).includes("E-learning") && (
+                <div style={{ marginTop: 10, padding: "10px 14px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE", fontSize: 12, color: "#1D4ED8", lineHeight: 1.5 }}>
+                  💡 Vous pouvez créer une formation e-learning avec des sessions (visio ou présentiel) ou séparer en deux formations distinctes.
+                </div>
+              )}
             </div>
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div><label style={labelStyle}>Durée</label><input value={form.duree} onChange={e => setForm({ ...form, duree: e.target.value })} placeholder="Ex: 14h (2j)" style={inputStyle} /></div>
             <div>
               <label style={labelStyle}>Prix (€)</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="number" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450" style={{ ...inputStyle, flex: 1 }} />
-                <button type="button" onClick={() => setForm({ ...form, prix_from: !form.prix_from })} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.bgAlt, color: form.prix_from ? C.accent : C.textSec, fontSize: 12, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap" }}>{form.prix_from ? "✓ " : ""}à partir de</button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: C.textSec, padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix === 0 ? C.green + "77" : C.border), background: form.prix === 0 ? C.greenBg : C.bgAlt, fontWeight: form.prix === 0 ? 700 : 400 }}>
+                  <input type="checkbox" checked={form.prix === 0} onChange={e => setForm({ ...form, prix: e.target.checked ? 0 : null })} style={{ cursor: "pointer" }} />
+                  🆓 Gratuit
+                </label>
+                {form.prix !== 0 && <input type="number" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450" style={{ ...inputStyle, flex: 1, minWidth: 100 }} />}
+                {form.prix !== 0 && <button type="button" onClick={() => setForm({ ...form, prix_from: !form.prix_from })} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.bgAlt, color: form.prix_from ? C.accent : C.textSec, fontSize: 12, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap" }}>{form.prix_from ? "✓ " : ""}à partir de</button>}
               </div>
             </div>
 
@@ -857,33 +875,28 @@ photo_url: (f as any).photo_url || "" };
 
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-  <label style={labelStyle}>Organismes rattachés (optionnel)</label>
-  <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera visible dans le(s) espace(s) organisme(s) sélectionné(s).</p>
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-    {organismes.map(o => {
-      const selected = (form.organisme_ids || []).includes(o.id);
-      return (
-        <button key={o.id} type="button" onClick={() => {
-          const ids = form.organisme_ids || [];
-          setForm({ ...form, organisme_ids: selected ? ids.filter(id => id !== o.id) : [...ids, o.id] });
-        }} style={{ padding: "5px 12px", borderRadius: 20, border: "1.5px solid " + (selected ? C.accent : C.border), background: selected ? C.accentBg : C.surface, color: selected ? C.accent : C.textSec, fontSize: 12, fontWeight: selected ? 700 : 400, cursor: "pointer" }}>
-          {selected ? "✓ " : ""}{o.nom}
-        </button>
-      );
-    })}
-  </div>
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-    {(form.organismes_libres || []).map((ol, i) => (
-      <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
-        🏢 {ol}
-        <button type="button" onClick={() => setForm({ ...form, organismes_libres: (form.organismes_libres || []).filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
-      </span>
-    ))}
-  </div>
-  <div style={{ display: "flex", gap: 6 }}>
-    <input value={orgLibreInput} onChange={e => setOrgLibreInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } } }} placeholder="Ajouter un organisme non répertorié..." style={{ ...inputStyle, flex: 1 }} />
-    <button type="button" onClick={() => { if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } }} style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>+ Ajouter</button>
-  </div>
+  <label style={labelStyle}>Organisme rattaché (optionnel)</label>
+  <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera visible dans l&apos;espace de cet organisme.</p>
+  <select
+    value={form.organisme_id != null ? String(form.organisme_id) : (form.organisme_libre ? "__libre__" : "")}
+    onChange={e => {
+      if (e.target.value === "") setForm({ ...form, organisme_id: null, organisme_libre: "" });
+      else if (e.target.value === "__libre__") setForm({ ...form, organisme_id: null, organisme_libre: form.organisme_libre || " " });
+      else setForm({ ...form, organisme_id: Number(e.target.value), organisme_libre: "" });
+    }}
+    style={{ ...inputStyle, maxWidth: 340 }}>
+    <option value="">— Aucun organisme —</option>
+    {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
+    <option value="__libre__">✏️ Personnalisé…</option>
+  </select>
+  {form.organisme_id == null && !!form.organisme_libre && (
+    <input
+      value={form.organisme_libre.trim()}
+      onChange={e => setForm({ ...form, organisme_libre: e.target.value || " " })}
+      placeholder="Nom de l'organisme personnalisé…"
+      style={{ ...inputStyle, maxWidth: 340, marginTop: 8 }}
+    />
+  )}
 </div>
           </div>
 
@@ -1013,37 +1026,6 @@ photo_url: (f as any).photo_url || "" };
                         </div>
                       </div>
                     ))}
-                    {/* Organisme par session — seulement si 2+ orgs sélectionnés */}
-                    {(() => {
-                      const selOrgIds = form.organisme_ids || [];
-                      const selOrgLibres = form.organismes_libres || [];
-                      const totalOrgs = selOrgIds.length + selOrgLibres.length;
-                      if (totalOrgs <= 1) return null;
-                      const selOrgs = organismes.filter(o => selOrgIds.includes(o.id));
-                      return (
-                        <div style={{ marginTop: 12, padding: "12px 14px", background: C.surface, borderRadius: 10, border: "1px solid " + C.borderLight }}>
-                          <label style={{ ...labelStyle, marginBottom: 8 }}>Organisme pour cette session (optionnel)</label>
-                          <select value={s.organisme_id != null ? String(s.organisme_id) : (s.organisme_libre ? "__libre__" : "")}
-                            onChange={e => {
-                              const n = [...sessions];
-                              if (e.target.value === "") { n[i].organisme_id = null; n[i].organisme_libre = ""; }
-                              else if (e.target.value.startsWith("__libre__:")) { n[i].organisme_id = null; n[i].organisme_libre = e.target.value.slice(10); }
-                              else { n[i].organisme_id = Number(e.target.value); n[i].organisme_libre = ""; }
-                              setSessions(n);
-                            }}
-                            style={inputStyle}>
-                            <option value="">— Aucun organisme —</option>
-                            {selOrgs.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-                            {selOrgLibres.map((ol, li) => <option key={"libre_" + li} value={"__libre__:" + ol}>{ol}</option>)}
-                          </select>
-                          {(s.organisme_id != null || (s.organisme_libre !== undefined && s.organisme_libre !== "")) && (
-                            <input value={s.url_inscription || ""} onChange={e => { const n = [...sessions]; n[i].url_inscription = e.target.value; setSessions(n); }}
-                              placeholder="URL directe vers cette formation (optionnel)"
-                              style={{ ...inputStyle, marginTop: 8, fontSize: 12 }} />
-                          )}
-                        </div>
-                      );
-                    })()}
                   </div>
                 );
               })}
@@ -1067,18 +1049,10 @@ photo_url: (f as any).photo_url || "" };
             if (JSON.stringify(originalForm.modalites) !== JSON.stringify(form.modalites)) changes.push({ label: "Modalité(s)", from: (originalForm.modalites || []).join(", ") || "—", to: (form.modalites || []).join(", ") || "—" });
             if (JSON.stringify(originalForm.populations) !== JSON.stringify(form.populations)) changes.push({ label: "Populations", from: (originalForm.populations || []).join(", ") || "—", to: (form.populations || []).join(", ") || "—" });
             if (JSON.stringify(originalForm.prise_en_charge) !== JSON.stringify(form.prise_en_charge)) changes.push({ label: "Prise en charge", from: (originalForm.prise_en_charge || []).join(", ") || "—", to: (form.prise_en_charge || []).join(", ") || "—" });
-            if (originalForm.organisme_id !== form.organisme_id) {
-              const fromOrg = organismes.find(o => o.id === originalForm.organisme_id)?.nom || "Aucun";
-              const toOrg = organismes.find(o => o.id === form.organisme_id)?.nom || "Aucun";
-              changes.push({ label: "Organisme", from: fromOrg, to: toOrg });
-            }
-            if (JSON.stringify(originalForm.organisme_ids) !== JSON.stringify(form.organisme_ids)) {
-              const fromOrgs = (originalForm.organisme_ids || []).map((id: number) => organismes.find(o => o.id === id)?.nom || id).join(", ") || "Aucun";
-              const toOrgs = (form.organisme_ids || []).map((id: number) => organismes.find(o => o.id === id)?.nom || id).join(", ") || "Aucun";
-              changes.push({ label: "Organismes", from: fromOrgs, to: toOrgs });
-            }
-            if (JSON.stringify(originalForm.organismes_libres) !== JSON.stringify(form.organismes_libres)) {
-              changes.push({ label: "Organismes libres", from: (originalForm.organismes_libres || []).join(", ") || "Aucun", to: (form.organismes_libres || []).join(", ") || "Aucun" });
+            if (originalForm.organisme_id !== form.organisme_id || (originalForm.organisme_libre || "").trim() !== (form.organisme_libre || "").trim()) {
+              const fromOrg = organismes.find(o => o.id === originalForm.organisme_id)?.nom || (originalForm.organisme_libre || "").trim() || "Aucun";
+              const toOrg = organismes.find(o => o.id === form.organisme_id)?.nom || (form.organisme_libre || "").trim() || "Aucun";
+              if (fromOrg !== toOrg) changes.push({ label: "Organisme", from: fromOrg, to: toOrg });
             }
             if (originalForm.photo_url !== form.photo_url) changes.push({ label: "Photo", from: originalForm.photo_url ? "oui" : "—", to: form.photo_url ? "oui" : "—" });
             if (changes.length === 0) return null;

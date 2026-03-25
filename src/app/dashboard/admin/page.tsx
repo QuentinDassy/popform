@@ -435,7 +435,7 @@ export default function DashboardAdminPage() {
     }
     return groups;
   })();
-  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : formations.filter(f => f.status === filter);
+  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : filter === "modifiees" ? formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }) : formations.filter(f => f.status === filter);
   const filteredSearched = formSearch.trim()
     ? filteredBase.filter(f => {
         const q = normS(formSearch);
@@ -452,6 +452,7 @@ export default function DashboardAdminPage() {
   });
   const deletedCount = formations.filter(isDeleted).length;
   const pendingCount = formations.filter(f => f.status === "en_attente").length;
+  const modifieesCount = formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }).length;
   const pendingWebCount = webinaires.filter(w => w.status === "en_attente").length;
   const pendingFormationIds = new Set(formations.filter(f => f.status === "en_attente").map(f => f.id));
   const pendingNotifs = notifications.filter(n => !n.is_read && pendingFormationIds.has(n.formation_id));
@@ -933,6 +934,7 @@ export default function DashboardAdminPage() {
         {[
           { v: "publiee", l: "✅ Publiées" },
           { v: "en_attente", l: "⏳ En attente (" + pendingCount + ")" },
+          { v: "modifiees", l: "🔄 Modifiées" + (modifieesCount > 0 ? " (" + modifieesCount + ")" : "") },
           { v: "all", l: "📋 Toutes" },
           { v: "supprimee", l: "🗑️ Supprimées" + (deletedCount > 0 ? " (" + deletedCount + ")" : "") },
         ].map(t => (
@@ -987,12 +989,29 @@ export default function DashboardAdminPage() {
                       )}
                       {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
-                    {(f as any).pending_update && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                        <button onClick={() => handleApprovePendingUpdate(f.id)} style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✅ Approuver modif.</button>
-                        <button onClick={() => handleRefusePendingUpdate(f.id)} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Refuser modif.</button>
-                      </div>
-                    )}
+                    {(f as any).pending_update && (() => {
+                      let parsed: any = null;
+                      try { parsed = JSON.parse((f as any).pending_update); } catch {}
+                      if (parsed?.type === "modification") {
+                        return (
+                          <div style={{ marginTop: 8, padding: "8px 12px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "#1D4ED8", textTransform: "uppercase", marginBottom: 6 }}>Modifications apportées · {parsed.modified_at ? new Date(parsed.modified_at).toLocaleString("fr-FR") : ""}</div>
+                            {(parsed.changes || []).map((c: { label: string; from: string; to: string }, ci: number) => (
+                              <div key={ci} style={{ fontSize: 11, color: "#1E3A5F", marginBottom: 3 }}>
+                                <span style={{ fontWeight: 700 }}>{c.label} :</span> <span style={{ textDecoration: "line-through", color: "#64748B" }}>{c.from || "—"}</span> → <span style={{ color: "#16A34A" }}>{c.to || "—"}</span>
+                              </div>
+                            ))}
+                            <button onClick={(e) => { e.stopPropagation(); handleRefusePendingUpdate(f.id); }} style={{ marginTop: 8, padding: "4px 12px", borderRadius: 7, border: "none", background: "#DBEAFE", color: "#1D4ED8", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✓ Vu</button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                          <button onClick={(e) => { e.stopPropagation(); handleApprovePendingUpdate(f.id); }} style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✅ Approuver modif.</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleRefusePendingUpdate(f.id); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Refuser modif.</button>
+                        </div>
+                      );
+                    })()}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
                       <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span>
                       {f.formateur && <><span>·</span><span>🎤 {f.formateur.nom}</span></>}

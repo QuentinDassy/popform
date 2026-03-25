@@ -258,6 +258,7 @@ export default function HomePage() {
   const newF = activeFormations.filter(f => f.is_new);
   const popularF = [...activeFormations].sort((a, b) => b.note - a.note).slice(0, 8);
   const visioF = activeFormations.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "Visio") || (f.sessions || []).some(s => s.lieu === "Visio"));
+  const elearningF = formations.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "E-learning") || ((f as any).modalites || []).includes("E-learning"));
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
@@ -274,7 +275,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{activeFormations.length > 0 ? activeFormations.length : "…"}</strong> formations.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formations.length > 0 ? formations.length : "…"}</strong> formations.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
@@ -511,6 +512,7 @@ export default function HomePage() {
         </>
       ) : null}
       {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} alt />}
+      {!loading && elearningF.length > 0 && <SectionGrid title="📺 E-learning" formations={elearningF} mob={mob} max={3} link="/catalogue?modalites=E-learning" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
 
       {/* ===== VILLES ===== */}
       {topCities.length > 0 && (

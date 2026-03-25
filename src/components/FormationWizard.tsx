@@ -67,7 +67,7 @@ const STEP_META: Record<StepId, { title: string; subtitle?: string; optional?: b
   prix:        { title: "Quel est le tarif ?",                    subtitle: "Laissez à 0 si gratuit.", optional: true },
   prise:       { title: "Quelles prises en charge ?",             subtitle: "Sélectionnez les dispositifs acceptés." },
   professions: { title: "À qui s'adresse-t-elle ?",               subtitle: "Définissez les professions ciblées.", optional: true },
-  organismes:  { title: "Organismes co-organisateurs",            subtitle: "Sélectionnez les organismes impliqués dans cette formation. Vous pourrez ensuite les associer à chaque session.", optional: true },
+  organismes:  { title: "Organisme rattaché",                      subtitle: "Sélectionnez l'organisme de cette formation, ou saisissez un nom libre.", optional: true },
   sessions:    { title: "Ajoutez vos sessions",                   subtitle: "Dates et lieux de la formation.", optional: true },
   media:       { title: "Derniers détails",                       subtitle: "Photo, vidéo et lien d'inscription.", optional: true },
 };
@@ -102,9 +102,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
   // Session mini-form state
   const [newSession, setNewSession] = useState<WizardSession>(defaultSession());
 
-  // Organismes libres input
-  const [orgLibreInput, setOrgLibreInput] = useState("");
-
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Reset when opened
@@ -118,7 +115,6 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       setSubmitting(false);
       setVisible(true);
       setNewSession(defaultSession());
-      setOrgLibreInput("");
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -353,6 +349,11 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
                 />
               </div>
             )}
+            {form.modalites.includes("E-learning") && (
+              <div style={{ padding: "10px 14px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE", fontSize: 12, color: "#1D4ED8", lineHeight: 1.5 }}>
+                💡 Vous pouvez créer une formation e-learning avec des sessions (visio ou présentiel) ou séparer en deux formations distinctes.
+              </div>
+            )}
             {showError && form.modalites.length === 0 && (
               <p style={{ color: C.pink, fontSize: 12 }}>Sélectionnez au moins une modalité.</p>
             )}
@@ -417,25 +418,38 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       case "prix":
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Prix (€) — 0 si gratuit</label>
-              <input
-                type="number" min="0"
-                value={form.prix ?? ""}
-                onChange={e => setForm({ ...form, prix: e.target.value !== "" ? Number(e.target.value) : null })}
-                placeholder="0"
-                style={{ ...inputStyle, fontSize: mob ? 22 : 28, fontWeight: 700, maxWidth: 200 }}
-              />
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: C.textSec }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13 }}>
               <input
                 type="checkbox"
-                checked={form.prix_from}
-                onChange={e => setForm({ ...form, prix_from: e.target.checked })}
+                checked={form.prix === 0}
+                onChange={e => setForm({ ...form, prix: e.target.checked ? 0 : null })}
                 style={{ width: 16, height: 16, cursor: "pointer" }}
               />
-              Prix "à partir de" (afficher comme un minimum)
+              <span style={{ fontWeight: 700, color: form.prix === 0 ? "#16A34A" : C.textSec }}>Gratuit</span>
             </label>
+            {form.prix !== 0 && (
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase" as const, letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>Prix (€)</label>
+                <input
+                  type="number" min="0"
+                  value={form.prix ?? ""}
+                  onChange={e => setForm({ ...form, prix: e.target.value !== "" ? Number(e.target.value) : null })}
+                  placeholder="Ex: 450"
+                  style={{ ...inputStyle, fontSize: mob ? 22 : 28, fontWeight: 700, maxWidth: 200 }}
+                />
+              </div>
+            )}
+            {form.prix !== 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13, color: C.textSec }}>
+                <input
+                  type="checkbox"
+                  checked={form.prix_from}
+                  onChange={e => setForm({ ...form, prix_from: e.target.checked })}
+                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                />
+                Prix "à partir de" (afficher comme un minimum)
+              </label>
+            )}
           </div>
         );
 
@@ -513,76 +527,28 @@ export default function FormationWizard({ open, onClose, onSubmit, context }: Fo
       case "organismes":
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Dropdown to add from list */}
-            <div>
-              <select
-                style={{ ...inputStyle }}
-                value=""
-                onChange={e => {
-                  const val = e.target.value;
-                  if (val && !form.organisme_ids.includes(Number(val))) {
-                    setForm({ ...form, organisme_ids: [...form.organisme_ids, Number(val)] });
-                  }
-                }}
-              >
-                <option value="">— Choisir un organisme —</option>
-                {(context.organismes || []).map(o => (
-                  <option key={o.id} value={o.id}>{o.nom}</option>
-                ))}
-              </select>
-            </div>
-            {/* Selected organism tags */}
-            {form.organisme_ids.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {form.organisme_ids.map(oid => {
-                  const org = (context.organismes || []).find(o => o.id === oid);
-                  return org ? (
-                    <span key={oid} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 20, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: 13, color: C.accent, fontWeight: 600 }}>
-                      {org.nom}
-                      <button
-                        onClick={() => setForm({ ...form, organisme_ids: form.organisme_ids.filter(id => id !== oid) })}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 15, padding: "0 2px", lineHeight: 1 }}
-                      >×</button>
-                    </span>
-                  ) : null;
-                })}
-              </div>
-            )}
-            {/* Free text input */}
-            <div style={{ display: "flex", gap: 6 }}>
+            <select
+              style={{ ...inputStyle }}
+              value={form.organisme_ids[0] != null ? String(form.organisme_ids[0]) : (form.organismes_libres[0] ? "__libre__" : "")}
+              onChange={e => {
+                if (e.target.value === "") setForm({ ...form, organisme_ids: [], organismes_libres: [] });
+                else if (e.target.value === "__libre__") setForm({ ...form, organisme_ids: [], organismes_libres: [form.organismes_libres[0] || " "] });
+                else setForm({ ...form, organisme_ids: [Number(e.target.value)], organismes_libres: [] });
+              }}
+            >
+              <option value="">— Aucun organisme —</option>
+              {(context.organismes || []).map(o => (
+                <option key={o.id} value={o.id}>{o.nom}</option>
+              ))}
+              <option value="__libre__">✏️ Personnalisé…</option>
+            </select>
+            {form.organisme_ids.length === 0 && form.organismes_libres.length > 0 && (
               <input
-                value={orgLibreInput}
-                onChange={e => setOrgLibreInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && orgLibreInput.trim()) {
-                    e.preventDefault();
-                    setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
-                    setOrgLibreInput("");
-                  }
-                }}
-                placeholder="Ou saisir un nom libre…"
-                style={{ ...inputStyle, flex: 1, fontSize: 13 }}
+                value={form.organismes_libres[0]?.trim() || ""}
+                onChange={e => setForm({ ...form, organismes_libres: [e.target.value || " "] })}
+                placeholder="Nom de l'organisme…"
+                style={{ ...inputStyle, fontSize: 13 }}
               />
-              <button
-                onClick={() => {
-                  if (orgLibreInput.trim()) {
-                    setForm({ ...form, organismes_libres: [...form.organismes_libres, orgLibreInput.trim()] });
-                    setOrgLibreInput("");
-                  }
-                }}
-                style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-              >+ Ajouter</button>
-            </div>
-            {/* Free organismes tags */}
-            {form.organismes_libres.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {form.organismes_libres.map((ol, i) => (
-                  <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
-                    🏢 {ol}
-                    <button onClick={() => setForm({ ...form, organismes_libres: form.organismes_libres.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
-                  </span>
-                ))}
-              </div>
             )}
           </div>
         );

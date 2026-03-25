@@ -42,6 +42,7 @@ export default function DashboardOrganismePage() {
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
+  const [originalForm, setOriginalForm] = useState<ReturnType<typeof emptyFormation> | null>(null);
   const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
   const [saving, setSaving] = useState(false);
@@ -174,6 +175,17 @@ export default function DashboardOrganismePage() {
         organisme_ids: (f as any).organisme_ids || [],
         organismes_libres: (f as any).organismes_libres || [],
       });
+      setOriginalForm({
+        titre: f.titre, sous_titre: f.sous_titre || "", description: f.description,
+        domaine: f.domaine, domaine_custom: "", domaines: (f as any).domaines?.length > 0 ? (f as any).domaines : (f.domaine ? [f.domaine] : []),
+        modalites: (f.modalite === "Mixte" ? ["Présentiel", "Visio"] : (f.modalite || "Présentiel").split(",").map((x: string) => x.trim()).filter(Boolean)), prise_en_charge: f.prise_en_charge || [], prise_aucune: (f.prise_en_charge || []).length === 0,
+        duree: f.duree, prix: f.prix, prix_salarie: f.prix_salarie, prix_liberal: f.prix_liberal,
+        prix_dpc: f.prix_dpc, prix_from: ((f as any).prix_extras || []).some((e: any) => e.label === "__from__"), is_new: f.is_new, populations: f.populations || [],
+        mots_cles: (f.mots_cles || []).join(", "), professions: f.professions || [],
+        effectif: f.effectif, video_url: f.video_url || "", url_inscription: f.url_inscription || "", lien_elearning: (f as any).lien_elearning || "", photo_url: (f as any).photo_url || "",
+        organisme_ids: (f as any).organisme_ids || [],
+        organismes_libres: (f as any).organismes_libres || [],
+      });
       setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", pays: "France", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
       const existingIds: number[] = (f as any).formateur_ids?.length ? (f as any).formateur_ids : ((f as any).formateur_id ? [(f as any).formateur_id] : []);
@@ -273,8 +285,8 @@ export default function DashboardOrganismePage() {
       url_inscription: form.url_inscription || "",
       lien_elearning: form.lien_elearning || null,
       organisme_id: organisme.id,
-      organisme_ids: [...new Set([(organisme as any).id, ...(form.organisme_ids || [])])],
-      organismes_libres: form.organismes_libres || [],
+      organisme_ids: [organisme.id],
+      organismes_libres: [],
       formateur_id: selFormateurIds[0] || null as number | null, formateur_ids: selFormateurIds,
       note: 0,
       nb_avis: 0,
@@ -298,7 +310,30 @@ export default function DashboardOrganismePage() {
     if (formPhotoUrl) payload.photo_url = formPhotoUrl;
 
     if (editId) {
-      const { error } = await supabase.from("formations").update({ ...payload, status: "en_attente" }).eq("id", editId);
+      const currentFormation = formations.find((f: any) => f.id === editId);
+      const isPublished = currentFormation?.status === "publiee";
+      let modifChanges: { label: string; from: string; to: string }[] = [];
+      if (isPublished && originalForm) {
+        const labelMap: Record<string, string> = { titre: "Titre", sous_titre: "Sous-titre", description: "Description", duree: "Durée", prix: "Prix", url_inscription: "URL inscription", lien_elearning: "Lien e-learning", video_url: "Vidéo" };
+        for (const key of Object.keys(labelMap)) {
+          const from = String((originalForm as any)[key] ?? "");
+          const to = String((form as any)[key] ?? "");
+          if (from !== to) modifChanges.push({ label: labelMap[key], from, to });
+        }
+        const fromModalites = (originalForm.modalites || []).slice().sort().join(",");
+        const toModalites = (form.modalites || []).slice().sort().join(",");
+        if (fromModalites !== toModalites) modifChanges.push({ label: "Modalités", from: fromModalites, to: toModalites });
+        const fromDomaines = (originalForm.domaines || []).slice().sort().join(",");
+        const toDomaines = (form.domaines || []).slice().sort().join(",");
+        if (fromDomaines !== toDomaines) modifChanges.push({ label: "Domaines", from: fromDomaines, to: toDomaines });
+      }
+      const pendingUpdateValue = isPublished && modifChanges.length > 0
+        ? JSON.stringify({ type: "modification", changes: modifChanges, modified_at: new Date().toISOString() })
+        : undefined;
+      const updatePayload = isPublished
+        ? { ...payload, status: "publiee" as const, ...(pendingUpdateValue ? { pending_update: pendingUpdateValue } : {}) }
+        : { ...payload, status: "en_attente" as const };
+      const { error } = await supabase.from("formations").update(updatePayload).eq("id", editId);
       if (error) { setMsg("Erreur: " + error.message); setSaving(false); return }
     } else {
       const { data, error } = await supabase.from("formations").insert({ ...payload, status: "en_attente" }).select().single();
@@ -642,14 +677,7 @@ export default function DashboardOrganismePage() {
         <span style={{ fontSize: 13, color: C.textSec }}>Une question ? Écrivez-nous à <a href="mailto:contact@popform.fr" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}>contact@popform.fr</a></span>
       </div>
 
-      {/* ===== ANTI-DOUBLON ===== */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: C.blueBg, borderRadius: 10, border: "1px solid " + C.blue + "33", display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</span>
-        <span style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
-          <strong style={{ color: C.blue }}>PopForm n&apos;accepte pas les formations en doublon.</strong>{" "}
-          Si votre formation a plusieurs dates/sessions et/ou plusieurs organismes, il est possible de le signaler sur la même formation. Une formation peut également avoir des sessions <em>et</em> être en e-learning.
-        </span>
-      </div>
+
 
       {/* ===== STATS ===== */}
       {tab === "list" && (
@@ -1027,6 +1055,11 @@ export default function DashboardOrganismePage() {
                   );
                 })}
               </div>
+              {(form.modalites || []).includes("E-learning") && (
+                <div style={{ marginTop: 10, padding: "10px 14px", background: "#EFF6FF", borderRadius: 10, border: "1px solid #BFDBFE", fontSize: 12, color: "#1D4ED8", lineHeight: 1.5 }}>
+                  💡 Vous pouvez créer une formation e-learning avec des sessions (visio ou présentiel) ou séparer en deux formations distinctes.
+                </div>
+              )}
             </div>
 
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
@@ -1039,9 +1072,13 @@ export default function DashboardOrganismePage() {
             {/* Prix */}
             <div>
               <label style={labelStyle}>Prix (€)</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450" style={{ ...inputStyle, flex: 1 }} />
-                <button type="button" onClick={() => setForm({ ...form, prix_from: !form.prix_from })} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.bgAlt, color: form.prix_from ? C.accent : C.textSec, fontSize: 12, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap" }}>{form.prix_from ? "✓ " : ""}à partir de</button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix === 0 ? "#16A34A55" : C.border), background: form.prix === 0 ? "#F0FDF4" : C.bgAlt, color: form.prix === 0 ? "#16A34A" : C.textSec, fontSize: 12, fontWeight: form.prix === 0 ? 700 : 400, cursor: "pointer" }}>
+                  <input type="checkbox" checked={form.prix === 0} onChange={e => setForm({ ...form, prix: e.target.checked ? 0 : null })} style={{ margin: 0 }} />
+                  Gratuit
+                </label>
+                {form.prix !== 0 && <input type="number" min="0" value={form.prix ?? ""} onChange={e => setForm({ ...form, prix: e.target.value === "" ? null : Number(e.target.value) })} placeholder="Ex: 450" style={{ ...inputStyle, flex: 1 }} />}
+                {form.prix !== 0 && <button type="button" onClick={() => setForm({ ...form, prix_from: !form.prix_from })} style={{ padding: "8px 12px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.bgAlt, color: form.prix_from ? C.accent : C.textSec, fontSize: 12, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap" }}>{form.prix_from ? "✓ " : ""}à partir de</button>}
               </div>
             </div>
 
@@ -1155,37 +1192,6 @@ export default function DashboardOrganismePage() {
               </div>
             )}
 
-            <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
-            {/* Co-organismes */}
-            <div style={{ gridColumn: "1 / -1" }}>
-  <label style={labelStyle}>Co-organismes (optionnel)</label>
-  <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>Ajoutez d&apos;autres organismes co-organisateurs.</p>
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-    {allOrganismes.filter(o => o.id !== organisme?.id).map(o => {
-      const selected = (form.organisme_ids || []).includes(o.id);
-      return (
-        <button key={o.id} type="button" onClick={() => {
-          const ids = (form.organisme_ids || []).filter((id: number) => id !== organisme!.id);
-          setForm({ ...form, organisme_ids: selected ? ids.filter((id: number) => id !== o.id) : [...ids, o.id] });
-        }} style={{ padding: "5px 12px", borderRadius: 20, border: "1.5px solid " + (selected ? C.accent : C.border), background: selected ? C.accentBg : C.surface, color: selected ? C.accent : C.textSec, fontSize: 12, fontWeight: selected ? 700 : 400, cursor: "pointer" }}>
-          {selected ? "✓ " : ""}{o.nom}
-        </button>
-      );
-    })}
-  </div>
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-    {(form.organismes_libres || []).map((ol: string, i: number) => (
-      <span key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 20, background: C.yellowBg, border: "1.5px solid " + C.yellowDark + "33", fontSize: 12, color: C.yellowDark, fontWeight: 600 }}>
-        🏢 {ol}
-        <button type="button" onClick={() => setForm({ ...form, organismes_libres: (form.organismes_libres || []).filter((_: string, j: number) => j !== i) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textSec, fontSize: 14, padding: "0 2px", lineHeight: 1 }}>×</button>
-      </span>
-    ))}
-  </div>
-  <div style={{ display: "flex", gap: 6 }}>
-    <input value={orgLibreInput} onChange={e => setOrgLibreInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } } }} placeholder="Ajouter un organisme non répertorié..." style={{ ...inputStyle, flex: 1 }} />
-    <button type="button" onClick={() => { if (orgLibreInput.trim()) { setForm({ ...form, organismes_libres: [...(form.organismes_libres || []), orgLibreInput.trim()] }); setOrgLibreInput(""); } }} style={{ padding: "0 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>+ Ajouter</button>
-  </div>
-</div>
           </div>
 
           {/* ===== SESSIONS ===== */}
