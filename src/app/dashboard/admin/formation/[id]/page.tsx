@@ -184,7 +184,19 @@ export default function AdminFormationEditorPage() {
               status: f.status || "publiee",
               photo_url: (f as any).photo_url || "",
             });
-            setSessions((f.sessions || []).map((s: any) => {
+            // Deduplicate sessions from DB before loading into state
+            const rawSessions: any[] = f.sessions || [];
+            const seenKeys = new Set<string>();
+            const dedupedSessions = rawSessions.filter((s: any) => {
+              const sp: any[] = s.session_parties || [];
+              const key = sp.length > 0
+                ? sp.map((p: any) => `${p.date_debut || ""}|${p.ville || p.lieu || ""}|${p.modalite || ""}`).join(";")
+                : `${s.dates || ""}|${s.lieu || ""}`;
+              if (seenKeys.has(key)) return false;
+              seenKeys.add(key);
+              return true;
+            });
+            setSessions(dedupedSessions.map((s: any) => {
               const sp = s.session_parties || [];
               const partiesWithDates = sp.filter((p: any) => p.date_debut);
               const date_ranges = partiesWithDates.length > 0
@@ -397,7 +409,8 @@ export default function AdminFormationEditorPage() {
 
     // Sessions
     if (formationId) {
-      await supabase.from("sessions").delete().eq("formation_id", formationId);
+      const { error: delErr } = await supabase.from("sessions").delete().eq("formation_id", formationId);
+      if (delErr) { setMsg("Erreur suppression sessions : " + delErr.message); setSaving(false); return; }
       const validSessions = sessions.filter(s =>
         s.date_ranges.some(r => r.debut) || s.dates.trim() || s.ville.trim() || s.lien_visio.trim() || s.parties.length > 0
       );
