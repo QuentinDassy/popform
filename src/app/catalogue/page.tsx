@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, invalidateCache, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -75,6 +75,7 @@ function CatalogueContent() {
   const shuffle = <T,>(arr: T[]): T[] => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   useEffect(() => {
+    invalidateCache();
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(shuffle(d)); setLoading(false); });
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
