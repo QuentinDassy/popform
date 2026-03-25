@@ -159,10 +159,10 @@ function FormateursContent() {
         {filtered.map(f => {
           const count = fmtCounts[f.id] || 0;
           return (
-            <div key={f.id} onClick={() => setSelectedId(f.id)}
-              style={{ padding: 14, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.borderLight, cursor: "pointer", transition: "all 0.15s", display: "flex", gap: 14, alignItems: "center" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = C.accent + "55"; (e.currentTarget as HTMLDivElement).style.background = C.accentBg; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = C.borderLight; (e.currentTarget as HTMLDivElement).style.background = C.surface; }}>
+            <Link key={f.id} href={`/formateur/${f.id}`}
+              style={{ padding: 14, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.borderLight, cursor: "pointer", transition: "all 0.15s", display: "flex", gap: 14, alignItems: "center", textDecoration: "none" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = C.accent + "55"; (e.currentTarget as HTMLAnchorElement).style.background = C.accentBg; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = C.borderLight; (e.currentTarget as HTMLAnchorElement).style.background = C.surface; }}>
               {/* Avatar */}
               <div style={{ width: 56, height: 56, borderRadius: 28, background: C.gradientSoft, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", fontWeight: 800 }}>
                 {f.photo_url ? <img src={f.photo_url} alt={f.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : f.nom.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
@@ -174,7 +174,7 @@ function FormateursContent() {
                 {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.bio}</div>}
               </div>
               <span style={{ fontSize: 12, color: C.textTer, flexShrink: 0 }}>›</span>
-            </div>
+            </Link>
           );
         })}
       </div>
