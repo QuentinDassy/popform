@@ -280,7 +280,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formationsCount ?? (formations.length > 0 ? formations.length : "…")}</strong> formations.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formationsCount ?? "…"}</strong> formations.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
