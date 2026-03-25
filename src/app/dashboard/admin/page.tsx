@@ -1085,12 +1085,11 @@ export default function DashboardAdminPage() {
                       {f.status === "publiee" && (
                         <Link href={`/formation/${f.id}`} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>👁️ Voir sur le site</Link>
                       )}
-                      {!isDeleted(f) && <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>📦 Archiver</button>}
                       {!isDeleted(f) ? (
                         <button onClick={() => { if (confirm(`Supprimer "${f.titre}" ?`)) handleStatus(f.id, "supprimee"); }} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️ Supprimer</button>
                       ) : (
                         <>
-                          <button onClick={() => handleStatus(f.id, "archivee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
+                          <button onClick={() => handleStatus(f.id, "publiee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.greenBg, color: C.green, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>♻️ Restaurer</button>
                           <button onClick={() => handleHardDelete(f.id, f.titre)} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.pinkBg, color: C.pink, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑️ Supprimer définitivement</button>
                         </>
                       )}

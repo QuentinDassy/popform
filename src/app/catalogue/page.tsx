@@ -58,6 +58,7 @@ function CatalogueContent() {
   const mob = useIsMobile();
   const { user } = useAuth();
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [formationsTotal, setFormationsTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   const [domainesFiltres, setDomainesFiltres] = useState<DomaineAdmin[]>([]);
@@ -77,6 +78,7 @@ function CatalogueContent() {
   useEffect(() => {
     invalidateCache();
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(shuffle(d)); setLoading(false); });
+    supabase.from("formations").select("*", { count: "exact", head: true }).then((res: { count: number | null }) => { if (res.count != null) setFormationsTotal(res.count); }).catch(() => {});
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
@@ -409,7 +411,7 @@ function CatalogueContent() {
       )}
 
       {/* Results count */}
-      <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{filtered.length} formation{filtered.length > 1 ? "s" : ""}{hasActiveFilters ? " (filtrées)" : ""}</p>
+      <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{hasActiveFilters ? `${filtered.length} formation${filtered.length > 1 ? "s" : ""} (filtrées)` : `${formationsTotal ?? filtered.length} formation${(formationsTotal ?? filtered.length) > 1 ? "s" : ""}`}</p>
 
       {/* Grid */}
       {filtered.length === 0 ? (

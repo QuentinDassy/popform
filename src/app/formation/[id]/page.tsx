@@ -461,7 +461,7 @@ export default function FormationPage() {
                     Voir les sessions →
                   </a>
                 )}
-                {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning")) && f.url_inscription && (
+                {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning") || (f.modalite || "").split(",").some((m: string) => m.trim() === "E-learning")) && f.url_inscription && (
                   <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
                     Accéder à la formation →
                   </a>
@@ -503,7 +503,7 @@ export default function FormationPage() {
               </section>
             )}
             {(() => {
-              const isElearning = f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning");
+              const isElearning = f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning") || (f.modalite || "").split(",").some((m: string) => m.trim() === "E-learning");
               const hasSessions = sessions.length > 0;
               return (
               <section id="sessions" style={{ marginBottom: 40 }}>
