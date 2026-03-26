@@ -52,6 +52,7 @@ export default function DashboardFormateurPage() {
   const [profilSaved, setProfilSaved] = useState(false);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   const [originalForm, setOriginalForm] = useState<ReturnType<typeof emptyFormation> | null>(null);
+  const [originalSessions, setOriginalSessions] = useState<SessionRow[] | null>(null);
 
   const [fmtPrenom, setFmtPrenom] = useState("");
   const [fmtNom, setFmtNom] = useState("");
@@ -159,13 +160,16 @@ organisme_libre: ((f as any).organismes_libres || [])[0] || "",
 photo_url: (f as any).photo_url || "" };
       setForm(loadedForm);
       setOriginalForm(loadedForm);
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })), organisme_id: (s as any).organisme_id || null, organisme_libre: (s as any).organisme_libre || "", url_inscription: (s as any).url_inscription || "" }; }));
+      const loadedSessions = (f.sessions || []).map(s => { const sp = (s as any).session_parties || []; return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: s.code_postal || "", modalite_session: s.modalite_session || "Présentiel", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: sp.length || 1, parties: sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", code_postal: "", lien_visio: p.lien_visio || "" })), organisme_id: (s as any).organisme_id || null, organisme_libre: (s as any).organisme_libre || "", url_inscription: (s as any).url_inscription || "" }; });
+      setSessions(loadedSessions);
+      setOriginalSessions(loadedSessions);
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
     } else {
       setEditId(null);
       setForm(emptyFormation());
       setOriginalForm(null);
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
+      setOriginalSessions(null);
       setFormPhotoFile(null);
       setExtraPrix([]);
     }
@@ -273,14 +277,15 @@ photo_url: (f as any).photo_url || "" };
       const isPublished = currentFormation?.status === "publiee";
       let modifChanges: { label: string; from: string; to: string }[] = [];
       if (isPublished && originalForm) {
-        if (originalForm.titre !== form.titre) modifChanges.push({ label: "Titre", from: originalForm.titre, to: form.titre });
-        if (originalForm.sous_titre !== form.sous_titre) modifChanges.push({ label: "Sous-titre", from: originalForm.sous_titre || "—", to: form.sous_titre || "—" });
-        if (originalForm.description !== form.description) modifChanges.push({ label: "Description", from: originalForm.description.slice(0, 60) + "…", to: form.description.slice(0, 60) + "…" });
-        if (originalForm.duree !== form.duree) modifChanges.push({ label: "Durée", from: originalForm.duree || "—", to: form.duree || "—" });
-        if (originalForm.prix !== form.prix) modifChanges.push({ label: "Prix", from: String(originalForm.prix ?? "—"), to: String(form.prix ?? "—") });
+        const MCHK: Record<string, string> = { titre: "Titre", sous_titre: "Sous-titre", description: "Description", duree: "Durée", prix: "Prix", prix_salarie: "Prix salarié", prix_liberal: "Prix libéral", prix_dpc: "Prix DPC", url_inscription: "URL inscription", video_url: "Vidéo", lien_elearning: "E-learning", mots_cles: "Mots-clés", effectif: "Effectif" };
+        (Object.keys(MCHK) as (keyof typeof MCHK)[]).forEach(k => { const f0 = String((originalForm as any)[k] ?? ""); const f1 = String((form as any)[k] ?? ""); if (f0 !== f1) modifChanges.push({ label: MCHK[k], from: f0.slice(0, 60) || "—", to: f1.slice(0, 60) || "—" }); });
         if (JSON.stringify(originalForm.domaines) !== JSON.stringify(form.domaines)) modifChanges.push({ label: "Domaine(s)", from: (originalForm.domaines || []).join(", ") || "—", to: (form.domaines || []).join(", ") || "—" });
         if (JSON.stringify(originalForm.modalites) !== JSON.stringify(form.modalites)) modifChanges.push({ label: "Modalité(s)", from: (originalForm.modalites || []).join(", ") || "—", to: (form.modalites || []).join(", ") || "—" });
-        if (originalForm.organisme_id !== form.organisme_id) modifChanges.push({ label: "Organisme", from: organismes.find(o => o.id === originalForm.organisme_id)?.nom || originalForm.organisme_libre || "Aucun", to: organismes.find(o => o.id === form.organisme_id)?.nom || form.organisme_libre || "Aucun" });
+        if (JSON.stringify(originalForm.populations) !== JSON.stringify(form.populations)) modifChanges.push({ label: "Populations", from: (originalForm.populations || []).join(", ") || "—", to: (form.populations || []).join(", ") || "—" });
+        if (JSON.stringify(originalForm.prise_en_charge) !== JSON.stringify(form.prise_en_charge)) modifChanges.push({ label: "Prise en charge", from: (originalForm.prise_en_charge || []).join(", ") || "—", to: (form.prise_en_charge || []).join(", ") || "—" });
+        if (originalForm.organisme_id !== form.organisme_id || (originalForm.organisme_libre || "").trim() !== (form.organisme_libre || "").trim()) { const fo = organismes.find(o => o.id === originalForm.organisme_id)?.nom || (originalForm.organisme_libre || "").trim() || "Aucun"; const to = organismes.find(o => o.id === form.organisme_id)?.nom || (form.organisme_libre || "").trim() || "Aucun"; if (fo !== to) modifChanges.push({ label: "Organisme", from: fo, to }); }
+        if (originalForm.photo_url !== form.photo_url) modifChanges.push({ label: "Photo", from: originalForm.photo_url ? "oui" : "—", to: form.photo_url ? "oui" : "—" });
+        if (originalSessions !== null) { const ok = originalSessions.map(s => JSON.stringify({ d: s.dates, l: s.lieu, p: s.parties })).join("|"); const ck = sessions.map(s => JSON.stringify({ d: s.dates, l: s.lieu, p: s.parties })).join("|"); if (ok !== ck) modifChanges.push({ label: "Sessions", from: `${originalSessions.length} session(s)`, to: `${sessions.length} session(s) (modifiées)` }); }
       }
       const pendingUpdateValue = isPublished && modifChanges.length > 0
         ? JSON.stringify({ type: "modification", changes: modifChanges, modified_at: new Date().toISOString() })

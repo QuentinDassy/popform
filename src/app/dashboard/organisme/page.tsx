@@ -43,6 +43,7 @@ export default function DashboardOrganismePage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [originalForm, setOriginalForm] = useState<ReturnType<typeof emptyFormation> | null>(null);
+  const [originalSessions, setOriginalSessions] = useState<SessionRow[] | null>(null);
   const defaultParty = (): PartieRow => ({ titre: "", jours: [], modalite: "Présentiel", lieu: "", adresse: "", ville: "", pays: "France", code_postal: "", lien_visio: "", date_debut: "", date_fin: "" });
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
   const [saving, setSaving] = useState(false);
@@ -186,7 +187,9 @@ export default function DashboardOrganismePage() {
         organisme_ids: (f as any).organisme_ids || [],
         organismes_libres: (f as any).organismes_libres || [],
       });
-      setSessions((f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", pays: "France", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; }));
+      const loadedSessions = (f.sessions || []).map(s => { const sp = (s as any).session_parties || []; const parties = sp.map((p: any) => ({ titre: p.titre || "", jours: p.jours ? p.jours.split(",").filter(Boolean) : (p.date_debut ? [p.date_debut] : []), date_debut: p.date_debut || "", date_fin: p.date_fin || "", modalite: p.modalite || "Présentiel", lieu: p.lieu || "", adresse: p.adresse || "", ville: p.ville || "", pays: "France", code_postal: p.code_postal || "", lien_visio: p.lien_visio || "" })); return { id: s.id, dates: s.dates, lieu: s.lieu, adresse: s.adresse || "", ville: s.lieu || "", code_postal: "", modalite_session: s.modalite_session || "", lien_visio: s.lien_visio || "", is_visio: s.lieu === "Visio" || !!s.lien_visio, nb_parties: parties.length, parties }; });
+      setSessions(loadedSessions);
+      setOriginalSessions(loadedSessions);
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
       const existingIds: number[] = (f as any).formateur_ids?.length ? (f as any).formateur_ids : ((f as any).formateur_id ? [(f as any).formateur_id] : []);
       setSelFormateurIds(existingIds);
@@ -194,6 +197,7 @@ export default function DashboardOrganismePage() {
       setEditId(null);
       setForm(emptyFormation());
       setSessions([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
+      setOriginalSessions(null);
       setFormPhotoFile(null);
       setExtraPrix([]);
       setSelFormateurIds([]);
@@ -314,18 +318,14 @@ export default function DashboardOrganismePage() {
       const isPublished = currentFormation?.status === "publiee";
       let modifChanges: { label: string; from: string; to: string }[] = [];
       if (isPublished && originalForm) {
-        const labelMap: Record<string, string> = { titre: "Titre", sous_titre: "Sous-titre", description: "Description", duree: "Durée", prix: "Prix", url_inscription: "URL inscription", lien_elearning: "Lien e-learning", video_url: "Vidéo" };
-        for (const key of Object.keys(labelMap)) {
-          const from = String((originalForm as any)[key] ?? "");
-          const to = String((form as any)[key] ?? "");
-          if (from !== to) modifChanges.push({ label: labelMap[key], from, to });
-        }
-        const fromModalites = (originalForm.modalites || []).slice().sort().join(",");
-        const toModalites = (form.modalites || []).slice().sort().join(",");
-        if (fromModalites !== toModalites) modifChanges.push({ label: "Modalités", from: fromModalites, to: toModalites });
-        const fromDomaines = (originalForm.domaines || []).slice().sort().join(",");
-        const toDomaines = (form.domaines || []).slice().sort().join(",");
-        if (fromDomaines !== toDomaines) modifChanges.push({ label: "Domaines", from: fromDomaines, to: toDomaines });
+        const MCHK: Record<string, string> = { titre: "Titre", sous_titre: "Sous-titre", description: "Description", duree: "Durée", prix: "Prix", prix_salarie: "Prix salarié", prix_liberal: "Prix libéral", prix_dpc: "Prix DPC", url_inscription: "URL inscription", lien_elearning: "Lien e-learning", video_url: "Vidéo", mots_cles: "Mots-clés", effectif: "Effectif" };
+        (Object.keys(MCHK) as (keyof typeof MCHK)[]).forEach(k => { const f0 = String((originalForm as any)[k] ?? ""); const f1 = String((form as any)[k] ?? ""); if (f0 !== f1) modifChanges.push({ label: MCHK[k], from: f0.slice(0, 60) || "—", to: f1.slice(0, 60) || "—" }); });
+        if (JSON.stringify(originalForm.modalites.slice().sort()) !== JSON.stringify(form.modalites.slice().sort())) modifChanges.push({ label: "Modalités", from: (originalForm.modalites || []).join(", ") || "—", to: (form.modalites || []).join(", ") || "—" });
+        if (JSON.stringify(originalForm.domaines.slice().sort()) !== JSON.stringify(form.domaines.slice().sort())) modifChanges.push({ label: "Domaines", from: (originalForm.domaines || []).join(", ") || "—", to: (form.domaines || []).join(", ") || "—" });
+        if (JSON.stringify(originalForm.populations) !== JSON.stringify(form.populations)) modifChanges.push({ label: "Populations", from: (originalForm.populations || []).join(", ") || "—", to: (form.populations || []).join(", ") || "—" });
+        if (JSON.stringify(originalForm.prise_en_charge) !== JSON.stringify(form.prise_en_charge)) modifChanges.push({ label: "Prise en charge", from: (originalForm.prise_en_charge || []).join(", ") || "—", to: (form.prise_en_charge || []).join(", ") || "—" });
+        if (originalForm.photo_url !== form.photo_url) modifChanges.push({ label: "Photo", from: originalForm.photo_url ? "oui" : "—", to: form.photo_url ? "oui" : "—" });
+        if (originalSessions !== null) { const ok = originalSessions.map(s => JSON.stringify({ d: s.dates, l: s.lieu, p: s.parties })).join("|"); const ck = sessions.map(s => JSON.stringify({ d: s.dates, l: s.lieu, p: s.parties })).join("|"); if (ok !== ck) modifChanges.push({ label: "Sessions", from: `${originalSessions.length} session(s)`, to: `${sessions.length} session(s) (modifiées)` }); }
       }
       const pendingUpdateValue = isPublished && modifChanges.length > 0
         ? JSON.stringify({ type: "modification", changes: modifChanges, modified_at: new Date().toISOString() })
@@ -750,7 +750,6 @@ export default function DashboardOrganismePage() {
                       <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: isSupprimee ? C.textSec : C.text }}>{f.titre}</span>
                         {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
-                        {typeof (f as any).pending_update === "string" && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
                         {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
                         {f.status === "publiee" && !isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
                         {isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>📅 Dates passées</span>}
