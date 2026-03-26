@@ -440,14 +440,23 @@ export default function FormationPage() {
                         return s.lieu ? [s.lieu] : [];
                       }))];
                       if (ul.length === 0) return null;
-                      const isAllVisio = ul.every((l: string) => /visio/i.test(l));
-                      const lieu = ul.length > 3 ? "Plusieurs lieux" : ul.join(" + ");
-                      return (
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
-                          <span style={{ fontSize: 14, color: C.textSec }}>{lieu}</span>
-                        </div>
-                      );
+                      const hasVisio = ul.some((l: string) => /visio/i.test(l));
+                      const villes = ul.filter((l: string) => !/visio/i.test(l));
+                      const villeDisplay = villes.length > 3 ? "Plusieurs lieux" : villes.join(", ");
+                      return (<>
+                        {hasVisio && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 18 }}>💻</span>
+                            <span style={{ fontSize: 14, color: C.textSec }}>Visio</span>
+                          </div>
+                        )}
+                        {villes.length > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 18 }}>📍</span>
+                            <span style={{ fontSize: 14, color: C.textSec }}>{villeDisplay}</span>
+                          </div>
+                        )}
+                      </>);
                     })()}
                   </>);
                 })()}
