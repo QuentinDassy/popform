@@ -105,10 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "new_user", email, role, full_name: fullName }) }).catch(() => {});
     }
     if (!error && newsletterOpt) {
-      setTimeout(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) await supabase.from("profiles").update({ newsletter_opt: true }).eq("id", user.id);
-      }, 2000);
+      fetch("/api/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "newsletter_confirm", email }) }).catch(() => {});
     }
     return { error: error?.message || null };
   };

@@ -22,7 +22,7 @@ export type Formation = {
   lien_elearning?: string | null;
   organisme_ids?: number[] | null;
   organismes_libres?: string[] | null;
-  pending_update?: boolean;
+  pending_update?: string | null;
   affiche_order: number | null;
   sessions?: Session[];
   formateur?: Formateur;

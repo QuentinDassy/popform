@@ -152,7 +152,7 @@ export default function DashboardAdminPage() {
     try {
       const pending = JSON.parse((f as any).pending_update);
       const { sessions: pendingSessions, status: _status, ...pendingData } = pending;
-      await supabase.from("formations").update({ ...pendingData, pending_update: false }).eq("id", id);
+      await supabase.from("formations").update({ ...pendingData, pending_update: null }).eq("id", id);
       if (pendingSessions) {
         await supabase.from("inscriptions").update({ session_id: null }).eq("formation_id", id);
         await supabase.from("sessions").delete().eq("formation_id", id);
@@ -168,15 +168,15 @@ export default function DashboardAdminPage() {
           })));
         }
       }
-      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, status: f.status, pending_update: false } : f));
+      setFormations(prev => prev.map(f => f.id === id ? { ...f, ...pendingData, status: f.status, pending_update: null } : f));
       const { invalidateCache } = await import("@/lib/data");
       invalidateCache();
     } catch(e) { console.error("Approve update error:", e); }
   };
 
   const handleRefusePendingUpdate = async (id: number) => {
-    await supabase.from("formations").update({ pending_update: false }).eq("id", id);
-    setFormations(prev => prev.map(f => f.id === id ? { ...f, pending_update: false } : f));
+    await supabase.from("formations").update({ pending_update: null }).eq("id", id);
+    setFormations(prev => prev.map(f => f.id === id ? { ...f, pending_update: null } : f));
   };
 
   const handleAfficheOrder = async (id: number, order: number | null) => {
@@ -1087,7 +1087,7 @@ export default function DashboardAdminPage() {
                         <button onClick={() => handleStatus(f.id, "publiee")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
                       )}
                       {(f as any).pending_update && (
-                        <button onClick={async () => { await supabase.from("formations").update({ pending_update: false }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, pending_update: false } as any : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Valider modif.</button>
+                        <button onClick={async () => { await supabase.from("formations").update({ pending_update: null }).eq("id", f.id); setFormations(prev => prev.map(x => x.id === f.id ? { ...x, pending_update: null } as any : x)); }} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: C.blueBg, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Valider modif.</button>
                       )}
                       {!isDeleted(f) && f.status !== "en_attente" && (
                         <button onClick={() => handleStatus(f.id, "en_attente")} style={{ padding: "9px 18px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.yellowDark, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>⏳ Remettre en attente</button>

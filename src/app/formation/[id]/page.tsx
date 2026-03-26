@@ -441,7 +441,7 @@ export default function FormationPage() {
                       }))];
                       if (ul.length === 0) return null;
                       const isAllVisio = ul.every((l: string) => /visio/i.test(l));
-                      const lieu = ul.length > 1 ? "Plusieurs lieux" : ul[0];
+                      const lieu = ul.length > 3 ? "Plusieurs lieux" : ul.join(" + ");
                       return (
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 18 }}>{isAllVisio ? "💻" : "📍"}</span>
