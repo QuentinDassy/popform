@@ -750,7 +750,7 @@ export default function DashboardOrganismePage() {
                       <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontSize: mob ? 14 : 16, fontWeight: 700, color: isSupprimee ? C.textSec : C.text }}>{f.titre}</span>
                         {f.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
-                        {(f as any).pending_update && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
+                        {typeof (f as any).pending_update === "string" && f.status === "publiee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.blueBg, color: C.blue }}>🔄 Modif. en attente</span>}
                         {f.status === "refusee" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.pinkBg, color: C.pink }}>✕ Refusée</span>}
                         {f.status === "publiee" && !isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publiée</span>}
                         {isExpired && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>📅 Dates passées</span>}

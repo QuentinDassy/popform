@@ -463,14 +463,20 @@ export default function FormationPage() {
               </div>
 
               {/* Price */}
-              {f.prix > 0 && (() => {
+              {(() => {
                 const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
                 return (
                   <div style={{ marginBottom: 24 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Prix</div>
-                    <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.accent }}>
-                      {isPrixFrom ? `à partir de ${f.prix}€` : `${f.prix}€`}
-                    </span>
+                    {f.prix > 0 ? (
+                      <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.accentBg, border: "1.5px solid " + C.accent + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.accent }}>
+                        {isPrixFrom ? `à partir de ${f.prix}€` : `${f.prix}€`}
+                      </span>
+                    ) : (
+                      <span style={{ display: "inline-block", padding: "8px 18px", borderRadius: 10, background: C.greenBg, border: "1.5px solid " + C.green + "44", fontSize: mob ? 18 : 22, fontWeight: 800, color: C.green }}>
+                        Gratuit
+                      </span>
+                    )}
                   </div>
                 );
               })()}

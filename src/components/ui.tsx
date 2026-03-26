@@ -131,10 +131,12 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
               <StarRow rating={f.nb_avis > 0 ? Math.round(f.note) : 0} />
               {f.nb_avis > 0 && <span style={{ fontSize: 10, color: C.textSec }}>{f.note} <span style={{ color: C.textTer }}>({f.nb_avis})</span></span>}
             </div>
-            {f.prix > 0 && (
+            {f.prix > 0 ? (
               <div style={{ fontSize: m ? 12 : 14, fontWeight: 800, color: C.text }}>
                 {isPrixFrom && <span style={{ fontSize: 10, fontWeight: 600, color: C.accent }}>dès </span>}{f.prix}€
               </div>
+            ) : (
+              <div style={{ fontSize: m ? 11 : 13, fontWeight: 700, color: C.green }}>Gratuit</div>
             )}
           </div>
         </div>
