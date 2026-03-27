@@ -74,6 +74,7 @@ export default function DashboardOrganismePage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [orgSiteUrl, setOrgSiteUrl] = useState<string>("");
   const [orgNom, setOrgNom] = useState<string>("");
+  const [orgDescription, setOrgDescription] = useState<string>("");
   // Webinaires
   type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
@@ -112,6 +113,7 @@ export default function DashboardOrganismePage() {
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");
       setOrgNom(myOrg?.nom || "");
+      setOrgDescription((myOrg as any)?.description || "");
       const { data: orgs } = await supabase.from("organismes").select("id,nom").order("nom");
       setAllOrganismes((orgs as any) || []);
       if (myOrg) {
@@ -655,6 +657,22 @@ export default function DashboardOrganismePage() {
                   }}
                   placeholder="Site web (ex: https://monorganisme.fr)"
                   style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid " + C.borderLight, background: "transparent", color: C.textSec, width: 260, outline: "none" }}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginTop: 6 }}>
+                <span style={{ fontSize: 11, color: C.textTer, marginTop: 6 }}>📝</span>
+                <textarea
+                  value={orgDescription}
+                  onChange={e => setOrgDescription(e.target.value)}
+                  onBlur={async () => {
+                    if (!organisme) return;
+                    await supabase.from("organismes").update({ description: orgDescription || null }).eq("id", organisme.id);
+                    setOrganisme(prev => prev ? { ...prev, description: orgDescription } : prev);
+                    invalidateCache();
+                  }}
+                  placeholder="Description de votre organisme (visible sur votre profil public)"
+                  rows={3}
+                  style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid " + C.borderLight, background: "transparent", color: C.textSec, width: 260, outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
                 />
               </div>
             </div>

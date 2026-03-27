@@ -440,7 +440,7 @@ export default function DashboardAdminPage() {
     }
     return groups;
   })();
-  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : filter === "modifiees" ? formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }) : formations.filter(f => f.status === filter);
+  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : filter === "modifiees" ? formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }) : filter === "publiee" ? formations.filter(f => f.status === "publiee" && !(f as any).pending_update) : formations.filter(f => f.status === filter);
   const filteredSearched = formSearch.trim()
     ? filteredBase.filter(f => {
         const q = normS(formSearch);
@@ -998,7 +998,6 @@ export default function DashboardAdminPage() {
                           « {(f as any).suppression_message} »
                         </span>
                       )}
-                      {(f as any).pending_update && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: "#E8F0FE", color: "#2E7CE6" }}>🔄 Modif. en attente</span>}
                     </div>
                     {(f as any).pending_update && (() => {
                       let parsed: any = null;
@@ -1016,12 +1015,7 @@ export default function DashboardAdminPage() {
                           </div>
                         );
                       }
-                      return (
-                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                          <button onClick={(e) => { e.stopPropagation(); handleApprovePendingUpdate(f.id); }} style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: C.greenBg, color: C.green, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✅ Approuver modif.</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleRefusePendingUpdate(f.id); }} style={{ padding: "4px 10px", borderRadius: 7, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Refuser modif.</button>
-                        </div>
-                      );
+                      return null;
                     })()}
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: C.textTer }}>
                       <span>{f.domaine}</span><span>·</span><span>{f.modalite}</span><span>·</span><span>{f.prix}€</span>
