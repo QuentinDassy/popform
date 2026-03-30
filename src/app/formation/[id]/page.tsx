@@ -47,10 +47,11 @@ function AvisBar({ label, value, max = 5 }: { label: string; value: number; max?
 }
 
 /* ===== AVIS SECTION ===== */
-function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => Promise<void>; onEdit: (aId: number, note: number, texte: string) => Promise<void>; onDelete: (aId: number) => Promise<void>; mob: boolean; userId?: string }) {
+function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId, openForm: openFormProp }: { formationId: number; avis: Avis[]; onAdd: (note: number, texte: string, subs?: { contenu: number; organisation: number; supports: number; pertinence: number }) => Promise<void>; onEdit: (aId: number, note: number, texte: string) => Promise<void>; onDelete: (aId: number) => Promise<void>; mob: boolean; userId?: string; openForm?: boolean }) {
   const fAvis = avis.filter(a => a.formation_id === formationId);
   const myAvis = userId ? fAvis.find(a => a.user_id === userId) : undefined;
   const [showForm, setShowForm] = useState(false);
+  useEffect(() => { if (openFormProp && !myAvis) setShowForm(true); }, [openFormProp]);
   const [editMode, setEditMode] = useState(false);
   const [note, setNote] = useState(myAvis?.note || 5);
   const [texte, setTexte] = useState(myAvis?.texte || "");
@@ -134,6 +135,7 @@ function AvisSection({ formationId, avis, onAdd, onEdit, onDelete, mob, userId }
       {/* Avis form */}
       {showForm && (
         <div style={{ padding: mob ? 14 : 18, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight, marginBottom: 16 }}>
+          {!editMode && openFormProp && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: C.yellowBg, border: "1.5px solid " + C.yellow, fontSize: 13, color: C.yellowDark, fontWeight: 600 }}>✨ Merci d'avoir suivi cette formation ! Votre avis aide d'autres orthophonistes à choisir leurs formations.</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Note globale</span>
             <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => (<button key={i} type="button" onClick={() => setNote(i)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, opacity: note >= i ? 1 : 0.25 }}>⭐</button>))}</div>
@@ -200,6 +202,7 @@ export default function FormationPage() {
   const [inscribing, setInscribing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [toastScrollAvis, setToastScrollAvis] = useState(false);
+  const [triggerAvisForm, setTriggerAvisForm] = useState(false);
   const [photo, setPhoto] = useState<string>("");
   const { user, profile, setShowAuth } = useAuth();
 
@@ -240,8 +243,18 @@ export default function FormationPage() {
     if (!user) { setShowAuth(true); return; }
     const done = await toggleFormationFaite(user.id, Number(id));
     setIsFait(done);
-    if (done) { setToastScrollAvis(true); showToast("✅ Formation effectuée ! Cliquez ici pour laisser un avis 📝"); }
-    else { setToastScrollAvis(false); showToast("Formation retirée de vos formations faites."); }
+    if (done) {
+      const alreadyHasAvis = user && avis.some(a => a.user_id === user.id && a.formation_id === Number(id));
+      if (!alreadyHasAvis) {
+        setTriggerAvisForm(true);
+        setTimeout(() => { document.getElementById("avis")?.scrollIntoView({ behavior: "smooth" }); }, 200);
+        showToast("Votre avis aide toute la communauté 🙏 Partagez votre expérience !");
+      } else {
+        setToastScrollAvis(true);
+        showToast("✅ Formation effectuée !");
+      }
+    }
+    else { setToastScrollAvis(false); setTriggerAvisForm(false); showToast("Formation retirée de vos formations faites."); }
   };
 
   const handleInscription = async (sessionId?: number) => {
@@ -631,7 +644,7 @@ export default function FormationPage() {
             })()}
 
             {/* Avis */}
-            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} onDelete={handleDeleteAvis} mob={mob} userId={user?.id} />
+            <AvisSection formationId={f.id} avis={avis} onAdd={handleAddAvis} onEdit={handleEditAvis} onDelete={handleDeleteAvis} mob={mob} userId={user?.id} openForm={triggerAvisForm} />
           </div>
 
           {/* RIGHT COLUMN - Sidebar */}
