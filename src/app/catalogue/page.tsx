@@ -106,8 +106,9 @@ function CatalogueContent() {
     if ((f.organisme as any)?.hidden) return false;
     if (isFormationPast(f)) return false;
     if (search) {
-      const q = search.toLowerCase();
-      if (![f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)].some(s => s.toLowerCase().includes(q))) return false;
+      const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+      const fields = [f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)];
+      if (!words.every(w => fields.some(s => s.toLowerCase().includes(w)))) return false;
     }
     if (selVilles.length > 0) {
       const hasVisio = selVilles.includes("Visio");
@@ -182,13 +183,14 @@ function CatalogueContent() {
               const val = e.target.value;
               setSearch(val);
               if (val.length >= 2) {
-                const q = normS(val);
-                const allMf = formations.filter(f => normS(f.titre).includes(q) || normS(f.domaine).includes(q));
+                const words = val.split(/\s+/).filter(Boolean).map(normS);
+                const matchWords = (s: string) => words.every(w => normS(s).includes(w));
+                const allMf = formations.filter(f => matchWords(f.titre) || matchWords(f.domaine));
                 const mf = allMf.slice(0, 10);
                 setSearchDropFormationsTotal(allMf.length);
-                const mft = allFormateurs.filter(f => normS(f.nom).includes(q)).slice(0, 3);
-                const mv = adminVilles.filter(v => normS(v).includes(q)).slice(0, 3);
-                const md = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => normS(d).includes(q)).slice(0, 3);
+                const mft = allFormateurs.filter(f => matchWords(f.nom)).slice(0, 3);
+                const mv = adminVilles.filter(v => matchWords(v)).slice(0, 3);
+                const md = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => matchWords(d)).slice(0, 3);
                 setSearchDropFormations(mf);
                 setSearchDropFmts(mft);
                 setSearchDropVilles(mv);

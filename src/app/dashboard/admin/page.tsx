@@ -28,6 +28,7 @@ export default function DashboardAdminPage() {
   const [formSearch, setFormSearch] = useState("");
   const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
   const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
+  const [unconfirmedEmailIds, setUnconfirmedEmailIds] = useState<Set<string>>(new Set());
   const [validatingOrg, setValidatingOrg] = useState<string | null>(null);
   const [assocRequests, setAssocRequests] = useState<{ id: number; formation_id: number; formateur_id: number; user_id: string; status: string; created_at: string; formation?: { titre: string }; formateur?: { nom: string } }[]>([]);
   const [mergeRequests, setMergeRequests] = useState<{ id: number; orphan_id: number; target_id: number; user_id: string; created_at: string; orphan?: { nom: string }; target?: { nom: string } }[]>([]);
@@ -90,6 +91,11 @@ export default function DashboardAdminPage() {
         try {
           const res = await fetch("/api/admin/self-registered-orgs");
           if (res.ok) { const data = await res.json(); setSelfRegisteredOrgs(data.orgs || []); }
+        } catch { /* ignore */ }
+        // Load unconfirmed email status for linked organismes
+        try {
+          const res = await fetch("/api/admin/unconfirmed-org-emails");
+          if (res.ok) { const data = await res.json(); setUnconfirmedEmailIds(new Set(data.unconfirmed || [])); }
         } catch { /* ignore */ }
         // Load association requests
         try {
@@ -440,7 +446,7 @@ export default function DashboardAdminPage() {
     }
     return groups;
   })();
-  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : filter === "modifiees" ? formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }) : filter === "publiee" ? formations.filter(f => f.status === "publiee" && !(f as any).pending_update) : formations.filter(f => f.status === filter);
+  const filteredBase = filter === "all" ? formations.filter(f => !isDeleted(f)) : filter === "supprimee" ? formations.filter(isDeleted) : filter === "modifiees" ? formations.filter(f => { try { return f.status === "publiee" && !!(f as any).pending_update && JSON.parse((f as any).pending_update)?.type === "modification"; } catch { return false; } }) : filter === "publiee" ? formations.filter(f => f.status === "publiee") : formations.filter(f => f.status === filter);
   const filteredSearched = formSearch.trim()
     ? filteredBase.filter(f => {
         const q = normS(formSearch);
@@ -1188,7 +1194,7 @@ export default function DashboardAdminPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
-                    <div style={{ fontSize: 10, color: o.user_id ? C.green : C.textTer }}>{o.user_id ? "✓ Compte actif" : "Importé — sans accès"}</div>
+                    <div style={{ fontSize: 10, color: o.user_id ? (unconfirmedEmailIds.has(o.user_id) ? "#D97706" : C.green) : C.textTer }}>{o.user_id ? (unconfirmedEmailIds.has(o.user_id) ? "⚠️ Email non confirmé" : "✓ Compte actif") : "Importé — sans accès"}</div>
                   </div>
                 </div>
                 {!o.user_id && linkingOrg !== o.id && (
