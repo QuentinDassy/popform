@@ -72,13 +72,15 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
   const isPrixFrom = (f.prix_extras || []).some((e: any) => e.label === "__from__");
   const fmts = (f as any).formateurs as any[] | undefined;
   const formateurNom = fmts && fmts.length > 0 ? fmts.map((fm: any) => fm.nom).join(", ") : (f as any).formateur?.nom;
-  const sessionOrgs = (sessions as any[]).map(s => s.organisme?.nom || s.organisme_libre || null).filter(Boolean);
-  const uniqueSessionOrgs = [...new Set(sessionOrgs)];
   const formOrgs = ((f as any).formOrganismes as { nom: string }[] | undefined) || [];
-  const formLibres = ((f as any).organismes_libres as string[] | undefined) || [];
-  const formOrgNames = [...formOrgs.map(o => o.nom), ...formLibres];
-  const legacyOrg = formOrgNames.length === 0 ? ((f as any).organisme?.nom || null) : null;
-  const allOrgNames = [...new Set([...(formOrgNames.length > 0 ? formOrgNames : legacyOrg ? [legacyOrg] : []), ...uniqueSessionOrgs])];
+  const formLibres = ((f as any).organismes_libres as string[] | undefined)?.filter((s: string) => s?.trim()) || [];
+  const formOrgNames = [...formOrgs.map((o: any) => o.nom), ...formLibres];
+  const legacyOrg = (f as any).organisme?.nom || null;
+  const allOrgNames = formOrgNames.length > 0
+    ? [...new Set(formOrgNames)]
+    : legacyOrg
+      ? [legacyOrg]
+      : [...new Set((sessions as any[]).map(s => s.organisme?.nom || s.organisme_libre || null).filter(Boolean))];
   const orgNom = allOrgNames.length > 1 ? "Plusieurs organismes" : allOrgNames[0] || null;
   return (
     <Link href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", height: "100%", display: "block" }}>

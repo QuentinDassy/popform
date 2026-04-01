@@ -397,7 +397,7 @@ export default function FormationPage() {
                   ))}
                   {(() => {
   const formOrgs = ((f as any).formOrganismes as { id: number; nom: string; site_url?: string | null }[] | undefined) || [];
-  const formLibres = ((f as any).organismes_libres as string[] | undefined) || [];
+  const formLibres = ((f as any).organismes_libres as string[] | undefined)?.filter((s: string) => s?.trim()) || [];
   const displayOrgs: { nom: string; logo?: string; site_url?: string | null; isLibre?: boolean }[] =
     formOrgs.length > 0 || formLibres.length > 0
       ? [...formOrgs.map(o => ({ nom: o.nom, site_url: o.site_url })), ...formLibres.map(n => ({ nom: n, isLibre: true }))]
