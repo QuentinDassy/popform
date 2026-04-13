@@ -105,13 +105,23 @@ export function FormationCard({ f, compact, mob, favori, onToggleFav }: { f: For
 
         {/* ── Info ── */}
         <div style={{ padding: m ? "8px 10px 10px" : "10px 12px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
-          {/* Domain + modalite */}
+          {/* Domain + modalite + professions */}
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: m ? 5 : 6 }}>
             {domaines.map((d: string) => {
               const ddc = getDC(d);
               return <span key={d} style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: ddc.bg, color: ddc.color }}>{d}</span>;
             })}
             {modaliteList.map(m => <span key={m} style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 500, background: C.bgAlt, color: C.textSec }}>{m}</span>)}
+            {(() => {
+              const profs: string[] = (f as any).professions || [];
+              const hasKine = profs.includes("Kinésithérapeutes");
+              const hasOrtho = profs.some((p: string) => p === "Orthophonistes" || p === "Orthophonie");
+              const hasTous = profs.includes("Tous professionnels");
+              if (hasTous) return <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "#EDE9FE", color: "#7C3AED" }}>Tous pro.</span>;
+              if (hasKine && hasOrtho) return <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: "#EDE9FE", color: "#7C3AED" }}>🗣️✋ Multi</span>;
+              if (hasKine) return <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 10, fontWeight: 600, background: C.blueBg, color: C.blue }}>✋ Kiné</span>;
+              return null;
+            })()}
           </div>
           {/* Title */}
           <h3 style={{ fontSize: m ? 13 : compact ? 13 : 15, fontWeight: 700, color: C.text, lineHeight: 1.3, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{f.titre}</h3>

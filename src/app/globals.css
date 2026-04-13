@@ -76,6 +76,7 @@ h1, h2, h3, h4 {
 @media (max-width: 768px) {
   .desktop-only { display: none !important; }
   main { padding-bottom: 68px; }
+  footer { padding-bottom: calc(68px + env(safe-area-inset-bottom)) !important; }
 }
 @media (min-width: 769px) {
   .mobile-only { display: none !important; }

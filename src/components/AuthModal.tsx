@@ -76,7 +76,7 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
       if (error) setError(error); else onSuccess();
     } else {
       const { error } = await signUp(email, password, (firstName.trim() + " " + name.trim()).trim(), role, newsletterOptIn, role === "organisme" ? orgName.trim() : undefined);
-      if (error) setError(error); else setSuccess(true);
+      if (error) { setError(error); } else { setSuccess(true); }
     }
     setLoading(false);
   };
@@ -161,14 +161,13 @@ export default function AuthModal({ mode, onClose, onSwitch, onSuccess }: Props)
                     <label style={{ fontSize: 12, color: C.textTer, marginBottom: 6, display: "block" }}>Je suis :</label>
                     {!showProOptions ? (
                       <>
-                        <button type="button" onClick={() => setRole("user")} style={{ width: "100%", padding: 10, borderRadius: 10, border: `1.5px solid ${C.accent + "55"}`, background: C.accentBg, color: C.accent, fontSize: 13, cursor: "pointer", fontWeight: 700, textAlign: "left" }}>🎧 Orthophoniste</button>
-                        <p onClick={() => { setShowProOptions(true); setRole("organisme"); }} style={{ fontSize: 13, color: C.accent, marginTop: 8, marginBottom: 0, cursor: "pointer", padding: "8px 12px", borderRadius: 8, border: `1px dashed ${C.accent + "55"}`, background: C.accentBg, textAlign: "center", fontWeight: 600 }}>
+                        <p onClick={() => { setShowProOptions(true); setRole("organisme"); }} style={{ fontSize: 13, color: C.accent, marginBottom: 0, cursor: "pointer", padding: "8px 12px", borderRadius: 8, border: `1px dashed ${C.accent + "55"}`, background: C.accentBg, textAlign: "center", fontWeight: 600 }}>
                           Vous êtes un organisme et/ou formateur·rice ?{" "}<span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>Cliquez ici</span>
                         </p>
                       </>
                     ) : (
                       <div style={{ display: "flex", gap: 6 }}>
-                        {[{ v: "user", l: "🎧 Orthophoniste" }, { v: "organisme", l: "🏢 Organisme" }, { v: "formateur", l: "🎤 Formateur" }].map(r => (
+                        {[{ v: "user", l: "Pro de santé" }, { v: "organisme", l: "🏢 Organisme" }, { v: "formateur", l: "🎤 Formateur" }].map(r => (
                           <button key={r.v} type="button" onClick={() => setRole(r.v)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1.5px solid ${role === r.v ? C.accent + "55" : C.border}`, background: role === r.v ? C.accentBg : C.bgAlt, color: role === r.v ? C.accent : C.textSec, fontSize: 11, cursor: "pointer", fontWeight: role === r.v ? 700 : 400 }}>{r.l}</button>
                         ))}
                       </div>

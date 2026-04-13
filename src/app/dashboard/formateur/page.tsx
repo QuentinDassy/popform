@@ -36,7 +36,19 @@ export default function DashboardFormateurPage() {
   const [organismes, setOrganismes] = useState<Organisme[]>([]);
   const [domainesList, setDomainesList] = useState<{ nom: string; emoji: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"list" | "edit" | "profil">("list");
+  const [tab, setTab] = useState<"list" | "edit" | "profil" | "webinaires">("list");
+  const [listView, setListView] = useState<"formations" | "webinaires">("formations");
+  type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string; professions?: string[]; formateur_co_id?: number | null; organisme_id?: number | null };
+  const [webinaires, setWebinaires] = useState<WbRow[]>([]);
+  const [wForm, setWForm] = useState<Omit<WbRow, "id" | "status">>({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_co_id: null, organisme_id: null });
+  const [allFormateurs, setAllFormateurs] = useState<{ id: number; nom: string }[]>([]);
+  const [editWId, setEditWId] = useState<number | null>(null);
+  const [wSaving, setWSaving] = useState(false);
+  const [wMsg, setWMsg] = useState<string | null>(null);
+  const [orgSearchWForm, setOrgSearchWForm] = useState("");
+  const [showOrgDropWForm, setShowOrgDropWForm] = useState(false);
+  const [coFmtSearch, setCoFmtSearch] = useState("");
+  const [showCoFmtDrop, setShowCoFmtDrop] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [sessions, setSessions] = useState<SessionRow[]>([{ dates: "", lieu: "", adresse: "", ville: "", code_postal: "", modalite_session: "Présentiel", lien_visio: "", is_visio: false, nb_parties: 0, parties: [] }]);
@@ -63,6 +75,9 @@ export default function DashboardFormateurPage() {
   const [merging, setMerging] = useState(false);
   const [pendingMerges, setPendingMerges] = useState<{ id: number; orphan_id: number; orphan_nom: string }[]>([]);
 
+  const [motsClesInput, setMotsClesInput] = useState("");
+  const [guidedMode, setGuidedMode] = useState(true);
+  const [orgFormSearch, setOrgFormSearch] = useState("");
   // Doublon warning avant sauvegarde
   const [doublonWarning, setDoublonWarning] = useState<{ existing: { id: number; titre: string }[]; proceed: () => void } | null>(null);
   // Formations filter tabs
@@ -123,17 +138,19 @@ export default function DashboardFormateurPage() {
         setFmtPrenom(prenom); setFmtNom(nom); setFmtBio(fmt.bio || ""); setFmtSexe(fmt.sexe || "Non genré"); setFmtSiteUrl((fmt as any).site_url || "");
         const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`formateur_id.eq.${fmt.id},formateur_ids.cs.{${fmt.id}}`).order("date_ajout", { ascending: false });
         setFormations(f || []);
+        const { data: wbs } = await supabase.from("webinaires").select("*").eq("formateur_id", fmt.id).order("date_heure", { ascending: true });
+        setWebinaires(wbs || []);
         // Fetch unlinked formateurs with formations (candidates for manual merge)
         const { data: unlinkedFmts } = await supabase.from("formateurs").select("id, nom").is("user_id", null);
         if (unlinkedFmts && unlinkedFmts.length > 0) {
-          const orphansWithCounts: { id: number; nom: string; count: number }[] = [];
-          for (const u of unlinkedFmts) {
-            const { count: c1 } = await supabase.from("formations").select("id", { count: "exact", head: true }).eq("formateur_id", u.id);
-            const { count: c2 } = await supabase.from("formations").select("id", { count: "exact", head: true }).contains("formateur_ids", [u.id]);
-            const total = (c1 || 0) + (c2 || 0);
-            if (total > 0) orphansWithCounts.push({ id: u.id, nom: u.nom, count: total });
-          }
-          setOrphanFmts(orphansWithCounts);
+          const orphanResults = await Promise.all(unlinkedFmts.map(async (u: any) => {
+            const [{ count: c1 }, { count: c2 }] = await Promise.all([
+              supabase.from("formations").select("id", { count: "exact", head: true }).eq("formateur_id", u.id),
+              supabase.from("formations").select("id", { count: "exact", head: true }).contains("formateur_ids", [u.id]),
+            ]);
+            return { id: u.id, nom: u.nom, count: (c1 || 0) + (c2 || 0) };
+          }));
+          setOrphanFmts(orphanResults.filter((x: any) => x.count > 0));
         }
         // Demandes de fusion en attente (envoyées par cet utilisateur)
         try {
@@ -144,6 +161,10 @@ export default function DashboardFormateurPage() {
       // Load admin villes
       supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
         if (data) setAdminVilles(data.map((v: { nom: string }) => v.nom));
+      });
+      // Load all formateurs for co-formateur picker
+      supabase.from("formateurs").select("id, nom").order("nom").then(({ data }: { data: { id: number; nom: string }[] | null }) => {
+        if (data) setAllFormateurs(data);
       });
       } catch { /* timeout ou erreur réseau */ } finally { clearTimeout(safetyTimer); setLoading(false); }
     })();
@@ -164,6 +185,7 @@ photo_url: (f as any).photo_url || "" };
       setSessions(loadedSessions);
       setOriginalSessions(loadedSessions);
       setExtraPrix(((f as any).prix_extras || []).filter((e: any) => e.label !== "__from__"));
+      setOrgFormSearch(organismes.find(o => o.id === f.organisme_id)?.nom || ((f as any).organismes_libres?.[0] || ""));
     } else {
       setEditId(null);
       setForm(emptyFormation());
@@ -172,6 +194,7 @@ photo_url: (f as any).photo_url || "" };
       setOriginalSessions(null);
       setFormPhotoFile(null);
       setExtraPrix([]);
+      setOrgFormSearch("");
     }
     setNewPrixLabel(""); setNewPrixValue("");
     setMsg(null);
@@ -537,9 +560,16 @@ photo_url: (f as any).photo_url || "" };
           {tab === "list" && (
             <>
               <button onClick={() => setTab("profil")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Mon profil</button>
+              <button onClick={() => setTab("webinaires")} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>💻 Créer un webinaire</button>
               <button onClick={() => setAssocOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.blue, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🔗 Associer une formation</button>
-              <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✨ Créer avec le mode guidé</button>
-              <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => guidedMode ? setWizardOpen(true) : openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  {guidedMode ? "✨ " : "+ "}Créer une formation
+                </button>
+                <button onClick={() => setGuidedMode((g: boolean) => !g)} title={guidedMode ? "Passer en mode classique" : "Passer en mode guidé"} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + (guidedMode ? C.accent + "55" : C.border), background: guidedMode ? C.accentBg : C.surface, color: guidedMode ? C.accent : C.textTer, fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  {guidedMode ? "✨ guidé" : "⚙️ expert"}
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -598,6 +628,56 @@ photo_url: (f as any).photo_url || "" };
 
       {tab === "list" && (
         <>
+          {/* ===== LISTE / WEBINAIRES SUB-TABS ===== */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 20, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content" }}>
+            {([
+              { v: "formations", l: "📋 Mes formations" },
+              { v: "webinaires", l: `💻 Mes webinaires (${webinaires.length})` },
+            ] as const).map(t => (
+              <button key={t.v} onClick={() => setListView(t.v)} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: listView === t.v ? C.surface : "transparent", color: listView === t.v ? C.text : C.textTer, fontSize: 12, fontWeight: listView === t.v ? 700 : 500, cursor: "pointer", boxShadow: listView === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
+          {/* ===== WEBINAIRES LIST VIEW ===== */}
+          {listView === "webinaires" && (
+            <div style={{ paddingBottom: 40 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h2 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text }}>💻 Mes webinaires</h2>
+                <button onClick={() => setTab("webinaires")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Créer un webinaire</button>
+              </div>
+              {webinaires.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>💻</div>
+                  <p>Aucun webinaire pour l&apos;instant.</p>
+                  <button onClick={() => setTab("webinaires")} style={{ marginTop: 12, padding: "10px 20px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Créer votre premier webinaire</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {webinaires.map(w => (
+                    <div key={w.id} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 4 }}>{w.titre}</div>
+                        <div style={{ fontSize: 12, color: C.textTer }}>{w.date_heure ? new Date(w.date_heure).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"} · {w.prix === 0 ? "Gratuit" : w.prix + " €"}</div>
+                        <div style={{ marginTop: 6 }}>
+                          {w.status === "en_attente" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                          {w.status === "publie" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [] }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== FORMATIONS LIST VIEW ===== */}
+          {listView === "formations" && <>
           <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
               { label: "Formations", value: formations.length, icon: "🎬" },
@@ -686,6 +766,7 @@ photo_url: (f as any).photo_url || "" };
               })}
             </div>
           )}
+          </>}
         </>
       )}
 
@@ -847,7 +928,32 @@ photo_url: (f as any).photo_url || "" };
             </div>
 
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
-            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}><label style={labelStyle}>Mots-clés (virgules)</label><input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: aphasie, dyslexie, tdl" style={inputStyle} /></div>
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Mots-clés (max 4)</label>
+              {(() => {
+                const tags = form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean);
+                const canAdd = tags.length < 4;
+                return (
+                  <div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: tags.length ? 8 : 0 }}>
+                      {tags.map((tag: string, i: number) => (
+                        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 99, background: C.accentBg, border: "1px solid " + C.accent + "44", color: C.accent, fontSize: 12, fontWeight: 600 }}>
+                          {tag}
+                          <button type="button" onClick={() => { const next = tags.filter((_: string, j: number) => j !== i); setForm({ ...form, mots_cles: next.join(", ") }); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, padding: "0 2px", lineHeight: 1 }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    {canAdd && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input value={motsClesInput} onChange={e => setMotsClesInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const v = motsClesInput.trim().replace(/,$/, ""); if (v && !tags.includes(v) && tags.length < 4) { setForm({ ...form, mots_cles: [...tags, v].join(", ") }); setMotsClesInput(""); } } }} placeholder={tags.length === 0 ? "Ex: aphasie, dyslexie…" : "Ajouter un mot-clé…"} style={{ ...inputStyle, flex: 1 }} />
+                        <button type="button" onClick={() => { const v = motsClesInput.trim(); if (v && !tags.includes(v) && tags.length < 4) { setForm({ ...form, mots_cles: [...tags, v].join(", ") }); setMotsClesInput(""); } }} style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>+ Ajouter</button>
+                      </div>
+                    )}
+                    {!canAdd && <p style={{ fontSize: 11, color: C.textTer, marginTop: 4 }}>Maximum 4 mots-clés atteint.</p>}
+                  </div>
+                );
+              })()}
+            </div>
 
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
               <label style={labelStyle}>Populations</label>
@@ -856,6 +962,24 @@ photo_url: (f as any).photo_url || "" };
                   <button key={p} onClick={() => setForm({ ...form, populations: form.populations.includes(p) ? form.populations.filter(x => x !== p) : [...form.populations, p] })}
                     style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (form.populations.includes(p) ? C.blue + "55" : C.border), background: form.populations.includes(p) ? C.blueBg : C.bgAlt, color: form.populations.includes(p) ? C.blue : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: form.populations.includes(p) ? 700 : 400 }}>{p}</button>
                 ))}
+              </div>
+            </div>
+
+            <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+              <label style={labelStyle}>Destiné à (professions)</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(["Orthophonistes", "Kinésithérapeutes"] as string[]).map(p => {
+                  const active = form.professions.includes(p) || (p === "Orthophonistes" && (form.professions.includes("Orthophonie") || form.professions.length === 0));
+                  return (
+                    <button key={p} type="button" onClick={() => {
+                      let next = form.professions.filter(x => x !== "Orthophonie");
+                      next = active ? next.filter(x => x !== p) : [...next, p];
+                      setForm({ ...form, professions: next });
+                    }} style={{ padding: "7px 12px", borderRadius: 9, border: "1.5px solid " + (active ? C.accent + "55" : C.border), background: active ? C.accentBg : C.bgAlt, color: active ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: active ? 700 : 400 }}>
+                      {p === "Orthophonistes" ? "🗣️ " : p === "Kinésithérapeutes" ? "✋ " : "👥 "}{p}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -898,26 +1022,36 @@ photo_url: (f as any).photo_url || "" };
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
   <label style={labelStyle}>Organisme rattaché (optionnel)</label>
   <p style={{ fontSize: 11, color: C.textTer, margin: "0 0 8px" }}>La formation sera visible dans l&apos;espace de cet organisme.</p>
-  <select
-    value={form.organisme_id != null ? String(form.organisme_id) : (form.organisme_libre ? "__libre__" : "")}
-    onChange={e => {
-      if (e.target.value === "") setForm({ ...form, organisme_id: null, organisme_libre: "" });
-      else if (e.target.value === "__libre__") setForm({ ...form, organisme_id: null, organisme_libre: form.organisme_libre || " " });
-      else setForm({ ...form, organisme_id: Number(e.target.value), organisme_libre: "" });
-    }}
-    style={{ ...inputStyle, maxWidth: 340 }}>
-    <option value="">— Aucun organisme —</option>
-    {organismes.map(o => <option key={o.id} value={o.id}>{o.nom}</option>)}
-    <option value="__libre__">✏️ Personnalisé…</option>
-  </select>
-  {form.organisme_id == null && !!form.organisme_libre && (
+  <div style={{ position: "relative", maxWidth: 400 }}>
     <input
-      value={form.organisme_libre.trim()}
-      onChange={e => setForm({ ...form, organisme_libre: e.target.value || " " })}
-      placeholder="Nom de l'organisme personnalisé…"
-      style={{ ...inputStyle, maxWidth: 340, marginTop: 8 }}
+      value={orgFormSearch}
+      onChange={e => { setOrgFormSearch(e.target.value); if (!e.target.value) setForm({ ...form, organisme_id: null, organisme_libre: "" }); }}
+      onBlur={() => setTimeout(() => {/* keep dropdown open until mousedown fires */}, 200)}
+      placeholder="Rechercher un organisme…"
+      style={{ ...inputStyle, maxWidth: 400 }}
     />
-  )}
+    {orgFormSearch.length >= 1 && (
+      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
+        {organismes.filter(o => o.nom.toLowerCase().includes(orgFormSearch.toLowerCase())).slice(0, 10).map(o => (
+          <div key={o.id} onMouseDown={() => { setForm({ ...form, organisme_id: o.id, organisme_libre: "" }); setOrgFormSearch(o.nom); }}
+            style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+            {o.nom}
+          </div>
+        ))}
+        {organismes.filter(o => o.nom.toLowerCase().includes(orgFormSearch.toLowerCase())).length === 0 && (
+          <div onMouseDown={() => { setForm({ ...form, organisme_id: null, organisme_libre: orgFormSearch.trim() }); }}
+            style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>
+            + Utiliser « {orgFormSearch} » (organisme libre)
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+  {form.organisme_id && <p style={{ fontSize: 11, color: C.green, marginTop: 4 }}>✓ {organismes.find(o => o.id === form.organisme_id)?.nom}</p>}
+  {!form.organisme_id && form.organisme_libre && <p style={{ fontSize: 11, color: C.textSec, marginTop: 4 }}>Organisme libre : {form.organisme_libre}</p>}
+  {(form.organisme_id || form.organisme_libre) && <button type="button" onClick={() => { setForm({ ...form, organisme_id: null, organisme_libre: "" }); setOrgFormSearch(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 11, padding: 0, marginTop: 2 }}>✕ Retirer l&apos;organisme</button>}
 </div>
           </div>
 
@@ -1099,6 +1233,149 @@ photo_url: (f as any).photo_url || "" };
               {saving ? "⏳ ..." : editId ? "Soumettre les modifications" : "Soumettre la formation 🍿"}
             </button>
             <button onClick={() => { setTab("list"); setMsg(null); }} style={{ padding: "12px 28px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 14, cursor: "pointer" }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== WEBINAIRES TAB ===== */}
+      {tab === "webinaires" && (
+        <div style={{ paddingBottom: 40 }}>
+          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>💻 Webinaires</h2>
+          <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires sont publiés immédiatement.</p>
+
+          {webinaires.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              {webinaires.map(w => (
+                <div key={w.id} style={{ padding: mob ? 12 : 16, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: C.text, fontSize: 14 }}>{w.titre}</div>
+                    <div style={{ fontSize: 11, color: C.textTer }}>{w.date_heure ? new Date(w.date_heure).toLocaleString("fr-FR") : "—"} · {w.prix === 0 ? "Gratuit" : w.prix + "€"}</div>
+                    {w.status === "en_attente" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                    {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_co_id: w.formateur_co_id ?? null, organisme_id: w.organisme_id ?? null }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ padding: mob ? 16 : 24, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 14 }}>{editWId ? "Modifier le webinaire" : "Créer un webinaire"}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Titre *</label>
+                <input value={wForm.titre} onChange={e => setWForm({ ...wForm, titre: e.target.value })} placeholder="Ex: Introduction à la prise en charge TDL" style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Description</label>
+                <textarea value={wForm.description} onChange={e => setWForm({ ...wForm, description: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, minHeight: 70, resize: "vertical" as const, fontFamily: "inherit" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date et heure *</label>
+                <input type="datetime-local" value={wForm.date_heure} onChange={e => setWForm({ ...wForm, date_heure: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (€) — 0 = gratuit</label>
+                <input type="text" inputMode="numeric" value={wForm.prix === 0 ? "" : String(wForm.prix)} placeholder="0" onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setWForm({ ...wForm, prix: v === "" ? 0 : Number(v) }); }} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien de connexion (Zoom, Teams…)</label>
+                <input value={wForm.lien_url} onChange={e => setWForm({ ...wForm, lien_url: e.target.value })} placeholder="https://zoom.us/j/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Destiné à</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {["Orthophonistes", "Kinésithérapeutes"].map(p => {
+                    const sel = (wForm.professions || []).includes(p);
+                    return <button key={p} type="button" onClick={() => setWForm({ ...wForm, professions: sel ? (wForm.professions || []).filter(x => x !== p) : [...(wForm.professions || []), p] })} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + (sel ? C.accent + "55" : C.border), background: sel ? C.accentBg : C.bgAlt, color: sel ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: sel ? 700 : 400 }}>{p === "Orthophonistes" ? "🗣️ " : "✋ "}{p}</button>;
+                  })}
+                </div>
+              </div>
+              <div style={{ position: "relative" as const }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Co-formateur (optionnel)</label>
+                <input
+                  value={coFmtSearch}
+                  onChange={e => { setCoFmtSearch(e.target.value); setShowCoFmtDrop(true); if (!e.target.value) setWForm({ ...wForm, formateur_co_id: null }); }}
+                  onFocus={() => setShowCoFmtDrop(true)}
+                  onBlur={() => setTimeout(() => setShowCoFmtDrop(false), 150)}
+                  placeholder="Rechercher un·e co-formateur·rice…"
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: "100%", fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
+                />
+                {showCoFmtDrop && coFmtSearch.length >= 1 && (
+                  <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                    <div onMouseDown={() => { setWForm({ ...wForm, formateur_co_id: null }); setCoFmtSearch(""); setShowCoFmtDrop(false); }}
+                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.textTer, borderBottom: "1px solid " + C.borderLight }}>— Aucun —</div>
+                    {allFormateurs.filter(f => f.id !== formateur?.id && f.nom.toLowerCase().includes(coFmtSearch.toLowerCase())).slice(0, 10).map(f => (
+                      <div key={f.id} onMouseDown={() => { setWForm({ ...wForm, formateur_co_id: f.id }); setCoFmtSearch(f.nom); setShowCoFmtDrop(false); }}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
+                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
+                        {f.nom}
+                      </div>
+                    ))}
+                    {allFormateurs.filter(f => f.id !== formateur?.id && f.nom.toLowerCase().includes(coFmtSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                    )}
+                  </div>
+                )}
+                {wForm.formateur_co_id && <p style={{ fontSize: 11, color: C.green, marginTop: 4 }}>✓ {allFormateurs.find(f => f.id === wForm.formateur_co_id)?.nom}</p>}
+              </div>
+              <div style={{ position: "relative" as const }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Organisme (optionnel)</label>
+                <input
+                  value={orgSearchWForm}
+                  onChange={e => { setOrgSearchWForm(e.target.value); setShowOrgDropWForm(true); if (!e.target.value) setWForm({ ...wForm, organisme_id: null }); }}
+                  onFocus={() => setShowOrgDropWForm(true)}
+                  onBlur={() => setTimeout(() => setShowOrgDropWForm(false), 150)}
+                  placeholder="Rechercher un organisme…"
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: "100%", fontFamily: "inherit", outline: "none", boxSizing: "border-box" as const }}
+                />
+                {showOrgDropWForm && orgSearchWForm.length >= 1 && (
+                  <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
+                    <div onMouseDown={() => { setWForm({ ...wForm, organisme_id: null }); setOrgSearchWForm(""); setShowOrgDropWForm(false); }}
+                      style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.textTer, borderBottom: "1px solid " + C.borderLight }}>— Aucun —</div>
+                    {organismes.filter(o => o.nom.toLowerCase().includes(orgSearchWForm.toLowerCase())).slice(0, 10).map(o => (
+                      <div key={o.id} onMouseDown={() => { setWForm({ ...wForm, organisme_id: o.id }); setOrgSearchWForm(o.nom); setShowOrgDropWForm(false); }}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
+                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
+                      >{o.nom}</div>
+                    ))}
+                    {organismes.filter(o => o.nom.toLowerCase().includes(orgSearchWForm.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {wMsg && <p style={{ color: wMsg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10 }}>{wMsg}</p>}
+            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <button disabled={wSaving} onClick={async () => {
+                if (!wForm.titre.trim() || !wForm.date_heure) { setWMsg("Titre et date obligatoires."); return; }
+                setWSaving(true); setWMsg(null);
+                const payload: Record<string, unknown> = { titre: wForm.titre, description: wForm.description, date_heure: wForm.date_heure, prix: wForm.prix, lien_url: wForm.lien_url, professions: wForm.professions || [] };
+                if (wForm.organisme_id) payload.organisme_id = wForm.organisme_id;
+                if (wForm.formateur_co_id) payload.formateur_co_id = wForm.formateur_co_id;
+                if (editWId) {
+                  await supabase.from("webinaires").update(payload).eq("id", editWId);
+                  setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...payload } : x));
+                  setEditWId(null);
+                } else {
+                  const { data: wb } = await supabase.from("webinaires").insert({ ...payload, formateur_id: formateur?.id, status: "publie" }).select().single();
+                  if (wb) setWebinaires(prev => [...prev, wb as WbRow]);
+                }
+                setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_co_id: null, organisme_id: null });
+                setWSaving(false); setWMsg("✅ Webinaire publié !");
+                setTimeout(() => setWMsg(null), 3000);
+              }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
+                {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "💻 Créer le webinaire"}
+              </button>
+              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_co_id: null, organisme_id: null }); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+            </div>
           </div>
         </div>
       )}

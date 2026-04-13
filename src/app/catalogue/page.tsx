@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, invalidateCache, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -76,7 +76,6 @@ function CatalogueContent() {
   const shuffle = <T,>(arr: T[]): T[] => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   useEffect(() => {
-    invalidateCache();
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(shuffle(d)); setLoading(false); });
     supabase.from("formations").select("*", { count: "exact", head: true }).then((res: { count: number | null }) => { if (res.count != null) setFormationsTotal(res.count); }).catch(() => {});
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
@@ -168,9 +167,11 @@ function CatalogueContent() {
       {/* Header */}
       <div style={{ padding: "18px 0 10px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
-        <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>
-          {organismeParam ? `Formations de cet organisme` : selRegion ? `Formations en ${selRegion}` : selVilles.length === 1 ? `Formations à ${selVilles[0]}` : selDomaines.length === 1 ? selDomaines[0] : "Toutes les formations"} 🎬
-        </h1>
+        <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: 10, marginTop: 6, marginBottom: 2 }}>
+          <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, margin: 0 }}>
+            {organismeParam ? `Formations de cet organisme` : selRegion ? `Formations en ${selRegion}` : selVilles.length === 1 ? `Formations à ${selVilles[0]}` : selDomaines.length === 1 ? selDomaines[0] : "Toutes les formations"} 🎬
+          </h1>
+        </div>
         {organismeParam && <Link href="/organismes" style={{ fontSize: 12, color: C.textTer, textDecoration: "none" }}>← Retour aux organismes</Link>}
       </div>
 
@@ -418,7 +419,11 @@ function CatalogueContent() {
       )}
 
       {/* Results count */}
-      <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{hasActiveFilters ? `${filtered.length} formation${filtered.length > 1 ? "s" : ""} (filtrées)` : `${formationsTotal ?? filtered.length} formation${(formationsTotal ?? filtered.length) > 1 ? "s" : ""}`}</p>
+      {(() => {
+        const count = hasActiveFilters ? filtered.length : (formationsTotal ?? filtered.length);
+        const suffix = hasActiveFilters ? " (filtrées)" : "";
+        return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{count} formation{count > 1 ? "s" : ""}{suffix}</p>;
+      })()}
 
       {/* Grid */}
       {filtered.length === 0 ? (

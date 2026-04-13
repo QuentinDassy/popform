@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 
 const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
-const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
+const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Ostéopathes", "Podologues", "Médecins", "Infirmiers"];
 
 type PartieRow = { titre: string; jours: string[]; modalite: string; lieu: string; adresse: string; ville: string; pays: string; code_postal: string; lien_visio: string; date_debut: string; date_fin: string };
 type SessionRow = { id?: number; dates: string; lieu: string; adresse: string; ville: string; code_postal: string; modalite_session?: string; lien_visio?: string; date_debut?: string; date_fin_session?: string; is_visio?: boolean; nb_parties: number; parties?: PartieRow[]; organisme_id?: number | null; organisme_libre?: string; url_inscription?: string };
@@ -40,6 +40,7 @@ export default function DashboardOrganismePage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"list" | "edit" | "formateurs" | "webinaires" | "congres">("list");
+  const [listView, setListView] = useState<"formations" | "webinaires">("formations");
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyFormation());
   const [originalForm, setOriginalForm] = useState<ReturnType<typeof emptyFormation> | null>(null);
@@ -63,6 +64,8 @@ export default function DashboardOrganismePage() {
   const [inlineFmtPhotoFile, setInlineFmtPhotoFile] = useState<File | null>(null);
   const [allOrganismes, setAllOrganismes] = useState<Organisme[]>([]);
   const [orgLibreInput, setOrgLibreInput] = useState("");
+  const [motsClesInput, setMotsClesInput] = useState("");
+  const [guidedMode, setGuidedMode] = useState(true);
   // Admin villes
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
   // Domaines from admin
@@ -76,12 +79,15 @@ export default function DashboardOrganismePage() {
   const [orgNom, setOrgNom] = useState<string>("");
   const [orgDescription, setOrgDescription] = useState<string>("");
   // Webinaires
-  type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string };
+  type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string; professions?: string[]; formateur_id?: number | null };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
-  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" });
+  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null });
   const [editWId, setEditWId] = useState<number | null>(null);
   const [wSaving, setWSaving] = useState(false);
   const [wMsg, setWMsg] = useState<string | null>(null);
+  const [webFmtSearch, setWebFmtSearch] = useState("");
+  const [webFmtDropdown, setWebFmtDropdown] = useState(false);
+  const [allFormateursForWeb, setAllFormateursForWeb] = useState<{ id: number; nom: string }[]>([]);
   // Congrès
   type SpeakerRow = { nom: string; titre_intervention: string };
   type CongresRow = { id?: number; titre: string; description: string; date: string; adresse: string; lien_url: string | null; lien_visio: string | null; photo_url?: string | null; status?: string; speakers: SpeakerRow[] };
@@ -107,14 +113,15 @@ export default function DashboardOrganismePage() {
     (async () => {
       try {
       // Find organisme linked to this user
-      let { data: myOrgs } = await supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1);
+      const [{ data: myOrgs }, { data: orgs }] = await Promise.all([
+        supabase.from("organismes").select("*").eq("user_id", user.id).order("id").limit(1),
+        supabase.from("organismes").select("id,nom").order("nom"),
+      ]);
       let myOrg = myOrgs?.[0] || null;
-
       setOrganisme(myOrg);
       setOrgSiteUrl((myOrg as any)?.site_url || "");
       setOrgNom(myOrg?.nom || "");
       setOrgDescription((myOrg as any)?.description || "");
-      const { data: orgs } = await supabase.from("organismes").select("id,nom").order("nom");
       setAllOrganismes((orgs as any) || []);
       if (myOrg) {
         const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`organisme_id.eq.${myOrg.id},organisme_ids.cs.{${myOrg.id}}`).order("date_ajout", { ascending: false });
@@ -146,18 +153,23 @@ export default function DashboardOrganismePage() {
           }
         } catch (e: any) { console.error("sessions organisme lookup exception:", e?.message); }
         setFormations(allF);
-        const { data: fmts } = await supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id);
+        const [{ data: fmts }, { data: wbs }, { data: cgs }, { data: allFmts }] = await Promise.all([
+          supabase.from("formateurs").select("*").eq("organisme_id", myOrg.id),
+          supabase.from("webinaires").select("*").eq("organisme_id", myOrg.id).order("date_heure", { ascending: true }),
+          supabase.from("congres").select("*, speakers:congres_speakers(nom,titre_intervention)").eq("organisme_id", myOrg.id).order("date", { ascending: true }),
+          supabase.from("formateurs").select("id, nom").order("nom"),
+        ]);
         setFormateurs(fmts || []);
-        const { data: wbs } = await supabase.from("webinaires").select("*").eq("organisme_id", myOrg.id).order("date_heure", { ascending: true });
         setWebinaires(wbs || []);
-        const { data: cgs } = await supabase.from("congres").select("*, speakers:congres_speakers(nom,titre_intervention)").eq("organisme_id", myOrg.id).order("date", { ascending: true });
         setCongresList((cgs || []).map((c: any) => ({ ...c, speakers: c.speakers || [] })));
+        setAllFormateursForWeb(allFmts || []);
       }
-      // Load admin villes
-      const { data: villes } = await supabase.from("villes_admin").select("nom").order("nom");
+      // Load admin villes + domaines in parallel
+      const [{ data: villes }, domaines] = await Promise.all([
+        supabase.from("villes_admin").select("nom").order("nom"),
+        fetchDomainesAdmin(),
+      ]);
       setAdminVilles(villes?.map((v: { nom: string }) => v.nom) || []);
-      // Load domaines from admin
-      const domaines = await fetchDomainesAdmin();
       setDomainesList(domaines.map(d => ({ nom: d.nom, emoji: d.emoji })));
       } catch { /* timeout ou erreur réseau */ } finally { clearTimeout(safetyTimer); setLoading(false); }
     })();
@@ -681,10 +693,15 @@ export default function DashboardOrganismePage() {
         {tab === "list" && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={() => setTab("formateurs")} style={{ padding: "10px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>🎤 Formateur·rice·s ({formateurs.length})</button>
-            {/* Webinaires - désactivé v1 */}
-            {/* Congrès - désactivé v1 */}
-            <button onClick={() => setWizardOpen(true)} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✨ Créer avec le mode guidé</button>
-            <button onClick={() => openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ Nouvelle formation</button>
+            <button onClick={() => setTab("webinaires")} style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>💻 Créer un webinaire</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={() => guidedMode ? setWizardOpen(true) : openEdit()} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                {guidedMode ? "✨ " : "+ "}Créer une formation
+              </button>
+              <button onClick={() => setGuidedMode((g: boolean) => !g)} title={guidedMode ? "Passer en mode classique" : "Passer en mode guidé"} style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + (guidedMode ? C.accent + "55" : C.border), background: guidedMode ? C.accentBg : C.surface, color: guidedMode ? C.accent : C.textTer, fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {guidedMode ? "✨ guidé" : "⚙️ expert"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -716,6 +733,56 @@ export default function DashboardOrganismePage() {
       {/* ===== STATS ===== */}
       {tab === "list" && (
         <>
+          {/* ===== LISTE / WEBINAIRES SUB-TABS ===== */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 20, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content" }}>
+            {([
+              { v: "formations", l: "📋 Mes formations" },
+              { v: "webinaires", l: `💻 Mes webinaires (${webinaires.length})` },
+            ] as const).map(t => (
+              <button key={t.v} onClick={() => setListView(t.v)} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: listView === t.v ? C.surface : "transparent", color: listView === t.v ? C.text : C.textTer, fontSize: 12, fontWeight: listView === t.v ? 700 : 500, cursor: "pointer", boxShadow: listView === t.v ? "0 1px 4px rgba(0,0,0,0.06)" : "none" }}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
+          {/* ===== WEBINAIRES LIST VIEW ===== */}
+          {listView === "webinaires" && (
+            <div style={{ paddingBottom: 40 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h2 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text }}>💻 Mes webinaires</h2>
+                <button onClick={() => setTab("webinaires")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Créer un webinaire</button>
+              </div>
+              {webinaires.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>💻</div>
+                  <p>Aucun webinaire pour l&apos;instant.</p>
+                  <button onClick={() => setTab("webinaires")} style={{ marginTop: 12, padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Créer votre premier webinaire</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {webinaires.map(w => (
+                    <div key={w.id} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 4 }}>{w.titre}</div>
+                        <div style={{ fontSize: 12, color: C.textTer }}>{w.date_heure ? new Date(w.date_heure).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "—"} · {w.prix === 0 ? "Gratuit" : w.prix + " €"}</div>
+                        <div style={{ marginTop: 6 }}>
+                          {w.status === "en_attente" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: C.yellowBg, color: C.yellowDark }}>⏳ En attente</span>}
+                          {w.status === "publie" && <span style={{ padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [] }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== FORMATIONS LIST VIEW ===== */}
+          {listView === "formations" && <>
           <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
               { label: "Formations actives", value: formationsActives.length, icon: "🎬" },
@@ -803,6 +870,7 @@ export default function DashboardOrganismePage() {
               })}
             </div>
           )}
+          </>}
         </>
       )}
 
@@ -1136,8 +1204,30 @@ export default function DashboardOrganismePage() {
             <div style={{ gridColumn: "1 / -1", height: 1, background: C.borderLight }} />
             {/* Mots-clés */}
             <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
-              <label style={labelStyle}>Mots-clés (séparés par des virgules)</label>
-              <input value={form.mots_cles} onChange={e => setForm({ ...form, mots_cles: e.target.value })} placeholder="Ex: aphasie, dyslexie, tdl" style={inputStyle} />
+              <label style={labelStyle}>Mots-clés (max 4)</label>
+              {(() => {
+                const tags = form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean);
+                const canAdd = tags.length < 4;
+                return (
+                  <div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: tags.length ? 8 : 0 }}>
+                      {tags.map((tag: string, i: number) => (
+                        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 99, background: C.accentBg, border: "1px solid " + C.accent + "44", color: C.accent, fontSize: 12, fontWeight: 600 }}>
+                          {tag}
+                          <button type="button" onClick={() => { const next = tags.filter((_: string, j: number) => j !== i); setForm({ ...form, mots_cles: next.join(", ") }); }} style={{ background: "none", border: "none", cursor: "pointer", color: C.accent, fontSize: 12, padding: "0 2px", lineHeight: 1 }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    {canAdd && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input value={motsClesInput} onChange={e => setMotsClesInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const v = motsClesInput.trim().replace(/,$/, ""); if (v && !tags.includes(v) && tags.length < 4) { setForm({ ...form, mots_cles: [...tags, v].join(", ") }); setMotsClesInput(""); } } }} placeholder={tags.length === 0 ? "Ex: aphasie, dyslexie…" : "Ajouter un mot-clé…"} style={{ ...inputStyle, flex: 1 }} />
+                        <button type="button" onClick={() => { const v = motsClesInput.trim(); if (v && !tags.includes(v) && tags.length < 4) { setForm({ ...form, mots_cles: [...tags, v].join(", ") }); setMotsClesInput(""); } }} style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: C.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>+ Ajouter</button>
+                      </div>
+                    )}
+                    {!canAdd && <p style={{ fontSize: 11, color: C.textTer, marginTop: 4 }}>Maximum 4 mots-clés atteint.</p>}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Populations */}
@@ -1446,9 +1536,9 @@ export default function DashboardOrganismePage() {
       {/* ===== WEBINAIRES TAB ===== */}
       {tab === "webinaires" && (
         <div style={{ paddingBottom: 40 }}>
-          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>📡 Webinaires</h2>
-          <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires seront soumis à validation admin avant publication.</p>
+          <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires sont publiés immédiatement.</p>
 
           {/* Liste webinaires existants */}
           {webinaires.length > 0 && (
@@ -1462,7 +1552,7 @@ export default function DashboardOrganismePage() {
                     {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
@@ -1488,11 +1578,58 @@ export default function DashboardOrganismePage() {
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (€) — 0 = gratuit</label>
-                <input type="number" min="0" value={wForm.prix} onChange={e => setWForm({ ...wForm, prix: Number(e.target.value) })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+                <input type="text" inputMode="numeric" value={wForm.prix === 0 ? "" : String(wForm.prix)} placeholder="0" onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setWForm({ ...wForm, prix: v === "" ? 0 : Number(v) }); }} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
               </div>
               <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien de connexion (Zoom, Teams…)</label>
                 <input value={wForm.lien_url} onChange={e => setWForm({ ...wForm, lien_url: e.target.value })} placeholder="https://zoom.us/j/..." style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Destiné à</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {["Orthophonistes", "Kinésithérapeutes"].map(p => {
+                    const sel = (wForm.professions || []).includes(p);
+                    return <button key={p} type="button" onClick={() => setWForm({ ...wForm, professions: sel ? (wForm.professions || []).filter(x => x !== p) : [...(wForm.professions || []), p] })} style={{ padding: "7px 14px", borderRadius: 9, border: "1.5px solid " + (sel ? C.accent + "55" : C.border), background: sel ? C.accentBg : C.bgAlt, color: sel ? C.accent : C.textSec, fontSize: 12, cursor: "pointer", fontWeight: sel ? 700 : 400 }}>{p === "Orthophonistes" ? "🗣️ " : "✋ "}{p}</button>;
+                  })}
+                </div>
+              </div>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1", position: "relative" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" as const }}>Formateur (optionnel)</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    value={webFmtSearch}
+                    onChange={e => { setWebFmtSearch(e.target.value); setWebFmtDropdown(true); if (!e.target.value) setWForm({ ...wForm, formateur_id: null }); }}
+                    onFocus={() => setWebFmtDropdown(true)}
+                    placeholder="Rechercher un·e formateur·rice…"
+                    style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }}
+                  />
+                  {webFmtDropdown && webFmtSearch.length >= 1 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
+                      {allFormateursForWeb.filter(f => f.nom.toLowerCase().includes(webFmtSearch.toLowerCase())).slice(0, 10).map(f => (
+                        <div key={f.id} onClick={() => { setWForm({ ...wForm, formateur_id: f.id }); setWebFmtSearch(f.nom); setWebFmtDropdown(false); }}
+                          style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                          {f.nom}
+                        </div>
+                      ))}
+                      {allFormateursForWeb.filter(f => f.nom.toLowerCase().includes(webFmtSearch.toLowerCase())).length === 0 && (
+                        <div onClick={async () => {
+                          const nom = webFmtSearch.trim();
+                          if (!nom) return;
+                          const { data: newFmt } = await supabase.from("formateurs").insert({ nom, bio: "", sexe: "Non genré", organisme_id: organisme?.id || null }).select().single();
+                          if (newFmt) { setAllFormateursForWeb(prev => [...prev, newFmt].sort((a, b) => a.nom.localeCompare(b.nom))); setWForm({ ...wForm, formateur_id: newFmt.id }); setWebFmtSearch(newFmt.nom); }
+                          setWebFmtDropdown(false);
+                        }} style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>
+                          + Créer « {webFmtSearch} »
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {wForm.formateur_id && (
+                  <button type="button" onClick={() => { setWForm({ ...wForm, formateur_id: null }); setWebFmtSearch(""); }} style={{ marginTop: 4, background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 11 }}>✕ Retirer le formateur</button>
+                )}
               </div>
             </div>
             {wMsg && <p style={{ color: wMsg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10 }}>{wMsg}</p>}
@@ -1505,16 +1642,16 @@ export default function DashboardOrganismePage() {
                   setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wForm } : x));
                   setEditWId(null);
                 } else {
-                  const { data: wb } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "en_attente" }).select().single();
+                  const { data: wb } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "publie" }).select().single();
                   if (wb) setWebinaires(prev => [...prev, wb]);
                 }
-                setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" });
-                setWSaving(false); setWMsg("✅ Webinaire soumis pour validation !");
+                setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
+                setWSaving(false); setWMsg("✅ Webinaire publié !");
                 setTimeout(() => setWMsg(null), 3000);
               }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
-                {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "📡 Soumettre le webinaire"}
+                {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "💻 Créer le webinaire"}
               </button>
-              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "" }); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
             </div>
           </div>
         </div>

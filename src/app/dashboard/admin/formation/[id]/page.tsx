@@ -40,7 +40,7 @@ type FormState = {
 const MODALITES = ["Présentiel", "Visio", "E-learning"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS_OPTS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
-const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Médecins", "Infirmiers", "Tous professionnels"];
+const PROFESSIONS_OPTS = ["Orthophonistes", "Ergothérapeutes", "Psychomotriciens", "Orthoptistes", "Neuropsychologues", "Kinésithérapeutes", "Ostéopathes", "Podologues", "Médecins", "Infirmiers", "Tous professionnels"];
 const STATUS_OPTS = ["publiee", "en_attente", "refusee", "archivee"];
 
 const MOIS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];

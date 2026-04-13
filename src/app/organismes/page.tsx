@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { C, fetchOrganismes, type Organisme } from "@/lib/data";
-import { supabase } from "@/lib/supabase-data";
+import { C, fetchOrganismes, fetchFormations, isFormationPast, type Organisme, type Formation } from "@/lib/data";
 import { useIsMobile } from "@/lib/hooks";
 
 const MAX_DESC = 150;
@@ -44,7 +43,7 @@ function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean 
 export default function OrganismesPage() {
   const mob = useIsMobile();
   const [orgs, setOrgs] = useState<Organisme[]>([]);
-  const [orgCounts, setOrgCounts] = useState<Record<number, number>>({});
+  const [allFormations, setAllFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const loadingRef = useRef(false);
 
@@ -52,7 +51,7 @@ export default function OrganismesPage() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const [o] = await Promise.all([fetchOrganismes()]);
+      const [o, fo] = await Promise.all([fetchOrganismes(), fetchFormations()]);
       // Sort: user-linked first, then deduplicate
       const sorted = [...o].sort((a, b) => {
         if (a.user_id && !b.user_id) return -1;
@@ -70,39 +69,42 @@ export default function OrganismesPage() {
         if (nameKey) seen.add("n:" + nameKey);
         return true;
       });
-      // Fetch formation counts (publiées uniquement, via liens directs organisme seulement)
-      const { data: allOrgFormations } = await supabase
-        .from("formations")
-        .select("organisme_id, organisme_ids")
-        .eq("status", "publiee");
-      const counts: Record<number, number> = {};
-      for (const row of allOrgFormations || []) {
-        const ids = new Set<number>();
-        if (row.organisme_id) ids.add(row.organisme_id);
-        if (row.organisme_ids?.length) row.organisme_ids.forEach((id: number) => ids.add(id));
-        ids.forEach(orgId => { counts[orgId] = (counts[orgId] || 0) + 1; });
-      }
-      setOrgs([...unique].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0)));
-      setOrgCounts(counts);
+      setOrgs(unique);
+      setAllFormations(fo);
     } finally {
       setLoading(false);
       loadingRef.current = false;
     }
   };
 
-  useEffect(() => {
-    load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compute formation counts per organisme
+  const activeFormations = allFormations.filter(f => f.status === "publiee" && !isFormationPast(f));
+
+  const orgCounts: Record<number, number> = {};
+  for (const row of activeFormations) {
+    const ids = new Set<number>();
+    if ((row as any).organisme_id) ids.add((row as any).organisme_id);
+    if ((row as any).organisme_ids?.length) ((row as any).organisme_ids as number[]).forEach(id => ids.add(id));
+    ids.forEach(orgId => {
+      orgCounts[orgId] = (orgCounts[orgId] || 0) + 1;
+    });
+  }
+
+  const filteredOrgs = [...orgs].sort((a, b) => (orgCounts[b.id] || 0) - (orgCounts[a.id] || 0));
+
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
       <div style={{ padding: "18px 0 14px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
-        <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🏢 Organismes</h1>
+        <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: 8, marginTop: 6 }}>
+          <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, margin: 0 }}>🏢 Organismes</h1>
+        </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 12, paddingBottom: 40, alignItems: "stretch" }}>
-        {orgs.map(o => <OrgCard key={o.id} o={o} count={orgCounts[o.id] || 0} mob={mob} />)}
+        {filteredOrgs.map(o => <OrgCard key={o.id} o={o} count={orgCounts[o.id] || 0} mob={mob} />)}
       </div>
     </div>
   );

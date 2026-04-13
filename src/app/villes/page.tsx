@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { C, fetchFormations, type Formation } from "@/lib/data";
 import { CityCard } from "@/components/ui";
@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase-data";
 
 export default function VillesPage() {
   const mob = useIsMobile();
-  const [cities, setCities] = useState<[string, number][]>([]);
   const [adminVilles, setAdminVilles] = useState<Record<string, string>>({});
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,50 +22,52 @@ export default function VillesPage() {
       setAdminVilles(adminMap);
       fetchFormations().then(fs => {
         setFormations(fs);
-        const norm = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
-        const formationsByCity: Record<string, Set<number>> = {};
-        const skipLieux = new Set(["Visio", "En ligne", "Présentiel", "Mixte"]);
-        const addCity = (cityName: string, fId: number) => {
-          if (cityName && !skipLieux.has(cityName)) {
-            const key = norm(cityName);
-            if (!formationsByCity[key]) formationsByCity[key] = new Set();
-            formationsByCity[key].add(fId);
-          }
-        };
-        fs.forEach(f => {
-          (f.sessions || []).forEach((s: any) => {
-            (s.lieu || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
-            (s.session_parties || []).forEach((p: any) => {
-              (p.lieu || p.ville || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
-            });
-          });
-        });
-        const cityCount: Record<string, number> = {};
-        Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
-        const adminNames = Object.keys(adminMap);
-        if (adminNames.length > 0) {
-          setCities(adminNames.map(n => {
-            const nn = norm(n);
-            const count = Object.entries(cityCount)
-              .filter(([c]) => c === nn || c.startsWith(nn) || nn.startsWith(c))
-              .reduce((sum, [, v]) => sum + v, 0);
-            return [n, count] as [string, number];
-          }).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]));
-        } else {
-          setCities([]);
-        }
         setLoading(false);
       }).catch(() => setLoading(false));
     }).catch(() => setLoading(false));
   }, []);
 
+  const cities = useMemo(() => {
+    const norm = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
+    const formationsByCity: Record<string, Set<number>> = {};
+    const skipLieux = new Set(["Visio", "En ligne", "Présentiel", "Mixte"]);
+    const addCity = (cityName: string, fId: number) => {
+      if (cityName && !skipLieux.has(cityName)) {
+        const key = norm(cityName);
+        if (!formationsByCity[key]) formationsByCity[key] = new Set();
+        formationsByCity[key].add(fId);
+      }
+    };
+    formations.forEach(f => {
+      (f.sessions || []).forEach((s: any) => {
+        (s.lieu || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
+        (s.session_parties || []).forEach((p: any) => {
+          (p.lieu || p.ville || "").split(", ").map((c: string) => c.trim()).filter(Boolean).forEach((cityName: string) => addCity(cityName, f.id));
+        });
+      });
+    });
+    const cityCount: Record<string, number> = {};
+    Object.entries(formationsByCity).forEach(([city, ids]) => { cityCount[city] = ids.size; });
+    const adminNames = Object.keys(adminVilles);
+    if (adminNames.length === 0) return [] as [string, number][];
+    return adminNames.map(n => {
+      const nn = norm(n);
+      const count = Object.entries(cityCount)
+        .filter(([c]) => c === nn || c.startsWith(nn) || nn.startsWith(c))
+        .reduce((sum, [, v]) => sum + v, 0);
+      return [n, count] as [string, number];
+    }).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
+  }, [formations, adminVilles]);
+
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   return (
     <div style={{ maxWidth: 1240, margin: "0 auto", padding: mob ? "0 16px" : "0 40px" }}>
-      <div style={{ padding: "18px 0 14px" }}>
-        <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
-        <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>Villes & Régions</h1>
+      <div style={{ padding: "18px 0 14px", display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: 8 }}>
+        <div>
+          <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
+          <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6, marginBottom: 0 }}>Villes & Régions</h1>
+        </div>
       </div>
 
       {/* Tabs */}

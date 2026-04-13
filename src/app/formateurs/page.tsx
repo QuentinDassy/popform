@@ -34,16 +34,12 @@ function FormateursContent() {
         if (nameKey) seen.add(nameKey);
         return true;
       });
-      const { data: allFmtFormations } = await supabase
-        .from("formations")
-        .select("formateur_id, formateur_ids, status")
-        .eq("status", "publiee");
+      // Compute counts from full formation data (includes sessions) so isFormationPast works correctly
       const counts: Record<number, number> = {};
-      for (const row of allFmtFormations || []) {
-        // Union des deux champs pour éviter les doublons de comptage
+      for (const row of fo.filter(f => f.status === "publiee" && !isFormationPast(f))) {
         const ids = new Set<number>();
-        if (row.formateur_id != null) ids.add(row.formateur_id as number);
-        for (const id of (row.formateur_ids || [])) ids.add(id as number);
+        if ((row as any).formateur_id != null) ids.add((row as any).formateur_id as number);
+        for (const id of ((row as any).formateur_ids || [])) ids.add(id as number);
         for (const id of ids) counts[id] = (counts[id] || 0) + 1;
       }
       setFmts(unique);
@@ -63,9 +59,10 @@ function FormateursContent() {
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
-  const filtered = search.trim()
+  const bySearch = search.trim()
     ? fmts.filter(f => f.nom.toLowerCase().includes(search.toLowerCase()) || (f.bio || "").toLowerCase().includes(search.toLowerCase()))
     : fmts;
+  const filtered = bySearch;
 
   const selected = fmts.find(f => f.id === selectedId);
   const selectedFormations = formations.filter(fo =>
@@ -140,8 +137,10 @@ function FormateursContent() {
       {/* Header */}
       <div style={{ padding: "18px 0 14px" }}>
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
-        <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>🎤 Formateur·rice·s</h1>
-        <p style={{ fontSize: 13, color: C.textTer, marginTop: 2 }}>{fmts.length} formateur·rice·s</p>
+        <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: 8, marginTop: 6 }}>
+          <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, margin: 0 }}>🎤 Formateur·rice·s</h1>
+        </div>
+        <p style={{ fontSize: 13, color: C.textTer, marginTop: 4 }}>{filtered.length} formateur·rice·s</p>
       </div>
 
       {/* Search */}

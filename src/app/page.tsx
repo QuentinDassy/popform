@@ -76,7 +76,7 @@ function SectionGrid({ title, formations, mob, max, link, favoriIds, onToggleFav
 export default function HomePage() {
   const mob = useIsMobile();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, setShowAuth, loading: authLoading } = useAuth();
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
   const typed = useTyping(["langage oral", "dyspraxie", "EBP", "Marseille", "bégaiement", "cognition", "Paris"]);
   const [nlEmail, setNlEmail] = useState("");
@@ -210,7 +210,7 @@ export default function HomePage() {
         }
         
         try {
-          const { data: wbs } = await supabase.from("webinaires").select("*").eq("status", "publie").order("date_heure", { ascending: true });
+          const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").eq("status", "publie").order("date_heure", { ascending: true });
           if (wbs) setWebinaires(wbs);
         } catch (e) {}
         
@@ -239,13 +239,16 @@ export default function HomePage() {
     fetchFavoris(user.id).then(favs => setFavoriIds(favs.map(fv => fv.formation_id))).catch(() => {});
   }, [user]);
 
+
   const handleToggleFav = async (formationId: number) => {
     if (!user) return;
     const added = await toggleFavori(user.id, formationId);
     setFavoriIds(prev => added ? [...prev, formationId] : prev.filter(id => id !== formationId));
   };
 
-  const formationCities = getAllCitiesFromFormations(formations);
+  // Filter formations for city/region counts
+  const formationsForCities = formations;
+  const formationCities = getAllCitiesFromFormations(formationsForCities);
   // If admin configured villes, use those; otherwise fall back to formation cities
   const normCity = (s: string) => s.toLowerCase().replace(/-/g, " ").trim();
   const displayCities: { name: string; count: number; image?: string }[] = adminVilles.length > 0
@@ -260,10 +263,13 @@ export default function HomePage() {
   const topCities = [...displayCities].sort((a, b) => b.count - a.count).slice(0, 6);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const activeFormations = formations.filter(f => !isFormationPast(f));
-  const newF = activeFormations.filter(f => f.is_new);
-  const popularF = [...activeFormations].sort((a, b) => b.note - a.note).slice(0, 8);
-  const visioF = activeFormations.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "Visio") || (f.sessions || []).some(s => s.lieu === "Visio"));
+  const profFilteredActive = activeFormations;
+  const newF = profFilteredActive.filter(f => f.is_new);
+  const popularF = [...profFilteredActive].sort((a, b) => b.note - a.note).slice(0, 8);
+  const visioF = profFilteredActive.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "Visio") || (f.sessions || []).some(s => s.lieu === "Visio"));
   const elearningF = formations.filter(f => (f.modalite || "").split(",").some(m => m.trim() === "E-learning") || ((f as any).modalites || []).includes("E-learning"));
+  const domainesFiltered = domainesAccueil;
+
   const hasFilters = selDomaines.length > 0 || selModalites.length > 0 || selPrises.length > 0 || selPops.length > 0 || selVilles.length > 0 || !!selRegion;
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
@@ -494,8 +500,8 @@ export default function HomePage() {
       </section>
 
       {/* ===== SECTIONS ===== */}
-      {!loading && domainesAccueil.length > 0 ? (
-        domainesAccueil.map((domaine, di) => {
+      {!loading && domainesFiltered.length > 0 ? (
+        domainesFiltered.map((domaine, di) => {
           const domaineFormations = formations.filter(f => f.domaine === domaine.nom);
           return (
             <SectionGrid
@@ -511,7 +517,8 @@ export default function HomePage() {
             />
           );
         })
-      ) : !loading ? (
+      ) : !loading && domainesAccueil.length === 0 ? (
+        // Fallback legacy sections — only when NO admin domains configured at all
         <>
           {formations.filter(f => f.domaine === "Langage oral").length > 0 && (
             <SectionGrid title="Langage oral" formations={formations.filter(f => f.domaine === "Langage oral")} mob={mob} max={3} favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} alt />
@@ -524,12 +531,62 @@ export default function HomePage() {
       {!loading && visioF.length > 0 && <SectionGrid title="En visio" formations={visioF} mob={mob} max={3} link="/catalogue?modalite=Visio" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} alt />}
       {!loading && elearningF.length > 0 && <SectionGrid title="📺 E-learning" formations={elearningF} mob={mob} max={3} link="/catalogue?modalites=E-learning" favoriIds={favoriIds} onToggleFav={user ? handleToggleFav : undefined} />}
 
+      {/* ===== WEBINAIRES ===== */}
+      {!loading && (
+        <div style={{ background: "#FFF8EC", borderTop: mob ? "5px solid #F0E4CC" : "1px solid #F0E4CC" }}>
+          <section style={{ padding: mob ? "20px 16px 24px" : "36px 40px 32px", maxWidth: 1240, margin: "0 auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
+              <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
+                {mob && <span style={{ display: "inline-block", width: 4, height: 20, borderRadius: 3, background: C.gradient, flexShrink: 0 }} />}
+                💻 Webinaires à venir
+              </h2>
+              <Link href="/webinaires" style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tous →</Link>
+            </div>
+            {webinaires.filter(w => new Date(w.date_heure) >= new Date()).length === 0 ? (
+              <div style={{ textAlign: "center", padding: mob ? "28px 16px" : "40px 0", color: C.textTer }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>💻</div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.textSec, marginBottom: 6 }}>Prochainement…</p>
+                <p style={{ fontSize: 12, color: C.textTer, marginBottom: 18 }}>De nouveaux webinaires seront ajoutés bientôt.</p>
+                <Link href="/webinaires" style={{ padding: "9px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Voir la page webinaires →</Link>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 12 : 16 }}>
+                {webinaires.filter(w => new Date(w.date_heure) >= new Date()).slice(0, 3).map((w: any) => {
+                  const d = new Date(w.date_heure);
+                  const dateStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+                  const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <div key={w.id} style={{ background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, padding: mob ? "16px 14px" : "20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: C.blueBg, color: C.blue }}>💻 Visio</span>
+                        {w.prix === 0 ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: C.greenBg, color: C.green }}>Gratuit</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: C.bgAlt, color: C.textSec }}>{w.prix}€</span>}
+                      </div>
+                      <div style={{ fontSize: mob ? 14 : 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{w.titre}</div>
+                      {w.description && <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>{w.description}</div>}
+                      <div style={{ fontSize: 12, color: C.textTer, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>📅</span> <span style={{ fontWeight: 600 }}>{dateStr}</span> <span>à {timeStr}</span>
+                      </div>
+                      {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
+                      {w.lien_url && (
+                        <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 4, padding: "9px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", textAlign: "center", cursor: "pointer" }}>S&apos;inscrire →</a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       {/* ===== VILLES ===== */}
-      {topCities.length > 0 && (
+      {topCities.filter(c => c.count > 0).length > 0 && (
         <div style={{ borderTop: "1px solid #F0E4CC" }}>
         <section style={{ padding: mob ? "28px 16px 28px" : "36px 40px 40px" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
-            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par ville 📍</h2>
+          <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: mob ? 8 : 0, marginBottom: mob ? 14 : 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, margin: 0 }}>Par ville 📍</h2>
+            </div>
             <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir toutes les villes →</Link>
           </div>
           {mob ? (
@@ -554,20 +611,23 @@ export default function HomePage() {
       {/* ===== CARTE REGIONS ===== */}
       <div style={{ borderTop: "1px solid #F0E4CC", background: "#FFF8EC" }}>
       <section style={{ padding: mob ? "28px 16px 32px" : "36px 40px 44px", maxWidth: 1240, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: mob ? 14 : 20 }}>
-          <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text }}>Par région 🗺️</h2>
+        <div style={{ display: "flex", alignItems: mob ? "flex-start" : "center", justifyContent: "space-between", flexDirection: mob ? "column" : "row", gap: mob ? 8 : 0, marginBottom: mob ? 14 : 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, margin: 0 }}>Par région 🗺️</h2>
+          </div>
           <Link href="/villes" style={{ fontSize: 13, color: C.textTer, textDecoration: "none", fontWeight: 600 }}>Voir la carte →</Link>
         </div>
         <div style={{ maxWidth: mob ? "100%" : 540, margin: "0 auto" }}>
-          <FranceMap formations={formations} />
+          <FranceMap formations={formationsForCities} />
         </div>
       </section>
       </div>
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
-        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({activeFormations.length} formations) →</div></Link>
+        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({formationsCount ?? profFilteredActive.length} formations) →</div></Link>
       </div>
+
 
       {/* ===== NEWSLETTER ===== */}
       <section style={{ padding: mob ? "0 16px 32px" : "0 40px 44px", maxWidth: 620, margin: "0 auto" }}>

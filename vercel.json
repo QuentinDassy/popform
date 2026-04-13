@@ -1,5 +1,11 @@
 {
   "regions": ["cdg1"],
+  "crons": [
+    {
+      "path": "/api/cron/webinaire-reminders",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/(.*)",

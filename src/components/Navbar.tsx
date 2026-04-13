@@ -15,11 +15,12 @@ const C = {
 };
 
 const NAV_ITEMS = [
-  { href: "/", label: "Accueil", icon: "🏠" },
-  { href: "/catalogue", label: "Catalogue", icon: "🎬" },
-  { href: "/villes", label: "Villes & Régions", icon: "🗺️" },
-  { href: "/organismes", label: "Organismes", icon: "🏢" },
-  { href: "/formateurs", label: "Formateur·rice·s", icon: "🎤" },
+  { href: "/", label: "Accueil", icon: "🏠", badge: "" },
+  { href: "/catalogue", label: "Catalogue", icon: "🎬", badge: "" },
+  { href: "/villes", label: "Villes & Régions", icon: "🗺️", badge: "" },
+  { href: "/webinaires", label: "Webinaires", icon: "💻", badge: "Nouveau" },
+  { href: "/organismes", label: "Organismes", icon: "🏢", badge: "" },
+  { href: "/formateurs", label: "Formateur·rice·s", icon: "🎤", badge: "" },
 ];
 
 function useIsMobile() {
@@ -114,8 +115,9 @@ export default function Navbar() {
           {!mob && (
             <div style={{ display: "flex", gap: 2 }}>
               {NAV_ITEMS.map(x => (
-                <Link key={x.href} href={x.href} style={{ padding: "7px 12px", borderRadius: 8, background: pathname === x.href ? C.accentBg : "transparent", color: pathname === x.href ? C.accent : C.textTer, fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}>
+                <Link key={x.href} href={x.href} style={{ padding: "7px 12px", borderRadius: 8, background: pathname === x.href ? C.accentBg : "transparent", color: pathname === x.href ? C.accent : C.textTer, fontSize: 12.5, fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
                   {x.label}
+                  {x.badge && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 99, background: C.gradient, color: "#fff", letterSpacing: 0.3 }}>{x.badge}</span>}
                 </Link>
               ))}
             </div>
@@ -156,8 +158,9 @@ export default function Navbar() {
             <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: C.text, float: "right" }}>✕</button>
             <div style={{ paddingTop: 36, display: "flex", flexDirection: "column", gap: 4 }}>
               {NAV_ITEMS.map(x => (
-                <Link key={x.href} href={x.href} style={{ padding: "10px 14px", borderRadius: 9, background: pathname === x.href ? C.accentBg : "transparent", color: pathname === x.href ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                <Link key={x.href} href={x.href} style={{ padding: "10px 14px", borderRadius: 9, background: pathname === x.href ? C.accentBg : "transparent", color: pathname === x.href ? C.accent : C.text, fontSize: 14, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
                   {x.icon} {x.label}
+                  {x.badge && <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 99, background: C.gradient, color: "#fff", letterSpacing: 0.3 }}>{x.badge}</span>}
                 </Link>
               ))}
               {user && (

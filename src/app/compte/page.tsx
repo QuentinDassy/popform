@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchFormationsFaites, toggleFormationFaite, addAvis, type Formation, type Avis } from "@/lib/data";
+import { useRouter } from "next/navigation";
+import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchFormationsFaites, toggleFormationFaite, addAvis, fetchDomainesFiltres, type Formation, type Avis } from "@/lib/data";
 import { FormationCard, StarRow } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +11,7 @@ import { supabase } from "@/lib/supabase-data";
 type InscRow = { formation_id: number; session_id?: number | null };
 
 export default function ComptePage() {
+  const router = useRouter();
   const [tab, setTab] = useState("inscriptions");
   const [search, setSearch] = useState("");
   const mob = useIsMobile();
@@ -19,6 +21,7 @@ export default function ComptePage() {
   const [inscs, setInscs] = useState<InscRow[]>([]);
   const [inscriptionIds, setInscriptionIds] = useState<number[]>([]);
   const [favoriIds, setFavoriIds] = useState<number[]>([]);
+  const [webInscs, setWebInscs] = useState<any[]>([]);
   const [faitsIds, setFaitsIds] = useState<number[]>([]);
   const [avisFormId, setAvisFormId] = useState<number | null>(null);
   const [avisNote, setAvisNote] = useState(5);
@@ -49,6 +52,17 @@ export default function ComptePage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
   const [sessionParties, setSessionParties] = useState<{ session_id: number; jours: string | null; date_debut: string | null; date_fin: string | null }[]>([]);
+  // Alertes
+  type AlerteRow = { id: number; type: string; valeur: string };
+  const [alertes, setAlertes] = useState<AlerteRow[]>([]);
+  const [alertOrg, setAlertOrg] = useState("");
+  const [alertFmt, setAlertFmt] = useState("");
+  const [alertDom, setAlertDom] = useState("");
+  const [alertKw, setAlertKw] = useState("");
+  const [orgsForAlert, setOrgsForAlert] = useState<{ id: number; nom: string }[]>([]);
+  const [fmtsForAlert, setFmtsForAlert] = useState<{ id: number; nom: string }[]>([]);
+  const [domsForAlert, setDomsForAlert] = useState<string[]>([]);
+  const [alertMsg, setAlertMsg] = useState("");
 
   const pwChecks = useMemo(() => [
     { label: "8 caractères", ok: newPw.length >= 8 },
@@ -70,6 +84,8 @@ export default function ComptePage() {
       setInscs(inscRows);
       setInscriptionIds(active.map(i => i.formation_id));
       setFavoriIds(favs.map(fv => fv.formation_id));
+      const { data: webInscData } = await supabase.from("webinaire_inscriptions").select("*, webinaire:webinaires(*)").eq("user_id", user.id);
+      setWebInscs(webInscData || []);
       const faits = await fetchFormationsFaites(user.id);
       setFaitsIds(faits);
 
@@ -86,6 +102,31 @@ export default function ComptePage() {
       setLoading(false);
     });
   }, [user, profile]);
+
+  // Load alertes + options when user is available
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("alertes_email").select("id, type, valeur").eq("user_id", user.id).then(({ data: d }: { data: AlerteRow[] | null }) => setAlertes(d || []));
+    supabase.from("organismes").select("id, nom").order("nom").then(({ data: d }: { data: { id: number; nom: string }[] | null }) => setOrgsForAlert(d || []));
+    supabase.from("formateurs").select("id, nom").order("nom").then(({ data: d }: { data: { id: number; nom: string }[] | null }) => setFmtsForAlert(d || []));
+    fetchDomainesFiltres().then(doms => setDomsForAlert(doms.map(d => d.nom))).catch(() => {});
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addAlerte = async (type: string, valeur: string) => {
+    if (!user || !valeur.trim()) return;
+    if (alertes.some(a => a.type === type && a.valeur === valeur)) return;
+    const { data, error } = await supabase.from("alertes_email").insert({ user_id: user.id, type, valeur: valeur.trim() }).select().single();
+    if (!error && data) {
+      setAlertes(prev => [...prev, data as AlerteRow]);
+      setAlertMsg("✓ Alerte ajoutée !");
+      setTimeout(() => setAlertMsg(""), 2000);
+    }
+  };
+
+  const removeAlerte = async (id: number) => {
+    await supabase.from("alertes_email").delete().eq("id", id);
+    setAlertes(prev => prev.filter(a => a.id !== id));
+  };
 
   const handleToggleFav = async (formationId: number) => {
     if (!user) return;
@@ -130,6 +171,22 @@ export default function ComptePage() {
         <Link href="/" style={{ color: C.textTer, fontSize: 13, textDecoration: "none" }}>← Accueil</Link>
         <h1 style={{ fontSize: mob ? 22 : 28, fontWeight: 800, color: C.text, marginTop: 6 }}>Mon compte 🍿</h1>
         <p style={{ fontSize: 13, color: C.textTer }}>{profile?.full_name} · {user.email}</p>
+      </div>
+
+      {/* Quick-actions */}
+      <div style={{ display: "grid", gridTemplateColumns: mob ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(140px, 1fr))", gap: mob ? 8 : 10, marginBottom: 20 }}>
+        {[
+          { icon: "🔍", label: "Trouver une formation", color: C.accent, bg: C.accentBg, action: () => router.push("/catalogue") },
+          { icon: "📅", label: "Mon calendrier", color: C.blue, bg: C.blueBg, action: () => setTab("calendrier") },
+          { icon: "⭐", label: "Donner un avis", color: C.yellowDark, bg: C.yellowBg, action: () => setTab("faites") },
+          { icon: "❤️", label: "Mes favoris", color: C.pink, bg: C.pinkBg, action: () => setTab("favoris") },
+          { icon: "🔔", label: "Mes alertes", color: C.blue, bg: C.blueBg, action: () => setTab("alertes") },
+        ].map(item => (
+          <button key={item.label} onClick={item.action} style={{ padding: mob ? "12px 8px" : "14px 12px", borderRadius: 14, border: "1.5px solid " + item.bg, background: item.bg, color: item.color, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center" }}>
+            <span style={{ fontSize: mob ? 20 : 24 }}>{item.icon}</span>
+            <span style={{ fontSize: mob ? 10 : 11, fontWeight: 700, lineHeight: 1.3 }}>{item.label}</span>
+          </button>
+        ))}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
@@ -189,11 +246,12 @@ export default function ComptePage() {
       )}
 
       <div style={{ display: "flex", gap: 4, marginBottom: 18, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content", flexWrap: "wrap" }}>
-        <button onClick={() => { setTab("inscriptions"); setSearch(""); }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "inscriptions" ? C.accentBg : "transparent", color: tab === "inscriptions" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "inscriptions" ? 700 : 500, cursor: "pointer" }}>📋 Inscriptions ({inscF.length})</button>
+        <button onClick={() => { setTab("inscriptions"); setSearch(""); }} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "inscriptions" ? C.accentBg : "transparent", color: tab === "inscriptions" ? C.accent : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "inscriptions" ? 700 : 500, cursor: "pointer" }}>📋 Inscriptions ({inscF.length + webInscs.length})</button>
         <button onClick={() => setTab("calendrier")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "calendrier" ? "rgba(46,124,230,0.1)" : "transparent", color: tab === "calendrier" ? "#2E7CE6" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "calendrier" ? 700 : 500, cursor: "pointer" }}>📅 Calendrier</button>
         <button onClick={() => setTab("avis")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "avis" ? "rgba(232,123,53,0.1)" : "transparent", color: tab === "avis" ? "#E87B35" : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "avis" ? 700 : 500, cursor: "pointer" }}>⭐ Avis ({myAvis.length})</button>
         <button onClick={() => setTab("favoris")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "favoris" ? C.pinkBg : "transparent", color: tab === "favoris" ? C.pink : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "favoris" ? 700 : 500, cursor: "pointer" }}>❤️ Favoris ({favF.length})</button>
         <button onClick={() => setTab("faites")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "faites" ? C.greenBg : "transparent", color: tab === "faites" ? C.green : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "faites" ? 700 : 500, cursor: "pointer" }}>✅ Faites ({faitsF.length})</button>
+        <button onClick={() => setTab("alertes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: tab === "alertes" ? C.blueBg : "transparent", color: tab === "alertes" ? C.blue : C.textTer, fontSize: mob ? 11 : 12, fontWeight: tab === "alertes" ? 700 : 500, cursor: "pointer" }}>🔔 Alertes ({alertes.length})</button>
       </div>
 
       {tab === "favoris" && (
@@ -388,12 +446,50 @@ export default function ComptePage() {
                 })}
               </div>;
           })()}
+
+          {/* Webinaires inscrits */}
+          {webInscs.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.textSec, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>💻 Mes webinaires</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 40 }}>
+                {webInscs.map(wi => {
+                  const w = wi.webinaire;
+                  if (!w) return null;
+                  const d = new Date(w.date_heure);
+                  const isPast = d < new Date();
+                  const fmtDate = (dt: Date) => {
+                    const m = ["jan.","fév.","mars","avr.","mai","juin","juil.","août","sep.","oct.","nov.","déc."];
+                    return dt.getDate() + " " + m[dt.getMonth()] + " " + dt.getFullYear() + " à " + String(dt.getHours()).padStart(2,"0") + "h" + String(dt.getMinutes()).padStart(2,"0");
+                  };
+                  return (
+                    <div key={wi.id} style={{ padding: "14px 16px", background: C.surface, borderRadius: 14, border: "1.5px solid " + C.borderLight, display: "flex", flexDirection: mob ? "column" : "row", alignItems: mob ? "flex-start" : "center", gap: 12, justifyContent: "space-between" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: isPast ? C.textTer : C.text, marginBottom: 4 }}>{w.titre}</div>
+                        <div style={{ fontSize: 12, color: C.textTer }}>📅 {fmtDate(d)}{isPast ? " · Passé" : ""}</div>
+                        {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer, marginTop: 2 }}>{w.organisme.nom}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                        {!isPast && w.lien_url && (
+                          <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ padding: "7px 16px", borderRadius: 9, background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Rejoindre →</a>
+                        )}
+                        <button onClick={async () => {
+                          if (!confirm("Se désinscrire de ce webinaire ?")) return;
+                          await supabase.from("webinaire_inscriptions").delete().eq("id", wi.id);
+                          setWebInscs(prev => prev.filter(x => x.id !== wi.id));
+                        }} style={{ padding: "6px 12px", borderRadius: 8, background: "none", border: "1px solid " + C.border, color: C.pink, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>✕ Se désinscrire</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {tab === "calendrier" && (
         <div>
-          {inscF.length === 0 ? (
+          {inscF.length === 0 && webInscs.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40, color: C.textTer }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
               <p>Aucune inscription à afficher dans le calendrier.</p>
@@ -401,7 +497,8 @@ export default function ComptePage() {
           ) : (
             <div style={{ paddingBottom: 40 }}>
               {(() => {
-                type CalEvt = { date: string; entries: { formation: Formation; sessionId: number }[] };
+                type WebEntry = { id: number; titre: string; date_heure: string; lien_url?: string; organisme?: { nom: string } };
+                type CalEvt = { date: string; entries: { formation: Formation; sessionId: number }[]; webEntries: WebEntry[] };
                 const events: CalEvt[] = [];
                 inscs.forEach(({ formation_id, session_id }) => {
                   const f = inscF.find(ff => ff.id === formation_id);
@@ -431,9 +528,18 @@ export default function ComptePage() {
                   const sid = session_id ?? -formation_id;
                   allDates.forEach(dateKey => {
                     let ev = events.find(e => e.date === dateKey);
-                    if (!ev) { ev = { date: dateKey, entries: [] }; events.push(ev); }
+                    if (!ev) { ev = { date: dateKey, entries: [], webEntries: [] }; events.push(ev); }
                     if (!ev.entries.find(e => e.sessionId === sid)) ev.entries.push({ formation: f, sessionId: sid });
                   });
+                });
+                // Ajouter les webinaires au calendrier
+                webInscs.forEach(wi => {
+                  const w = wi.webinaire;
+                  if (!w?.date_heure) return;
+                  const dateKey = w.date_heure.slice(0, 10);
+                  let ev = events.find(e => e.date === dateKey);
+                  if (!ev) { ev = { date: dateKey, entries: [], webEntries: [] }; events.push(ev); }
+                  if (!ev.webEntries.find(e => e.id === w.id)) ev.webEntries.push(w);
                 });
                 events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -469,20 +575,18 @@ export default function ComptePage() {
                         const jourNom = JOURS_SHORT[date.getDay()];
                         const jourNum = date.getDate();
                         return (
-                          <div key={i} style={{ opacity: isPast ? 0.5 : 1 }}>
+                          <div key={i} style={{ opacity: isPast ? 0.5 : 1, display: "flex", flexDirection: "column", gap: 6 }}>
                             {event.entries.map(({ formation: f, sessionId }) => {
                               const session = (f.sessions || []).find(s => s.id === sessionId);
                               const sessionIdx = (f.sessions || []).findIndex(s => s.id === sessionId);
                               const lieu = session?.lieu;
                               return (
                                 <Link key={sessionId} href={`/formation/${f.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-                                  <div style={{ display: "flex", gap: 0, background: C.surface, borderRadius: 12, border: "1.5px solid " + (isPast ? C.borderLight : C.border), overflow: "hidden", transition: "box-shadow 0.15s" }}>
-                                    {/* Date pill */}
+                                  <div style={{ display: "flex", gap: 0, background: C.surface, borderRadius: 12, border: "1.5px solid " + (isPast ? C.borderLight : C.border), overflow: "hidden" }}>
                                     <div style={{ width: 56, flexShrink: 0, background: isPast ? C.bgAlt : C.accentBg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
                                       <div style={{ fontSize: 10, fontWeight: 700, color: isPast ? C.textTer : C.accent, textTransform: "uppercase" }}>{jourNom}</div>
                                       <div style={{ fontSize: 22, fontWeight: 800, color: isPast ? C.textTer : C.accent, lineHeight: 1.1 }}>{jourNum}</div>
                                     </div>
-                                    {/* Content */}
                                     <div style={{ flex: 1, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 }}>
                                       <div style={{ minWidth: 0 }}>
                                         <div style={{ fontSize: mob ? 12 : 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.titre}</div>
@@ -499,6 +603,30 @@ export default function ComptePage() {
                                 </Link>
                               );
                             })}
+                            {event.webEntries.map(w => {
+                              const wDate = new Date(w.date_heure);
+                              const heure = String(wDate.getHours()).padStart(2, "0") + "h" + String(wDate.getMinutes()).padStart(2, "0");
+                              return (
+                                <div key={w.id} style={{ display: "flex", gap: 0, background: C.surface, borderRadius: 12, border: "1.5px solid " + (isPast ? C.borderLight : "#7C3AED44"), overflow: "hidden" }}>
+                                  <div style={{ width: 56, flexShrink: 0, background: isPast ? C.bgAlt : "#F3EFFE", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: isPast ? C.textTer : "#7C3AED", textTransform: "uppercase" }}>{jourNom}</div>
+                                    <div style={{ fontSize: 22, fontWeight: 800, color: isPast ? C.textTer : "#7C3AED", lineHeight: 1.1 }}>{jourNum}</div>
+                                  </div>
+                                  <div style={{ flex: 1, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 }}>
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ fontSize: mob ? 12 : 13, fontWeight: 700, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.titre}</div>
+                                      <div style={{ fontSize: 11, color: C.textTer, marginTop: 2, display: "flex", gap: 8 }}>
+                                        <span>💻 Webinaire · {heure}</span>
+                                        {w.organisme?.nom && <span>· {w.organisme.nom}</span>}
+                                      </div>
+                                    </div>
+                                    {!isPast && w.lien_url ? (
+                                      <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ padding: "5px 12px", borderRadius: 8, background: "#7C3AED", color: "#fff", fontSize: 11, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>Rejoindre</a>
+                                    ) : <span style={{ fontSize: 14, color: C.textTer, flexShrink: 0 }}>→</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
@@ -508,6 +636,96 @@ export default function ComptePage() {
               })()}
             </div>
           )}
+        </div>
+      )}
+      {tab === "alertes" && (
+        <div style={{ paddingBottom: 48 }}>
+          <div style={{ padding: "14px 16px", background: C.blueBg, borderRadius: 12, border: "1px solid " + C.blue + "33", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 18 }}>🔔</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.blue, marginBottom: 2 }}>Alertes email</div>
+              <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>Recevez un email dès qu&apos;une nouvelle formation correspond à vos critères.</div>
+            </div>
+          </div>
+
+          {alertMsg && <div style={{ fontSize: 12, color: C.green, fontWeight: 600, marginBottom: 12 }}>{alertMsg}</div>}
+
+          {/* Existing alertes */}
+          {alertes.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>Mes alertes actives</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {alertes.map(a => {
+                  const typeLabel: Record<string, string> = { organisme: "🏢 Organisme", formateur: "🎤 Formateur", domaine: "📚 Domaine", mots_cles: "🔍 Mot-clé" };
+                  return (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 12, gap: 10 }}>
+                      <div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.4 }}>{typeLabel[a.type] || a.type}</span>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginTop: 1 }}>{a.valeur}</div>
+                      </div>
+                      <button onClick={() => removeAlerte(a.id)} style={{ padding: "4px 10px", borderRadius: 8, border: "1.5px solid " + C.pink + "44", background: C.pinkBg, color: C.pink, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Supprimer</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Add alerte forms */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {[
+              {
+                label: "Par organisme", type: "organisme", icon: "🏢",
+                input: (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select value={alertOrg} onChange={e => setAlertOrg(e.target.value)} style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }}>
+                      <option value="">Choisir un organisme…</option>
+                      {orgsForAlert.map(o => <option key={o.id} value={o.nom}>{o.nom}</option>)}
+                    </select>
+                    <button onClick={() => { addAlerte("organisme", alertOrg); setAlertOrg(""); }} disabled={!alertOrg} style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: alertOrg ? C.gradient : C.bgAlt, color: alertOrg ? "#fff" : C.textTer, fontSize: 12, fontWeight: 700, cursor: alertOrg ? "pointer" : "default", flexShrink: 0 }}>+ Ajouter</button>
+                  </div>
+                )
+              },
+              {
+                label: "Par formateur", type: "formateur", icon: "🎤",
+                input: (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select value={alertFmt} onChange={e => setAlertFmt(e.target.value)} style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }}>
+                      <option value="">Choisir un formateur…</option>
+                      {fmtsForAlert.map(f => <option key={f.id} value={f.nom}>{f.nom}</option>)}
+                    </select>
+                    <button onClick={() => { addAlerte("formateur", alertFmt); setAlertFmt(""); }} disabled={!alertFmt} style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: alertFmt ? C.gradient : C.bgAlt, color: alertFmt ? "#fff" : C.textTer, fontSize: 12, fontWeight: 700, cursor: alertFmt ? "pointer" : "default", flexShrink: 0 }}>+ Ajouter</button>
+                  </div>
+                )
+              },
+              {
+                label: "Par domaine", type: "domaine", icon: "📚",
+                input: (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select value={alertDom} onChange={e => setAlertDom(e.target.value)} style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }}>
+                      <option value="">Choisir un domaine…</option>
+                      {domsForAlert.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <button onClick={() => { addAlerte("domaine", alertDom); setAlertDom(""); }} disabled={!alertDom} style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: alertDom ? C.gradient : C.bgAlt, color: alertDom ? "#fff" : C.textTer, fontSize: 12, fontWeight: 700, cursor: alertDom ? "pointer" : "default", flexShrink: 0 }}>+ Ajouter</button>
+                  </div>
+                )
+              },
+              {
+                label: "Par mot-clé", type: "mots_cles", icon: "🔍",
+                input: (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input value={alertKw} onChange={e => setAlertKw(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && alertKw.trim()) { addAlerte("mots_cles", alertKw); setAlertKw(""); } }} placeholder="ex : bégaiement, dyslexie, EBP…" style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit" }} />
+                    <button onClick={() => { if (alertKw.trim()) { addAlerte("mots_cles", alertKw); setAlertKw(""); } }} disabled={!alertKw.trim()} style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: alertKw.trim() ? C.gradient : C.bgAlt, color: alertKw.trim() ? "#fff" : C.textTer, fontSize: 12, fontWeight: 700, cursor: alertKw.trim() ? "pointer" : "default", flexShrink: 0 }}>+ Ajouter</button>
+                  </div>
+                )
+              },
+            ].map(({ label, type: _, icon, input }) => (
+              <div key={label} style={{ padding: "16px 16px", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 10 }}>{icon} {label}</div>
+                {input}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

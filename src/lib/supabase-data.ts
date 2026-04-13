@@ -33,13 +33,14 @@ export type Avis = { id: number; formation_id: number; user_id: string; user_nam
 export type Inscription = { id: number; user_id: string; formation_id: number; session_id?: number | null; status: string };
 export type Favori = { id: number; user_id: string; formation_id: number };
 export type AdminNotification = { id: number; type: string; formation_id: number; user_id: string; message: string; is_read: boolean; created_at: string };
-export type DomaineAdmin = { 
-  id: number; 
-  nom: string; 
-  emoji: string; 
-  afficher_sur_accueil: boolean; 
+export type DomaineAdmin = {
+  id: number;
+  nom: string;
+  emoji: string;
+  afficher_sur_accueil: boolean;
   ordre_affichage: number;
   afficher_dans_filtres: boolean;
+  professions?: string[]; // si vide/null = toutes professions
   created_at?: string;
 };
 

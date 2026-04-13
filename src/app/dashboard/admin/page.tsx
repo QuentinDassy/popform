@@ -25,6 +25,7 @@ export default function DashboardAdminPage() {
   const [linkEmail, setLinkEmail] = useState("");
   const [linkMsg, setLinkMsg] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
   const [orgSearch, setOrgSearch] = useState("");
+  const [fmtUserSearch, setFmtUserSearch] = useState("");
   const [formSearch, setFormSearch] = useState("");
   const [formSort, setFormSort] = useState<"default" | "alpha" | "organisme" | "recent">("default");
   const [selfRegisteredOrgs, setSelfRegisteredOrgs] = useState<any[]>([]);
@@ -43,11 +44,22 @@ export default function DashboardAdminPage() {
 
   // Domaines management
   const [domainesList, setDomainesList] = useState<DomaineAdmin[]>([]);
-  const [newDomaine, setNewDomaine] = useState({ nom: "", emoji: "📚", afficher_sur_accueil: true, afficher_dans_filtres: true });
+  const [domainesProfTab, setDomainesProfTab] = useState<"Orthophonistes" | "Kinésithérapeutes">("Orthophonistes");
+  const [newDomaine, setNewDomaine] = useState({ nom: "", emoji: "📚", afficher_sur_accueil: true, afficher_dans_filtres: true, professions: ["Orthophonistes"] as string[] });
   const [editingDomaine, setEditingDomaine] = useState<DomaineAdmin | null>(null);
 
   // Webinaires management
   const [webinaires, setWebinaires] = useState<any[]>([]);
+  const [webForm, setWebForm] = useState({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null as number | null, formateur_id: null as number | null, status: "publie" });
+  const [webSaving, setWebSaving] = useState(false);
+  const [webMsg, setWebMsg] = useState<string | null>(null);
+  const [showWebForm, setShowWebForm] = useState(false);
+  const [allOrganismesAdmin, setAllOrganismesAdmin] = useState<{ id: number; nom: string }[]>([]);
+  const [allFormateursAdmin, setAllFormateursAdmin] = useState<{ id: number; nom: string }[]>([]);
+  const [orgSearchWeb, setOrgSearchWeb] = useState("");
+  const [showOrgDropdownWeb, setShowOrgDropdownWeb] = useState(false);
+  const [fmtSearchWeb, setFmtSearchWeb] = useState("");
+  const [showFmtDropdownWeb, setShowFmtDropdownWeb] = useState(false);
 
   // Congrès management
   const [congresList, setCongresList] = useState<any[]>([]);
@@ -79,6 +91,15 @@ export default function DashboardAdminPage() {
         // Load webinaires
         const { data: wbs } = await supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").order("date_heure", { ascending: true });
         setWebinaires(wbs || []);
+        // Load organismes + formateurs for webinaire creation
+        try {
+          const [{ data: orgsAdmin }, { data: fmtsAdmin }] = await Promise.all([
+            supabase.from("organismes").select("id, nom").order("nom"),
+            supabase.from("formateurs").select("id, nom").order("nom"),
+          ]);
+          setAllOrganismesAdmin(orgsAdmin || []);
+          setAllFormateursAdmin(fmtsAdmin || []);
+        } catch { /* ignore */ }
         const { data: cgs } = await supabase.from("congres").select("*, organisme:organismes(nom), speakers:congres_speakers(nom,titre_intervention)").order("date", { ascending: true });
         setCongresList(cgs || []);
         // Load utilisateurs
@@ -317,16 +338,21 @@ export default function DashboardAdminPage() {
     if (!newDomaine.nom.trim()) return;
     setDomaineError(null);
     try {
+      // Auto-assign current tab's profession if none explicitly selected
+      const professionsToSave = (newDomaine.professions || []).length > 0
+        ? newDomaine.professions
+        : [domainesProfTab];
       const domaine = await createDomaineAdmin({
         nom: newDomaine.nom.trim(),
         emoji: newDomaine.emoji || "📚",
         afficher_sur_accueil: newDomaine.afficher_sur_accueil,
         afficher_dans_filtres: newDomaine.afficher_dans_filtres,
         ordre_affichage: domainesList.length + 1,
+        professions: professionsToSave,
       });
       if (domaine) {
         setDomainesList(prev => [...prev, domaine]);
-        setNewDomaine({ nom: "", emoji: "📚", afficher_sur_accueil: true, afficher_dans_filtres: true });
+        setNewDomaine(prev => ({ ...prev, nom: "", emoji: "📚", professions: [domainesProfTab] }));
       }
     } catch (e: any) {
       setDomaineError(e.message || "Erreur lors de l'ajout du domaine");
@@ -513,6 +539,7 @@ export default function DashboardAdminPage() {
         </button>
         <button onClick={() => setAdminTab("villes")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "villes" ? C.surface : "transparent", color: adminTab === "villes" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "villes" ? 700 : 500, cursor: "pointer" }}>📍 Villes</button>
         <button onClick={() => setAdminTab("domaines")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "domaines" ? C.surface : "transparent", color: adminTab === "domaines" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "domaines" ? 700 : 500, cursor: "pointer" }}>🏷️ Domaines</button>
+        <button onClick={() => setAdminTab("webinaires")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "webinaires" ? C.surface : "transparent", color: adminTab === "webinaires" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "webinaires" ? 700 : 500, cursor: "pointer" }}>💻 Webinaires</button>
         <button onClick={() => setAdminTab("utilisateurs")} style={{ padding: "7px 14px", borderRadius: 9, border: "none", background: adminTab === "utilisateurs" ? C.surface : "transparent", color: adminTab === "utilisateurs" ? C.text : C.textTer, fontSize: 12, fontWeight: adminTab === "utilisateurs" ? 700 : 500, cursor: "pointer", position: "relative" as const }}>
           👥 Utilisateurs
           {selfRegisteredOrgs.length > 0 && (
@@ -529,6 +556,118 @@ export default function DashboardAdminPage() {
       {adminTab === "webinaires" && (
         <div style={{ paddingBottom: 40 }}>
           <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Webinaires soumis par les organismes et formateurs. Publiez-les pour les rendre visibles sur le site.</p>
+
+          {/* Création admin directe */}
+          <div style={{ marginBottom: 24 }}>
+            {!showWebForm ? (
+              <button onClick={() => setShowWebForm(true)} style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                + Créer un webinaire manuellement
+              </button>
+            ) : (
+            <div style={{ padding: mob ? 16 : 22, background: C.bgAlt, borderRadius: 14, border: "1px solid " + C.borderLight }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>+ Créer un webinaire manuellement</h3>
+              <button onClick={() => setShowWebForm(false)} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 10 }}>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Titre *</label>
+                <input value={webForm.titre} onChange={e => setWebForm({ ...webForm, titre: e.target.value })} placeholder="Titre du webinaire" style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Description</label>
+                <textarea value={webForm.description} onChange={e => setWebForm({ ...webForm, description: e.target.value })} placeholder="Description…" style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const, resize: "vertical", minHeight: 60 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date & heure *</label>
+                <input type="datetime-local" value={webForm.date_heure} onChange={e => setWebForm({ ...webForm, date_heure: e.target.value })} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (0 = gratuit)</label>
+                <input type="number" min={0} value={webForm.prix} onChange={e => setWebForm({ ...webForm, prix: Number(e.target.value) })} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien de connexion</label>
+                <input value={webForm.lien_url} onChange={e => setWebForm({ ...webForm, lien_url: e.target.value })} placeholder="https://zoom.us/j/..." style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+              </div>
+              <div style={{ position: "relative" as const }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Organisme (optionnel)</label>
+                <input
+                  value={orgSearchWeb}
+                  onChange={e => { setOrgSearchWeb(e.target.value); setShowOrgDropdownWeb(true); if (!e.target.value) setWebForm({ ...webForm, organisme_id: null }); }}
+                  onFocus={() => setShowOrgDropdownWeb(true)}
+                  onBlur={() => setTimeout(() => setShowOrgDropdownWeb(false), 150)}
+                  placeholder="Rechercher un organisme…"
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }}
+                />
+                {showOrgDropdownWeb && orgSearchWeb.length >= 1 && (
+                  <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
+                    {allOrganismesAdmin.filter(o => o.nom.toLowerCase().includes(orgSearchWeb.toLowerCase())).slice(0, 10).map(o => (
+                      <div key={o.id} onMouseDown={() => { setWebForm({ ...webForm, organisme_id: o.id }); setOrgSearchWeb(o.nom); setShowOrgDropdownWeb(false); }}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
+                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
+                      >{o.nom}</div>
+                    ))}
+                    {allOrganismesAdmin.filter(o => o.nom.toLowerCase().includes(orgSearchWeb.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div style={{ position: "relative" as const }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Formateur (optionnel)</label>
+                <input
+                  value={fmtSearchWeb}
+                  onChange={e => { setFmtSearchWeb(e.target.value); setShowFmtDropdownWeb(true); if (!e.target.value) setWebForm({ ...webForm, formateur_id: null }); }}
+                  onFocus={() => setShowFmtDropdownWeb(true)}
+                  onBlur={() => setTimeout(() => setShowFmtDropdownWeb(false), 150)}
+                  placeholder="Rechercher un formateur…"
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }}
+                />
+                {showFmtDropdownWeb && fmtSearchWeb.length >= 1 && (
+                  <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
+                    {allFormateursAdmin.filter(f => f.nom.toLowerCase().includes(fmtSearchWeb.toLowerCase())).slice(0, 10).map(f => (
+                      <div key={f.id} onMouseDown={() => { setWebForm({ ...webForm, formateur_id: f.id }); setFmtSearchWeb(f.nom); setShowFmtDropdownWeb(false); }}
+                        style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
+                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
+                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
+                      >{f.nom}</div>
+                    ))}
+                    {allFormateursAdmin.filter(f => f.nom.toLowerCase().includes(fmtSearchWeb.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Statut initial</label>
+                <select value={webForm.status} onChange={e => setWebForm({ ...webForm, status: e.target.value })} style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface }}>
+                  <option value="publie">✅ Publié</option>
+                  <option value="en_attente">⏳ En attente</option>
+                </select>
+              </div>
+            </div>
+            {webMsg && <p style={{ fontSize: 13, color: webMsg.startsWith("✅") ? C.green : C.pink, marginTop: 10 }}>{webMsg}</p>}
+            <button disabled={webSaving} onClick={async () => {
+              if (!webForm.titre.trim() || !webForm.date_heure) { setWebMsg("Titre et date obligatoires."); return; }
+              setWebSaving(true); setWebMsg(null);
+              const payload: Record<string, unknown> = { titre: webForm.titre.trim(), description: webForm.description, date_heure: webForm.date_heure, prix: webForm.prix, lien_url: webForm.lien_url, status: webForm.status };
+              if (webForm.organisme_id) payload.organisme_id = webForm.organisme_id;
+              if (webForm.formateur_id) payload.formateur_id = webForm.formateur_id;
+              const { data: wb, error } = await supabase.from("webinaires").insert(payload).select("*, organisme:organismes(nom), formateur:formateurs(nom)").single();
+              if (error) { setWebMsg("❌ " + error.message); setWebSaving(false); return; }
+              if (wb) setWebinaires(prev => [wb, ...prev]);
+              setWebForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null, formateur_id: null, status: "publie" });
+              setOrgSearchWeb(""); setFmtSearchWeb("");
+              setWebSaving(false); setWebMsg("✅ Webinaire créé !");
+              setTimeout(() => setWebMsg(null), 3000);
+            }} style={{ marginTop: 14, padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: webSaving ? "default" : "pointer", opacity: webSaving ? 0.6 : 1 }}>
+              {webSaving ? "⏳ Création…" : "💻 Créer le webinaire"}
+            </button>
+          </div>
+          )}
+          </div>
 
           {/* Filtre par statut */}
           <div style={{ display: "flex", gap: 4, marginBottom: 14, padding: 4, background: C.bgAlt, borderRadius: 10, width: "fit-content" }}>
@@ -740,58 +879,104 @@ export default function DashboardAdminPage() {
       {/* ===== DOMAINES TAB ===== */}
       {adminTab === "domaines" && (
         <div style={{ paddingBottom: 40 }}>
-          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les domaines de formation. Vous pouvez contrôler quels domaines apparaissent sur la page d&apos;accueil et dans les filtres de recherche.</p>
-          
-          {/* Liste des domaines */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-            {domainesList.map((d, index) => (
-              <div key={d.id} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ fontSize: 24, width: 40, textAlign: "center" }}>{d.emoji}</div>
-                <div style={{ flex: 1, minWidth: 150 }}>
-                  <input
-                    value={editingDomaine?.id === d.id ? editingDomaine.nom : d.nom}
-                    onChange={e => editingDomaine?.id === d.id && setEditingDomaine({ ...editingDomaine, nom: e.target.value })}
-                    onFocus={() => setEditingDomaine(d)}
-                    onBlur={() => {
-                      if (editingDomaine && editingDomaine.id === d.id && editingDomaine.nom !== d.nom) {
-                        handleUpdateDomaine(d.id, { nom: editingDomaine.nom });
-                      }
-                      setEditingDomaine(null);
-                    }}
-                    style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, fontWeight: 700 }}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={d.afficher_sur_accueil}
-                      onChange={e => handleUpdateDomaine(d.id, { afficher_sur_accueil: e.target.checked })}
-                      style={{ cursor: "pointer" }}
-                    />
-                    Accueil
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={d.afficher_dans_filtres}
-                      onChange={e => handleUpdateDomaine(d.id, { afficher_dans_filtres: e.target.checked })}
-                      style={{ cursor: "pointer" }}
-                    />
-                    Filtres
-                  </label>
-                </div>
-                <div style={{ display: "flex", gap: 4 }}>
-                  <button onClick={() => handleMoveDomaine(index, "up")} disabled={index === 0} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: index === 0 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: index === 0 ? "not-allowed" : "pointer" }}>↑</button>
-                  <button onClick={() => handleMoveDomaine(index, "down")} disabled={index === domainesList.length - 1} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: index === domainesList.length - 1 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: index === domainesList.length - 1 ? "not-allowed" : "pointer" }}>↓</button>
-                  <button onClick={() => handleDeleteDomaine(d.id)} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️</button>
-                </div>
-              </div>
+          <p style={{ fontSize: 13, color: C.textTer, marginBottom: 16 }}>Gérez ici les domaines de formation par profession. Cochez &quot;Inclus&quot; pour qu&apos;un domaine apparaisse dans les filtres de l&apos;onglet correspondant.</p>
+
+          {/* Sous-onglets profession */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 20, padding: 4, background: C.bgAlt, borderRadius: 12, width: "fit-content" }}>
+            {([["Orthophonistes", "🗣️ Orthophonistes"], ["Kinésithérapeutes", "✋ Kinésithérapeutes"]] as [string, string][]).map(([val, label]) => (
+              <button key={val} onClick={() => { setDomainesProfTab(val as "Orthophonistes" | "Kinésithérapeutes"); setNewDomaine(prev => ({ ...prev, professions: [val] })); }}
+                style={{ padding: "7px 16px", borderRadius: 9, border: "none", background: domainesProfTab === val ? C.surface : "transparent", color: domainesProfTab === val ? C.text : C.textTer, fontSize: 13, fontWeight: domainesProfTab === val ? 700 : 500, cursor: "pointer", boxShadow: domainesProfTab === val ? "0 1px 4px rgba(45,27,6,0.08)" : "none", fontFamily: "inherit" }}>
+                {label}
+              </button>
             ))}
-            {domainesList.length === 0 && (
-              <div style={{ textAlign: "center", padding: 30, color: C.textTer, fontSize: 13 }}>Aucun domaine configuré. Les domaines seront détectés automatiquement depuis les formations.</div>
-            )}
           </div>
+
+          {/* Liste des domaines pour l'onglet actif */}
+          {(() => {
+            const included = domainesList.filter(d => {
+              const profs = d.professions || [];
+              return domainesProfTab === "Orthophonistes"
+                ? profs.length === 0 || profs.includes("Orthophonistes")
+                : profs.includes("Kinésithérapeutes");
+            });
+            const excluded = domainesList.filter(d => {
+              const profs = d.professions || [];
+              return domainesProfTab === "Orthophonistes"
+                ? !(profs.length === 0 || profs.includes("Orthophonistes"))
+                : !profs.includes("Kinésithérapeutes");
+            });
+            return (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  {included.map((d, index) => (
+                    <div key={d.id} style={{ padding: 12, background: C.surface, borderRadius: 12, border: "1.5px solid " + C.borderLight, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 24, width: 40, textAlign: "center" }}>{d.emoji}</div>
+                      <div style={{ flex: 1, minWidth: 150 }}>
+                        <input
+                          value={editingDomaine?.id === d.id ? editingDomaine.nom : d.nom}
+                          onChange={e => editingDomaine?.id === d.id && setEditingDomaine({ ...editingDomaine, nom: e.target.value })}
+                          onFocus={() => setEditingDomaine(d)}
+                          onBlur={() => {
+                            if (editingDomaine && editingDomaine.id === d.id && editingDomaine.nom !== d.nom) {
+                              handleUpdateDomaine(d.id, { nom: editingDomaine.nom });
+                            }
+                            setEditingDomaine(null);
+                          }}
+                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.bgAlt, color: C.text, fontSize: 13, fontWeight: 700 }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
+                          <input type="checkbox" checked={d.afficher_sur_accueil} onChange={e => handleUpdateDomaine(d.id, { afficher_sur_accueil: e.target.checked })} style={{ cursor: "pointer" }} />
+                          Accueil
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textSec, cursor: "pointer" }}>
+                          <input type="checkbox" checked={d.afficher_dans_filtres} onChange={e => handleUpdateDomaine(d.id, { afficher_dans_filtres: e.target.checked })} style={{ cursor: "pointer" }} />
+                          Filtres
+                        </label>
+                        {/* Retirer du tab actif */}
+                        {domainesProfTab === "Kinésithérapeutes" && (
+                          <button onClick={() => {
+                            const updated = (d.professions || []).filter(x => x !== "Kinésithérapeutes");
+                            handleUpdateDomaine(d.id, { professions: updated });
+                          }} style={{ padding: "3px 8px", borderRadius: 7, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>✕ Retirer</button>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button onClick={() => handleMoveDomaine(domainesList.indexOf(d), "up")} disabled={domainesList.indexOf(d) === 0} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: domainesList.indexOf(d) === 0 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: domainesList.indexOf(d) === 0 ? "not-allowed" : "pointer" }}>↑</button>
+                        <button onClick={() => handleMoveDomaine(domainesList.indexOf(d), "down")} disabled={domainesList.indexOf(d) === domainesList.length - 1} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: domainesList.indexOf(d) === domainesList.length - 1 ? C.textTer + "44" : C.textSec, fontSize: 12, cursor: domainesList.indexOf(d) === domainesList.length - 1 ? "not-allowed" : "pointer" }}>↓</button>
+                        <button onClick={() => handleDeleteDomaine(d.id)} style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                  {included.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "28px 20px", background: C.bgAlt, borderRadius: 12, border: "1.5px dashed " + C.border }}>
+                      <div style={{ fontSize: 28, marginBottom: 6 }}>✋</div>
+                      <p style={{ fontSize: 13, color: C.textTer, margin: 0 }}>Aucun domaine assigné aux kinésithérapeutes.</p>
+                      <p style={{ fontSize: 12, color: C.textTer, marginTop: 4 }}>Utilisez &quot;+ Ajouter un domaine existant&quot; ci-dessous.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ajouter des domaines existants au tab kiné */}
+                {domainesProfTab === "Kinésithérapeutes" && excluded.length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textTer, textTransform: "uppercase", marginBottom: 8 }}>Ajouter des domaines existants pour les kinés</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {excluded.map(d => (
+                        <button key={d.id} onClick={() => {
+                          const updated = [...(d.professions || []), "Kinésithérapeutes"];
+                          handleUpdateDomaine(d.id, { professions: updated });
+                        }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>{d.emoji}</span> <span>{d.nom}</span> <span style={{ color: C.green, fontWeight: 700 }}>+</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Ajouter un domaine */}
           <div style={{ padding: 16, background: C.bgAlt, borderRadius: 12, border: "1.5px dashed " + C.border }}>
@@ -802,36 +987,28 @@ export default function DashboardAdminPage() {
               </div>
             )}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                value={newDomaine.emoji}
-                onChange={e => setNewDomaine({ ...newDomaine, emoji: e.target.value })}
-                placeholder="📚"
-                style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: 60, textAlign: "center" }}
-              />
-              <input
-                value={newDomaine.nom}
-                onChange={e => setNewDomaine({ ...newDomaine, nom: e.target.value })}
-                onKeyDown={e => e.key === "Enter" && handleAddDomaine()}
-                placeholder="Nom du domaine"
-                style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, flex: 1, minWidth: 150 }}
-              />
+              <input value={newDomaine.emoji} onChange={e => setNewDomaine({ ...newDomaine, emoji: e.target.value })} placeholder="📚" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, width: 60, textAlign: "center" }} />
+              <input value={newDomaine.nom} onChange={e => setNewDomaine({ ...newDomaine, nom: e.target.value })} onKeyDown={e => e.key === "Enter" && handleAddDomaine()} placeholder="Nom du domaine" style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, flex: 1, minWidth: 150 }} />
               <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.textSec, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={newDomaine.afficher_sur_accueil}
-                  onChange={e => setNewDomaine({ ...newDomaine, afficher_sur_accueil: e.target.checked })}
-                  style={{ cursor: "pointer" }}
-                />
+                <input type="checkbox" checked={newDomaine.afficher_sur_accueil} onChange={e => setNewDomaine({ ...newDomaine, afficher_sur_accueil: e.target.checked })} style={{ cursor: "pointer" }} />
                 Accueil
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.textSec, cursor: "pointer" }}>
+                <input type="checkbox" checked={newDomaine.afficher_dans_filtres} onChange={e => setNewDomaine({ ...newDomaine, afficher_dans_filtres: e.target.checked })} style={{ cursor: "pointer" }} />
+                Filtres
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: C.textSec, cursor: "pointer", padding: "4px 8px", borderRadius: 7, background: C.bgAlt, border: "1px solid " + C.border }}>
                 <input
                   type="checkbox"
-                  checked={newDomaine.afficher_dans_filtres}
-                  onChange={e => setNewDomaine({ ...newDomaine, afficher_dans_filtres: e.target.checked })}
+                  checked={(newDomaine.professions || []).includes(domainesProfTab)}
+                  onChange={e => {
+                    const current = newDomaine.professions || [];
+                    const updated = e.target.checked ? [...current, domainesProfTab] : current.filter(x => x !== domainesProfTab);
+                    setNewDomaine({ ...newDomaine, professions: updated });
+                  }}
                   style={{ cursor: "pointer" }}
                 />
-                Filtres
+                Inclus pour {domainesProfTab === "Orthophonistes" ? "🗣️ Ortho" : "✋ Kiné"}
               </label>
               <button onClick={handleAddDomaine} style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Ajouter</button>
             </div>
@@ -1266,8 +1443,17 @@ export default function DashboardAdminPage() {
 
           <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 4 }}>🎤 Formateurs ({utilisateurs.formateurs.length})</h2>
           <p style={{ fontSize: 12, color: C.textTer, marginBottom: 12 }}>Les formateurs ne doivent pas être liés à un organisme. Utilisez le bouton "Détacher" si nécessaire.</p>
+          <div style={{ marginBottom: 12 }}>
+            <input
+              type="text"
+              placeholder="🔍 Rechercher un·e formateur·rice…"
+              value={fmtUserSearch}
+              onChange={e => setFmtUserSearch(e.target.value)}
+              style={{ width: "100%", maxWidth: 360, padding: "9px 14px", borderRadius: 10, border: "1.5px solid " + C.border, fontSize: 12, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" }}
+            />
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
-            {utilisateurs.formateurs.map(f => {
+            {utilisateurs.formateurs.filter(f => !fmtUserSearch.trim() || (f.nom || "").toLowerCase().includes(fmtUserSearch.toLowerCase())).map(f => {
               const linkedOrg = f.organisme_id ? utilisateurs.organismes.find((o: any) => o.id === f.organisme_id) : null;
               return (
                 <div key={f.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + (linkedOrg ? C.yellow + "66" : C.borderLight), display: "flex", flexDirection: "column", gap: 8 }}>
