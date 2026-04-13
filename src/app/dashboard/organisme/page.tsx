@@ -355,13 +355,12 @@ export default function DashboardOrganismePage() {
       formationId = data.id;
     }
     await ensureOrganismesLibres(form.organismes_libres || []);
-    // Sessions: delete old, insert new (skip for E-learning)
+    // Sessions: insert new first, then delete old by id (safer than delete-all + insert)
     if (formationId) {
-      await supabase.from("inscriptions").update({ session_id: null }).eq("formation_id", formationId);
-      await supabase.from("sessions").delete().eq("formation_id", formationId);
+      const oldSessionIds = sessions.filter(s => s.id != null).map(s => s.id as number);
       const validSessions = isELearning ? [] : sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
-        const { data: insertedSessions } = await supabase.from("sessions").insert(validSessions.map(s => ({
+        const { data: insertedSessions, error: insSessionErr } = await supabase.from("sessions").insert(validSessions.map(s => ({
           formation_id: formationId,
           dates: s.parties && s.parties.length > 0 
             ? s.parties.map((p, pi) => { const lbl = p.titre || ("Partie " + (pi+1)); const d = p.jours && p.jours.length > 0 ? (p.jours.length === 1 ? p.jours[0] : p.jours[0] + " → " + p.jours[p.jours.length-1]) : (p.date_debut || ""); return `${lbl}: ${d}`; }).join(" | ")
@@ -381,6 +380,7 @@ export default function DashboardOrganismePage() {
           organisme_libre: s.organisme_libre || null,
           url_inscription: s.url_inscription || null,
         }))).select();
+        if (insSessionErr) { setMsg("Erreur création sessions : " + insSessionErr.message); setSaving(false); return; }
         // Save parties for each session
         if (insertedSessions) {
           for (let si = 0; si < validSessions.length; si++) {
@@ -391,7 +391,18 @@ export default function DashboardOrganismePage() {
               );
             }
           }
+          // Supprimer les anciennes sessions seulement après succès de l'insert
+          if (oldSessionIds.length > 0) {
+            await supabase.from("inscriptions").update({ session_id: null }).in("session_id", oldSessionIds);
+            const { error: delSessionErr } = await supabase.from("sessions").delete().in("id", oldSessionIds);
+            if (delSessionErr) { setMsg("Sessions sauvegardées mais erreur suppression anciennes : " + delSessionErr.message); setSaving(false); return; }
+          }
         }
+      } else if (oldSessionIds.length > 0) {
+        // Pas de nouvelles sessions valides : supprimer les anciennes
+        await supabase.from("inscriptions").update({ session_id: null }).in("session_id", oldSessionIds);
+        const { error: delSessionErr } = await supabase.from("sessions").delete().in("id", oldSessionIds);
+        if (delSessionErr) { setMsg("Erreur suppression sessions : " + delSessionErr.message); setSaving(false); return; }
       }
     }
 
