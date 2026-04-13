@@ -772,7 +772,7 @@ export default function DashboardOrganismePage() {
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [] }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
-                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
+                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; const { error } = await supabase.from("webinaires").delete().eq("id", w.id); if (error) { alert("Erreur suppression : " + error.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
                   ))}

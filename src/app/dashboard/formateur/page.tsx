@@ -667,7 +667,7 @@ photo_url: (f as any).photo_url || "" };
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [] }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
-                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
+                        <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; const { error: delErr } = await supabase.from("webinaires").delete().eq("id", w.id); if (delErr) { alert("Erreur suppression : " + delErr.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
                   ))}
@@ -1256,7 +1256,7 @@ photo_url: (f as any).photo_url || "" };
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_co_id: w.formateur_co_id ?? null, organisme_id: w.organisme_id ?? null }); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
-                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
+                    <button onClick={async () => { if (!confirm("Supprimer ?")) return; const { error: delErr } = await supabase.from("webinaires").delete().eq("id", w.id); if (delErr) { alert("Erreur suppression : " + delErr.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
               ))}
