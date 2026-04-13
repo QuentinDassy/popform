@@ -582,7 +582,7 @@ export default function DashboardOrganismePage() {
         }
       }
     }
-    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").eq("organisme_id", organisme.id).neq("status", "supprimee").order("date_ajout", { ascending: false });
+    const { data: f } = await supabase.from("formations").select("*, prix_extras, domaines, sessions(*, session_parties(*))").or(`organisme_id.eq.${organisme.id},organisme_ids.cs.{${organisme.id}}`).order("date_ajout", { ascending: false });
     setFormations(f || []);
     setSaving(false);
     const { invalidateCache } = await import("@/lib/supabase-data");
