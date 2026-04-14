@@ -502,7 +502,7 @@ export default function FormationPage() {
                   </a>
                 )}
                 {(f.modalite === "E-learning" || ((f as any).modalites || []).includes("E-learning") || (f.modalite || "").split(",").some((m: string) => m.trim() === "E-learning")) && f.url_inscription && (
-                  <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+                  <a href={/^https?:\/\//i.test(f.url_inscription) ? f.url_inscription : "https://" + f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ padding: "14px 24px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
                     Accéder à la formation →
                   </a>
                 )}
@@ -699,7 +699,7 @@ export default function FormationPage() {
             <div style={{ padding: 20, background: C.surface, borderRadius: 16, border: "1.5px solid " + C.border, marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Informations</div>
               {f.url_inscription && (
-                <a href={f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "12px 16px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center", marginBottom: 16 }}>
+                <a href={/^https?:\/\//i.test(f.url_inscription) ? f.url_inscription : "https://" + f.url_inscription} target="_blank" rel="noopener noreferrer" onClick={() => trackClick(f.id)} style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "12px 16px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center", marginBottom: 16 }}>
                   Voir la formation →
                 </a>
               )}

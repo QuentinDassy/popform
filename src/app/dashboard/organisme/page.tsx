@@ -300,7 +300,7 @@ export default function DashboardOrganismePage() {
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: (form.effectif != null && form.effectif > 0) ? form.effectif : null, photo_url: form.photo_url || null,
       video_url: form.video_url,
-      url_inscription: form.url_inscription || "",
+      url_inscription: form.url_inscription ? (/^https?:\/\//i.test(form.url_inscription) ? form.url_inscription : "https://" + form.url_inscription) : "",
       lien_elearning: form.lien_elearning || null,
       organisme_id: organisme.id,
       organisme_ids: [organisme.id],

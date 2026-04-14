@@ -270,7 +270,7 @@ photo_url: (f as any).photo_url || "" };
       mots_cles: form.mots_cles.split(",").map((s: string) => s.trim()).filter(Boolean),
       professions: form.professions.length ? form.professions : ["Orthophonie"],
       effectif: form.effectif || null, video_url: form.video_url, photo_url: form.photo_url || null,
-      url_inscription: form.url_inscription || "",
+      url_inscription: form.url_inscription ? (/^https?:\/\//i.test(form.url_inscription) ? form.url_inscription : "https://" + form.url_inscription) : "",
       lien_elearning: form.lien_elearning || null,
       formateur_id: formateur.id,
       organisme_id: form.organisme_id || null,
