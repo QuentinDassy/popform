@@ -33,6 +33,14 @@ function emptyFormation(domainesList: { nom: string; emoji: string }[] = []) {
   };
 }
 
+// Converts a UTC ISO timestamp to a local datetime-local input value (YYYY-MM-DDTHH:mm)
+function toLocalInput(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function DashboardOrganismePage() {
   const { user, profile, loading: authLoading } = useAuth();
   const mob = useIsMobile();
@@ -803,7 +811,7 @@ export default function DashboardOrganismePage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
                         <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaire_inscriptions").delete().eq("webinaire_id", w.id); const { error } = await supabase.from("webinaires").delete().eq("id", w.id); if (error) { alert("Erreur suppression : " + error.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
@@ -1584,7 +1592,7 @@ export default function DashboardOrganismePage() {
                     {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
@@ -1671,6 +1679,8 @@ export default function DashboardOrganismePage() {
                 setWSaving(true); setWMsg(null);
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { professions: _prof, ...wPayload } = wForm;
+                // Convert local datetime-local value back to UTC ISO for Postgres
+                if (wPayload.date_heure) wPayload.date_heure = new Date(wPayload.date_heure).toISOString();
                 if (editWId) {
                   const { error: upErr, data: upData } = await supabase.from("webinaires").update(wPayload).eq("id", editWId).select();
                   if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
