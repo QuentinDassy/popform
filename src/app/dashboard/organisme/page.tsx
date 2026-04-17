@@ -1653,19 +1653,17 @@ export default function DashboardOrganismePage() {
                 if (editWId) {
                   const { error: upErr } = await supabase.from("webinaires").update(wPayload).eq("id", editWId);
                   if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
-                  setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wPayload } : x));
                   setEditWId(null);
                 } else {
-                  const { data: wb, error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, organisme_id: organisme?.id, status: "publie" }).select().single();
+                  const { error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, organisme_id: organisme?.id, status: "publie" });
                   if (insErr) { setWMsg("❌ " + insErr.message); setWSaving(false); return; }
-                  if (wb) {
-                    setWebinaires(prev => [...prev, wb]);
-                    setTab("list");
-                    setListView("webinaires");
-                  }
                 }
+                // Rechargement depuis la DB pour garantir la liste à jour
+                const { data: freshWbs } = await supabase.from("webinaires").select("*").eq("organisme_id", organisme?.id).order("date_heure", { ascending: true });
+                setWebinaires(freshWbs || []);
                 setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
                 setWSaving(false); setWMsg("✅ Webinaire publié !");
+                setTab("list"); setListView("webinaires");
                 setTimeout(() => setWMsg(null), 3000);
               }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
                 {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "💻 Créer le webinaire"}
