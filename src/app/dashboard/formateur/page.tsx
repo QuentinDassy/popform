@@ -327,7 +327,7 @@ photo_url: (f as any).photo_url || "" };
 
     if (formationId) {
       // Sauvegarder les IDs des anciennes sessions AVANT toute modification
-      const oldSessionIds = sessions.filter(s => s.id != null).map(s => s.id as number);
+      const oldSessionIds = (originalSessions || sessions).filter(s => s.id != null).map(s => s.id as number);
       const validSessions = isELearning ? [] : sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
         // INSERT d'abord — si ça échoue, les anciennes sessions sont préservées

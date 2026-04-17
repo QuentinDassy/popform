@@ -54,6 +54,8 @@ export default function DashboardAdminPage() {
   const [webSaving, setWebSaving] = useState(false);
   const [webMsg, setWebMsg] = useState<string | null>(null);
   const [showWebForm, setShowWebForm] = useState(false);
+  const [editingWebId, setEditingWebId] = useState<number | null>(null);
+  const [editWebForm, setEditWebForm] = useState<{ titre: string; description: string; date_heure: string; prix: number; lien_url: string; organisme_id: number | null; formateur_id: number | null; status: string } | null>(null);
   const [allOrganismesAdmin, setAllOrganismesAdmin] = useState<{ id: number; nom: string }[]>([]);
   const [allFormateursAdmin, setAllFormateursAdmin] = useState<{ id: number; nom: string }[]>([]);
   const [orgSearchWeb, setOrgSearchWeb] = useState("");
@@ -266,6 +268,24 @@ export default function DashboardAdminPage() {
     if (!confirm("Supprimer ce webinaire ?")) return;
     await supabase.from("webinaires").delete().eq("id", id);
     setWebinaires(prev => prev.filter(w => w.id !== id));
+  };
+
+  const handleSaveEditWeb = async () => {
+    if (!editingWebId || !editWebForm) return;
+    const { error } = await supabase.from("webinaires").update({
+      titre: editWebForm.titre,
+      description: editWebForm.description,
+      date_heure: editWebForm.date_heure,
+      prix: editWebForm.prix,
+      lien_url: editWebForm.lien_url,
+      organisme_id: editWebForm.organisme_id,
+      formateur_id: editWebForm.formateur_id,
+      status: editWebForm.status,
+    }).eq("id", editingWebId);
+    if (error) { alert("Erreur: " + error.message); return; }
+    setWebinaires(prev => prev.map(w => w.id === editingWebId ? { ...w, ...editWebForm } : w));
+    setEditingWebId(null);
+    setEditWebForm(null);
   };
 
   const markRead = async (id: number) => {
@@ -729,6 +749,7 @@ export default function DashboardAdminPage() {
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure, prix: w.prix ?? 0, lien_url: w.lien_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
                           {w.status !== "publie" && (
                             <button onClick={() => handleWebStatus(w.id, "publie")} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
                           )}
@@ -741,6 +762,36 @@ export default function DashboardAdminPage() {
                           <button onClick={() => handleDeleteWeb(w.id)} style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textTer, fontSize: 12, cursor: "pointer" }}>🗑</button>
                         </div>
                       </div>
+                      {editingWebId === w.id && editWebForm && (
+                        <div style={{ marginTop: 14, padding: "16px 18px", background: C.bgAlt, borderRadius: 12, border: "1.5px solid " + C.border, display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: mob ? "1fr" : "1fr 1fr", gap: 10 }}>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Titre</label>
+                              <input value={editWebForm.titre} onChange={e => setEditWebForm({ ...editWebForm, titre: e.target.value })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date & heure</label>
+                              <input type="datetime-local" value={editWebForm.date_heure?.slice(0, 16)} onChange={e => setEditWebForm({ ...editWebForm, date_heure: e.target.value })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (0 = gratuit)</label>
+                              <input type="number" min={0} value={editWebForm.prix} onChange={e => setEditWebForm({ ...editWebForm, prix: Number(e.target.value) })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien URL</label>
+                              <input value={editWebForm.lien_url} onChange={e => setEditWebForm({ ...editWebForm, lien_url: e.target.value })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Description</label>
+                            <textarea value={editWebForm.description} onChange={e => setEditWebForm({ ...editWebForm, description: e.target.value })} rows={3} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, resize: "vertical", boxSizing: "border-box" as const }} />
+                          </div>
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                            <button onClick={() => { setEditingWebId(null); setEditWebForm(null); }} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                            <button onClick={handleSaveEditWeb} style={{ padding: "8px 18px", borderRadius: 9, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>💾 Enregistrer</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

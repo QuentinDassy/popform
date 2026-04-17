@@ -92,7 +92,23 @@ export default function OrganismesPage() {
     });
   }
 
-  const filteredOrgs = [...orgs].sort((a, b) => (orgCounts[b.id] || 0) - (orgCounts[a.id] || 0));
+  // Quand deux organismes ont le même nom (user-linked vs legacy), fusionner les compteurs
+  const nameToMaxId: Record<string, number> = {};
+  for (const o of orgs) {
+    const key = o.nom?.toLowerCase().trim();
+    if (!key) continue;
+    if (o.user_id && !(key in nameToMaxId)) nameToMaxId[key] = o.id;
+  }
+  const mergedCounts: Record<number, number> = { ...orgCounts };
+  for (const o of orgs) {
+    const key = o.nom?.toLowerCase().trim();
+    if (!key || !nameToMaxId[key] || nameToMaxId[key] === o.id) continue;
+    // Cet organisme a le même nom qu'un user-linked → transfère son compte vers le user-linked
+    const targetId = nameToMaxId[key];
+    mergedCounts[targetId] = (mergedCounts[targetId] || 0) + (orgCounts[o.id] || 0);
+  }
+
+  const filteredOrgs = [...orgs].sort((a, b) => (mergedCounts[b.id] || 0) - (mergedCounts[a.id] || 0));
 
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
   return (
@@ -104,7 +120,7 @@ export default function OrganismesPage() {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 12, paddingBottom: 40, alignItems: "stretch" }}>
-        {filteredOrgs.map(o => <OrgCard key={o.id} o={o} count={orgCounts[o.id] || 0} mob={mob} />)}
+        {filteredOrgs.map(o => <OrgCard key={o.id} o={o} count={mergedCounts[o.id] || 0} mob={mob} />)}
       </div>
     </div>
   );

@@ -357,7 +357,7 @@ export default function DashboardOrganismePage() {
     await ensureOrganismesLibres(form.organismes_libres || []);
     // Sessions: insert new first, then delete old by id (safer than delete-all + insert)
     if (formationId) {
-      const oldSessionIds = sessions.filter(s => s.id != null).map(s => s.id as number);
+      const oldSessionIds = (originalSessions || sessions).filter(s => s.id != null).map(s => s.id as number);
       const validSessions = isELearning ? [] : sessions.filter(s => (s.parties && s.parties.length > 0) || (s.dates.trim() && (s.ville.trim() || s.lieu.trim() || (s.lien_visio || "").trim())));
       if (validSessions.length > 0) {
         const { data: insertedSessions, error: insSessionErr } = await supabase.from("sessions").insert(validSessions.map(s => ({

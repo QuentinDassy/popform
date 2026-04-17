@@ -412,7 +412,7 @@ export default function FormationPage() {
       <div>
         <div style={{ fontSize: 10, fontWeight: 700, color: C.blue, textTransform: "uppercase", letterSpacing: "0.07em", lineHeight: 1 }}>Organisme</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginTop: 2 }}>
-          {o.site_url ? <a href={o.site_url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{o.nom} 🌐</a> : o.nom}
+          {o.site_url ? <a href={/^https?:\/\//i.test(o.site_url) ? o.site_url : "https://" + o.site_url} target="_blank" rel="noopener noreferrer" style={{ color: C.text, textDecoration: "none" }}>{o.nom} 🌐</a> : o.nom}
         </div>
       </div>
     </div>
@@ -663,7 +663,7 @@ export default function FormationPage() {
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{org.nom}</div>
                     <Link href={`/catalogue?organisme=${org.id}`} style={{ fontSize: 12, color: C.accent, textDecoration: "none" }}>Voir ses formations →</Link>
                     {(org as any).site_url && (
-                      <a href={(org as any).site_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                      <a href={/^https?:\/\//i.test((org as any).site_url) ? (org as any).site_url : "https://" + (org as any).site_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
                     )}
                   </div>
                 </div>
@@ -688,7 +688,7 @@ export default function FormationPage() {
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmt.nom}</div>
                     {fmt.bio && <div style={{ fontSize: 12, color: C.textSec, marginTop: 2, lineHeight: 1.4 }}>{fmt.bio.slice(0, 80)}...</div>}
                     {(fmt as any).site_url && (
-                      <a href={(fmt as any).site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
+                      <a href={/^https?:\/\//i.test((fmt as any).site_url) ? (fmt as any).site_url : "https://" + (fmt as any).site_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: "block", fontSize: 12, color: C.textSec, textDecoration: "none", marginTop: 4 }}>🌐 Voir le site →</a>
                     )}
                   </div>
                 </div>

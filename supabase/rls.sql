@@ -658,6 +658,88 @@ CREATE POLICY "speakers_all_admin"
   USING (public.is_admin());
 
 -- ============================================================
+-- TABLE : webinaire_inscriptions
+-- ============================================================
+ALTER TABLE public.webinaire_inscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "webinscriptions_select_own" ON public.webinaire_inscriptions;
+DROP POLICY IF EXISTS "webinscriptions_select_owner" ON public.webinaire_inscriptions;
+DROP POLICY IF EXISTS "webinscriptions_insert_own" ON public.webinaire_inscriptions;
+DROP POLICY IF EXISTS "webinscriptions_delete_own" ON public.webinaire_inscriptions;
+DROP POLICY IF EXISTS "webinscriptions_delete_owner" ON public.webinaire_inscriptions;
+DROP POLICY IF EXISTS "webinscriptions_all_admin" ON public.webinaire_inscriptions;
+
+-- Chaque utilisateur voit ses propres inscriptions
+CREATE POLICY "webinscriptions_select_own"
+  ON public.webinaire_inscriptions FOR SELECT
+  USING (user_id = auth.uid());
+
+-- L'organisme propriétaire du webinaire voit les inscriptions
+CREATE POLICY "webinscriptions_select_owner"
+  ON public.webinaire_inscriptions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.webinaires w
+      WHERE w.id = webinaire_id AND w.organisme_id = public.my_organisme_id()
+    )
+  );
+
+-- Utilisateur connecté peut s'inscrire
+CREATE POLICY "webinscriptions_insert_own"
+  ON public.webinaire_inscriptions FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Utilisateur peut se désinscrire
+CREATE POLICY "webinscriptions_delete_own"
+  ON public.webinaire_inscriptions FOR DELETE
+  USING (user_id = auth.uid());
+
+-- L'organisme peut supprimer des inscriptions (ex : webinaire supprimé)
+CREATE POLICY "webinscriptions_delete_owner"
+  ON public.webinaire_inscriptions FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.webinaires w
+      WHERE w.id = webinaire_id AND w.organisme_id = public.my_organisme_id()
+    )
+  );
+
+-- Admins : accès total
+CREATE POLICY "webinscriptions_all_admin"
+  ON public.webinaire_inscriptions FOR ALL
+  USING (public.is_admin());
+
+-- ============================================================
+-- TABLE : webinaire_reminders
+-- ============================================================
+ALTER TABLE public.webinaire_reminders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "webreminders_select_own" ON public.webinaire_reminders;
+DROP POLICY IF EXISTS "webreminders_insert_own" ON public.webinaire_reminders;
+DROP POLICY IF EXISTS "webreminders_delete_own" ON public.webinaire_reminders;
+DROP POLICY IF EXISTS "webreminders_all_admin" ON public.webinaire_reminders;
+
+-- Utilisateur voit ses propres rappels
+CREATE POLICY "webreminders_select_own"
+  ON public.webinaire_reminders FOR SELECT
+  USING (user_id = auth.uid());
+
+-- Utilisateur crée ses propres rappels
+CREATE POLICY "webreminders_insert_own"
+  ON public.webinaire_reminders FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Utilisateur supprime ses propres rappels (non encore envoyés)
+CREATE POLICY "webreminders_delete_own"
+  ON public.webinaire_reminders FOR DELETE
+  USING (user_id = auth.uid());
+
+-- Admins : accès total (le cron utilise service_role qui bypass RLS automatiquement)
+CREATE POLICY "webreminders_all_admin"
+  ON public.webinaire_reminders FOR ALL
+  USING (public.is_admin());
+
+-- ============================================================
 -- FIN DU SCRIPT
 -- ============================================================
 -- Vérification : lister toutes les policies créées
