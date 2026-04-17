@@ -176,6 +176,13 @@ export default function DashboardOrganismePage() {
     return () => clearTimeout(safetyTimer);
   }, [user, profile]);
 
+  // Recharge les webinaires à chaque fois que l'onglet webinaires est ouvert
+  useEffect(() => {
+    if (tab !== "list" || listView !== "webinaires" || !organisme) return;
+    supabase.from("webinaires").select("*").eq("organisme_id", organisme.id).order("date_heure", { ascending: true })
+      .then(({ data }) => { if (data) setWebinaires(data); });
+  }, [tab, listView, organisme]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const openEdit = (f?: Formation) => {
     if (f) {
       setEditId(f.id);
