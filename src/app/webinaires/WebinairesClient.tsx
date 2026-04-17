@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { C } from "@/lib/data";
 import { useIsMobile } from "@/lib/hooks";
@@ -21,10 +21,14 @@ export type Webinaire = {
 export default function WebinairesClient({ webinaires }: { webinaires: Webinaire[] }) {
   const mob = useIsMobile();
   const [showPast, setShowPast] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
 
-  const now = new Date();
-  const isWebLive = (w: Webinaire) => { const s = new Date(w.date_heure); return now >= s && now < new Date(s.getTime() + 2 * 60 * 60 * 1000); };
-  const isWebPast = (w: Webinaire) => now >= new Date(new Date(w.date_heure).getTime() + 2 * 60 * 60 * 1000);
+  // now est initialisé côté client uniquement pour éviter les bugs d'hydratation SSR
+  useEffect(() => { setNow(new Date()); }, []);
+
+  const clientNow = now ?? new Date(0); // avant hydratation : tout est "à venir"
+  const isWebLive = (w: Webinaire) => { const s = new Date(w.date_heure); return clientNow >= s && clientNow < new Date(s.getTime() + 2 * 60 * 60 * 1000); };
+  const isWebPast = (w: Webinaire) => clientNow >= new Date(new Date(w.date_heure).getTime() + 2 * 60 * 60 * 1000);
   const upcoming = webinaires.filter(w => !isWebPast(w));
   const past = webinaires.filter(w => isWebPast(w));
   const displayed = showPast ? past : upcoming;

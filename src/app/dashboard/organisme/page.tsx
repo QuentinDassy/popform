@@ -103,6 +103,7 @@ export default function DashboardOrganismePage() {
   const [doublonWarning, setDoublonWarning] = useState<{ existing: { id: number; titre: string }[]; proceed: () => void } | null>(null);
   // Formations filter tabs
   const [formationsFilter, setFormationsFilter] = useState<"actives" | "expirees" | "supprimees">("actives");
+  const [webTab, setWebTab] = useState<"upcoming" | "past">("upcoming");
   // Delete confirmation with message
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; message: string } | null>(null);
 
@@ -627,6 +628,11 @@ export default function DashboardOrganismePage() {
   const formationsSupprimees = formations.filter(f => f.status === "supprimee");
   const displayedFormations = formationsFilter === "supprimees" ? formationsSupprimees : formationsFilter === "expirees" ? formationsExpirees : formationsActives;
 
+  const nowW = new Date();
+  const isPastW = (w: any) => nowW >= new Date(new Date(w.date_heure).getTime() + 2 * 60 * 60 * 1000);
+  const upcomingW = webinaires.filter(w => !isPastW(w));
+  const pastW = webinaires.filter(w => isPastW(w));
+
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: px }}>
       <div style={{ padding: "18px 0 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
@@ -770,6 +776,14 @@ export default function DashboardOrganismePage() {
                 <h2 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text }}>💻 Mes webinaires</h2>
                 <button onClick={() => setTab("webinaires")} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Créer un webinaire</button>
               </div>
+              {/* Sous-onglets À venir / Expirés */}
+              {webinaires.length > 0 && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 16, padding: 3, background: C.bgAlt, borderRadius: 10, width: "fit-content" }}>
+                  {([["upcoming", "À venir", upcomingW.length], ["past", "Expirés", pastW.length]] as [string, string, number][]).map(([v, l, cnt]) => (
+                    <button key={v} onClick={() => setWebTab(v as "upcoming" | "past")} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: webTab === v ? C.surface : "transparent", color: webTab === v ? C.text : C.textTer, fontSize: 12, fontWeight: webTab === v ? 700 : 500, cursor: "pointer" }}>{l} ({cnt})</button>
+                  ))}
+                </div>
+              )}
               {webinaires.length === 0 ? (
                 <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>💻</div>
@@ -778,7 +792,7 @@ export default function DashboardOrganismePage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {webinaires.map(w => (
+                  {(webTab === "past" ? pastW : upcomingW).map(w => (
                     <div key={w.id} style={{ padding: mob ? 14 : 18, background: C.surface, borderRadius: 14, border: "1px solid " + C.borderLight, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, color: C.text, fontSize: 15, marginBottom: 4 }}>{w.titre}</div>
