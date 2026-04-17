@@ -769,7 +769,15 @@ export default function AdminFormationEditorPage() {
         <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div>
             <label style={lbl}>Prix (€)</label>
-            <input style={inp} type="number" value={form.prix || ""} onChange={e => setF("prix", e.target.value === "" ? 0 : Number(e.target.value))} placeholder="Ex: 450" />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.green, fontWeight: 600, cursor: "pointer", padding: "8px 13px", borderRadius: 9, border: "1.5px solid " + (form.prix === 0 ? C.green : C.border), background: form.prix === 0 ? C.greenBg : C.surface, whiteSpace: "nowrap" as const }}>
+                <input type="checkbox" checked={form.prix === 0} onChange={e => setF("prix", e.target.checked ? 0 : "")} style={{ accentColor: C.green }} />
+                Gratuit
+              </label>
+              {form.prix !== 0 && (
+                <input style={inp} type="number" value={form.prix || ""} onChange={e => setF("prix", e.target.value === "" ? "" : Number(e.target.value))} placeholder="Ex: 450" />
+              )}
+            </div>
           </div>
           <button type="button" onClick={() => setF("prix_from", !form.prix_from)} style={{ padding: "8px 16px", borderRadius: 9, border: "1.5px solid " + (form.prix_from ? C.accent + "55" : C.border), background: form.prix_from ? C.accentBg : C.surface, color: form.prix_from ? C.accent : C.textSec, fontSize: 13, fontWeight: form.prix_from ? 700 : 400, cursor: "pointer", marginBottom: 2 }}>
             {form.prix_from ? "✓ " : ""}à partir de
