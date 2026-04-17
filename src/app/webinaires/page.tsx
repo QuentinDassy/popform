@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import WebinairesClient, { type Webinaire } from "./WebinairesClient";
 
-export const revalidate = 300; // revalidate toutes les 5 minutes
+export const revalidate = 0; // toujours fresh (pas de cache)
 
 export default async function WebinairesPage() {
   const supabase = createClient(
