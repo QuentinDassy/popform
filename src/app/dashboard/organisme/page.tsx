@@ -1649,11 +1649,13 @@ export default function DashboardOrganismePage() {
                 if (!wForm.titre.trim() || !wForm.date_heure) { setWMsg("Titre et date obligatoires."); return; }
                 setWSaving(true); setWMsg(null);
                 if (editWId) {
-                  await supabase.from("webinaires").update({ ...wForm }).eq("id", editWId);
+                  const { error: upErr } = await supabase.from("webinaires").update({ ...wForm }).eq("id", editWId);
+                  if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
                   setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wForm } : x));
                   setEditWId(null);
                 } else {
-                  const { data: wb } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "publie" }).select().single();
+                  const { data: wb, error: insErr } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "publie" }).select().single();
+                  if (insErr) { setWMsg("❌ " + insErr.message); setWSaving(false); return; }
                   if (wb) setWebinaires(prev => [...prev, wb]);
                 }
                 setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");

@@ -774,8 +774,16 @@ export default function DashboardAdminPage() {
                               <input type="datetime-local" value={editWebForm.date_heure?.slice(0, 16)} onChange={e => setEditWebForm({ ...editWebForm, date_heure: e.target.value })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
                             </div>
                             <div>
-                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (0 = gratuit)</label>
-                              <input type="number" min={0} value={editWebForm.prix} onChange={e => setEditWebForm({ ...editWebForm, prix: Number(e.target.value) })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix</label>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.green, fontWeight: 600, cursor: "pointer", padding: "7px 12px", borderRadius: 8, border: "1.5px solid " + (editWebForm.prix === 0 ? C.green : C.border), background: editWebForm.prix === 0 ? C.greenBg : C.surface }}>
+                                  <input type="checkbox" checked={editWebForm.prix === 0} onChange={e => setEditWebForm({ ...editWebForm, prix: e.target.checked ? 0 : 10 })} style={{ accentColor: C.green }} />
+                                  Gratuit
+                                </label>
+                                {editWebForm.prix !== 0 && (
+                                  <input type="number" min={1} value={editWebForm.prix} onChange={e => setEditWebForm({ ...editWebForm, prix: Number(e.target.value) })} style={{ flex: 1, padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface }} placeholder="Prix en €" />
+                                )}
+                              </div>
                             </div>
                             <div>
                               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Lien URL</label>
