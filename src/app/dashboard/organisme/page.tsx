@@ -803,7 +803,7 @@ export default function DashboardOrganismePage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix, lien_url: w.lien_url, professions: w.professions || [] }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
                         <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaire_inscriptions").delete().eq("webinaire_id", w.id); const { error } = await supabase.from("webinaires").delete().eq("id", w.id); if (error) { alert("Erreur suppression : " + error.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
@@ -1672,8 +1672,9 @@ export default function DashboardOrganismePage() {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { professions: _prof, ...wPayload } = wForm;
                 if (editWId) {
-                  const { error: upErr } = await supabase.from("webinaires").update(wPayload).eq("id", editWId);
+                  const { error: upErr, data: upData } = await supabase.from("webinaires").update(wPayload).eq("id", editWId).select();
                   if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
+                  if (!upData || upData.length === 0) { setWMsg("❌ Modification refusée (droits insuffisants)."); setWSaving(false); return; }
                   setEditWId(null);
                 } else {
                   const { error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, organisme_id: organisme?.id, status: "publie" });
@@ -1683,7 +1684,7 @@ export default function DashboardOrganismePage() {
                 const { data: freshWbs } = await supabase.from("webinaires").select("*").eq("organisme_id", organisme?.id).order("date_heure", { ascending: true });
                 setWebinaires(freshWbs || []);
                 setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
-                setWSaving(false); setWMsg("✅ Webinaire publié !");
+                setWSaving(false); setWMsg(editWId ? "✅ Webinaire modifié !" : "✅ Webinaire publié !");
                 setTab("list"); setListView("webinaires");
                 setTimeout(() => setWMsg(null), 3000);
               }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
