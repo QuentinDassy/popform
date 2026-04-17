@@ -180,7 +180,7 @@ export default function DashboardOrganismePage() {
   useEffect(() => {
     if (tab !== "list" || listView !== "webinaires" || !organisme) return;
     supabase.from("webinaires").select("*").eq("organisme_id", organisme.id).order("date_heure", { ascending: true })
-      .then(({ data: wbs }) => { if (wbs) setWebinaires(wbs as any[]); });
+      .then((res: { data: any[] | null }) => { if (res.data) setWebinaires(res.data); });
   }, [tab, listView, organisme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEdit = (f?: Formation) => {
