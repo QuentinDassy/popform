@@ -1648,13 +1648,15 @@ export default function DashboardOrganismePage() {
               <button disabled={wSaving} onClick={async () => {
                 if (!wForm.titre.trim() || !wForm.date_heure) { setWMsg("Titre et date obligatoires."); return; }
                 setWSaving(true); setWMsg(null);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { professions: _prof, ...wPayload } = wForm;
                 if (editWId) {
-                  const { error: upErr } = await supabase.from("webinaires").update({ ...wForm }).eq("id", editWId);
+                  const { error: upErr } = await supabase.from("webinaires").update(wPayload).eq("id", editWId);
                   if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
-                  setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wForm } : x));
+                  setWebinaires(prev => prev.map(x => x.id === editWId ? { ...x, ...wPayload } : x));
                   setEditWId(null);
                 } else {
-                  const { data: wb, error: insErr } = await supabase.from("webinaires").insert({ ...wForm, organisme_id: organisme?.id, status: "publie" }).select().single();
+                  const { data: wb, error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, organisme_id: organisme?.id, status: "publie" }).select().single();
                   if (insErr) { setWMsg("❌ " + insErr.message); setWSaving(false); return; }
                   if (wb) setWebinaires(prev => [...prev, wb]);
                 }
