@@ -749,7 +749,7 @@ export default function DashboardAdminPage() {
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
-                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure, prix: w.prix ?? 0, lien_url: w.lien_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix ?? 0, lien_url: w.lien_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
                           {w.status !== "publie" && (
                             <button onClick={() => handleWebStatus(w.id, "publie")} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
                           )}
