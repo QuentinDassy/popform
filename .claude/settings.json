@@ -40,11 +40,20 @@
       "Bash(grep -r \"CREATE TABLE\\\\|create table\" /c/Users/quent/formortho/supabase/ --include=*.sql)",
       "Bash(grep -r \"class\\\\|interface\\\\|type.*=\" /c/Users/quent/formortho/src/app/dashboard/admin/formation/[id]/page.tsx)",
       "Bash(grep -n \"saveFormation\\\\|await supabase.*insert\\\\|await supabase.*update\" /c/Users/quent/formortho/src/app/dashboard/admin/formation/[id]/page.tsx)",
-      "Bash(grep -n \"formation\\\\[id\\\\]\\\\|formation/new\\\\|formation/$\" /c/Users/quent/formortho/src/app/dashboard/admin/page.tsx)"
+      "Bash(grep -n \"formation\\\\[id\\\\]\\\\|formation/new\\\\|formation/$\" /c/Users/quent/formortho/src/app/dashboard/admin/page.tsx)",
+      "Bash(git push:*)",
+      "Bash(npx next:*)",
+      "Bash(npx vercel:*)",
+      "Bash(find /c/Users/quent/formortho/supabase -name *.sql -type f)",
+      "Bash(find c:Usersquentformortho -name *.sql -type f)",
+      "Bash(cat \"c:/Users/quent/formortho/src/app/api/email/\"*.ts)",
+      "Bash(cat \"c:/Users/quent/formortho/src/app/api/email/\"*/route.ts)"
     ],
     "additionalDirectories": [
       "c:\\Users\\quent\\formortho\\src\\app\\auth",
-      "c:\\Users\\quent\\formortho\\public"
+      "c:\\Users\\quent\\formortho\\public",
+      "c:\\Users\\quent\\formortho\\src\\app\\organisme",
+      "c:\\Users\\quent\\formortho\\src\\app\\webinaires"
     ]
   }
 }

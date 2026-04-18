@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, DOMAIN_PHOTO_CHOICES, isFormationPast, type Formation, type Organisme } from "@/lib/data";
+import { C, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, CITY_TO_REGION, DOMAIN_PHOTO_CHOICES, isFormationPast, normalize, type Formation, type Organisme } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase-data";
@@ -87,9 +87,9 @@ export default function DashboardOrganismePage() {
   const [orgNom, setOrgNom] = useState<string>("");
   const [orgDescription, setOrgDescription] = useState<string>("");
   // Webinaires
-  type WbRow = { id?: number; titre: string; description: string; date_heure: string; prix: number; lien_url: string; status?: string; professions?: string[]; formateur_id?: number | null };
+  type WbRow = { id?: number; titre: string; description: string; date_heure: string; duree: number; prix: number; lien_url: string; status?: string; professions?: string[]; formateur_id?: number | null };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
-  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null });
+  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null });
   const [editWId, setEditWId] = useState<number | null>(null);
   const [wSaving, setWSaving] = useState(false);
   const [wMsg, setWMsg] = useState<string | null>(null);
@@ -637,7 +637,7 @@ export default function DashboardOrganismePage() {
   const displayedFormations = formationsFilter === "supprimees" ? formationsSupprimees : formationsFilter === "expirees" ? formationsExpirees : formationsActives;
 
   const nowW = new Date();
-  const isPastW = (w: any) => nowW >= new Date(new Date(w.date_heure).getTime() + 2 * 60 * 60 * 1000);
+  const isPastW = (w: any) => nowW >= new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 60 * 60 * 1000);
   const upcomingW = webinaires.filter(w => !isPastW(w));
   const pastW = webinaires.filter(w => isPastW(w));
 
@@ -811,7 +811,7 @@ export default function DashboardOrganismePage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
                         <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaire_inscriptions").delete().eq("webinaire_id", w.id); const { error } = await supabase.from("webinaires").delete().eq("id", w.id); if (error) { alert("Erreur suppression : " + error.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
@@ -1576,7 +1576,7 @@ export default function DashboardOrganismePage() {
       {/* ===== WEBINAIRES TAB ===== */}
       {tab === "webinaires" && (
         <div style={{ paddingBottom: 40 }}>
-          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>📡 Webinaires</h2>
           <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires sont publiés immédiatement.</p>
 
@@ -1592,7 +1592,7 @@ export default function DashboardOrganismePage() {
                     {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
@@ -1615,6 +1615,10 @@ export default function DashboardOrganismePage() {
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date et heure *</label>
                 <input type="datetime-local" value={wForm.date_heure} onChange={e => setWForm({ ...wForm, date_heure: e.target.value })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Durée (heures) — défaut 2h</label>
+                <input type="number" min="0.5" max="12" step="0.5" value={wForm.duree} onChange={e => setWForm({ ...wForm, duree: Number(e.target.value) || 2 })} style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix (€) — 0 = gratuit</label>
@@ -1645,7 +1649,7 @@ export default function DashboardOrganismePage() {
                   />
                   {webFmtDropdown && webFmtSearch.length >= 1 && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
-                      {allFormateursForWeb.filter(f => f.nom.toLowerCase().includes(webFmtSearch.toLowerCase())).slice(0, 10).map(f => (
+                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch))).slice(0, 10).map(f => (
                         <div key={f.id} onClick={() => { setWForm({ ...wForm, formateur_id: f.id }); setWebFmtSearch(f.nom); setWebFmtDropdown(false); }}
                           style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                           onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
@@ -1653,7 +1657,7 @@ export default function DashboardOrganismePage() {
                           {f.nom}
                         </div>
                       ))}
-                      {allFormateursForWeb.filter(f => f.nom.toLowerCase().includes(webFmtSearch.toLowerCase())).length === 0 && (
+                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch))).length === 0 && (
                         <div onClick={async () => {
                           const nom = webFmtSearch.trim();
                           if (!nom) return;
@@ -1693,14 +1697,14 @@ export default function DashboardOrganismePage() {
                 // Rechargement depuis la DB pour garantir la liste à jour
                 const { data: freshWbs } = await supabase.from("webinaires").select("*").eq("organisme_id", organisme?.id).order("date_heure", { ascending: true });
                 setWebinaires(freshWbs || []);
-                setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
+                setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
                 setWSaving(false); setWMsg(editWId ? "✅ Webinaire modifié !" : "✅ Webinaire publié !");
                 setTab("list"); setListView("webinaires");
                 setTimeout(() => setWMsg(null), 3000);
               }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
                 {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "💻 Créer le webinaire"}
               </button>
-              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, getDC, fetchFormations, fetchDomainesFiltres, fetchFavoris, toggleFavori, REGIONS_CITIES, FRENCH_REGIONS, DOM_REGIONS_LIST, isFormationPast, normalize, type Formation, type DomaineAdmin } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -105,9 +105,9 @@ function CatalogueContent() {
     if ((f.organisme as any)?.hidden) return false;
     if (isFormationPast(f)) return false;
     if (search) {
-      const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+      const words = normalize(search).split(/\s+/).filter(Boolean);
       const fields = [f.titre, f.sous_titre || "", f.domaine, (f.organisme as any)?.nom || "", (f.formateur as any)?.nom || "", ...(f.mots_cles || []), ...(f.populations || []), ...(f.sessions || []).map(s => s.lieu)];
-      if (!words.every(w => fields.some(s => s.toLowerCase().includes(w)))) return false;
+      if (!words.every(w => fields.some(s => normalize(s).includes(w)))) return false;
     }
     if (selVilles.length > 0) {
       const hasVisio = selVilles.includes("Visio");

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin, isFormationPast, type Formation, type DomaineAdmin } from "@/lib/data";
+import { C, fetchDomainesAdmin, createDomaineAdmin, updateDomaineAdmin, deleteDomaineAdmin, isFormationPast, normalize, type Formation, type DomaineAdmin } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, fetchAdminNotifications, type AdminNotification } from "@/lib/supabase-data";
@@ -55,7 +55,7 @@ export default function DashboardAdminPage() {
   const [webMsg, setWebMsg] = useState<string | null>(null);
   const [showWebForm, setShowWebForm] = useState(false);
   const [editingWebId, setEditingWebId] = useState<number | null>(null);
-  const [editWebForm, setEditWebForm] = useState<{ titre: string; description: string; date_heure: string; prix: number; lien_url: string; organisme_id: number | null; formateur_id: number | null; status: string } | null>(null);
+  const [editWebForm, setEditWebForm] = useState<{ titre: string; description: string; date_heure: string; duree: number; prix: number; lien_url: string; organisme_id: number | null; formateur_id: number | null; status: string } | null>(null);
   const [allOrganismesAdmin, setAllOrganismesAdmin] = useState<{ id: number; nom: string }[]>([]);
   const [allFormateursAdmin, setAllFormateursAdmin] = useState<{ id: number; nom: string }[]>([]);
   const [orgSearchWeb, setOrgSearchWeb] = useState("");
@@ -276,6 +276,7 @@ export default function DashboardAdminPage() {
       titre: editWebForm.titre,
       description: editWebForm.description,
       date_heure: editWebForm.date_heure,
+      duree: editWebForm.duree,
       prix: editWebForm.prix,
       lien_url: editWebForm.lien_url,
       organisme_id: editWebForm.organisme_id,
@@ -622,14 +623,14 @@ export default function DashboardAdminPage() {
                 />
                 {showOrgDropdownWeb && orgSearchWeb.length >= 1 && (
                   <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
-                    {allOrganismesAdmin.filter(o => o.nom.toLowerCase().includes(orgSearchWeb.toLowerCase())).slice(0, 10).map(o => (
+                    {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(orgSearchWeb))).slice(0, 10).map(o => (
                       <div key={o.id} onMouseDown={() => { setWebForm({ ...webForm, organisme_id: o.id }); setOrgSearchWeb(o.nom); setShowOrgDropdownWeb(false); }}
                         style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
                       >{o.nom}</div>
                     ))}
-                    {allOrganismesAdmin.filter(o => o.nom.toLowerCase().includes(orgSearchWeb.toLowerCase())).length === 0 && (
+                    {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(orgSearchWeb))).length === 0 && (
                       <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
                     )}
                   </div>
@@ -647,14 +648,14 @@ export default function DashboardAdminPage() {
                 />
                 {showFmtDropdownWeb && fmtSearchWeb.length >= 1 && (
                   <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
-                    {allFormateursAdmin.filter(f => f.nom.toLowerCase().includes(fmtSearchWeb.toLowerCase())).slice(0, 10).map(f => (
+                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(fmtSearchWeb))).slice(0, 10).map(f => (
                       <div key={f.id} onMouseDown={() => { setWebForm({ ...webForm, formateur_id: f.id }); setFmtSearchWeb(f.nom); setShowFmtDropdownWeb(false); }}
                         style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
                       >{f.nom}</div>
                     ))}
-                    {allFormateursAdmin.filter(f => f.nom.toLowerCase().includes(fmtSearchWeb.toLowerCase())).length === 0 && (
+                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(fmtSearchWeb))).length === 0 && (
                       <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
                     )}
                   </div>
@@ -749,7 +750,7 @@ export default function DashboardAdminPage() {
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
-                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", prix: w.prix ?? 0, lien_url: w.lien_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", duree: (w as any).duree ?? 2, prix: w.prix ?? 0, lien_url: w.lien_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
                           {w.status !== "publie" && (
                             <button onClick={() => handleWebStatus(w.id, "publie")} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
                           )}
@@ -772,6 +773,10 @@ export default function DashboardAdminPage() {
                             <div>
                               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Date & heure</label>
                               <input type="datetime-local" value={editWebForm.date_heure?.slice(0, 16)} onChange={e => setEditWebForm({ ...editWebForm, date_heure: e.target.value })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Durée (heures)</label>
+                              <input type="number" min={0.5} max={12} step={0.5} value={editWebForm.duree} onChange={e => setEditWebForm({ ...editWebForm, duree: Number(e.target.value) || 2 })} style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
                             </div>
                             <div>
                               <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Prix</label>
@@ -1422,7 +1427,7 @@ export default function DashboardAdminPage() {
 
           <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 12 }}>🏢 Organismes ({utilisateurs.organismes.length})</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10, marginBottom: 30 }}>
-            {utilisateurs.organismes.filter(o => !orgSearch.trim() || (o.nom || "").toLowerCase().includes(orgSearch.toLowerCase())).sort((a: any, b: any) => (b.user_id ? 1 : 0) - (a.user_id ? 1 : 0)).map(o => (
+            {utilisateurs.organismes.filter(o => !orgSearch.trim() || normalize(o.nom || "").includes(normalize(orgSearch))).sort((a: any, b: any) => (b.user_id ? 1 : 0) - (a.user_id ? 1 : 0)).map(o => (
               <div key={o.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + C.borderLight, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: C.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0, overflow: "hidden" }}>
@@ -1512,7 +1517,7 @@ export default function DashboardAdminPage() {
             />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 10 }}>
-            {utilisateurs.formateurs.filter(f => !fmtUserSearch.trim() || (f.nom || "").toLowerCase().includes(fmtUserSearch.toLowerCase())).map(f => {
+            {utilisateurs.formateurs.filter(f => !fmtUserSearch.trim() || normalize(f.nom || "").includes(normalize(fmtUserSearch))).map(f => {
               const linkedOrg = f.organisme_id ? utilisateurs.organismes.find((o: any) => o.id === f.organisme_id) : null;
               return (
                 <div key={f.id} style={{ padding: 14, background: C.surface, borderRadius: 12, border: "1px solid " + (linkedOrg ? C.yellow + "66" : C.borderLight), display: "flex", flexDirection: "column", gap: 8 }}>

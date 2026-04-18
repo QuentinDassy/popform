@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, DOMAIN_PHOTO_CHOICES, isFormationPast, type Formation, type Formateur } from "@/lib/data";
+import { C, fmtTitle, fetchDomainesAdmin, invalidateCache, REGIONS_CITIES, DOMAIN_PHOTO_CHOICES, isFormationPast, normalize, type Formation, type Formateur } from "@/lib/data";
 import { StarRow, PriseTag } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { supabase, notifyAdmin, fetchOrganismes, type Organisme } from "@/lib/supabase-data";
@@ -1032,7 +1032,7 @@ photo_url: (f as any).photo_url || "" };
     />
     {orgFormSearch.length >= 1 && (
       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
-        {organismes.filter(o => o.nom.toLowerCase().includes(orgFormSearch.toLowerCase())).slice(0, 10).map(o => (
+        {organismes.filter(o => normalize(o.nom).includes(normalize(orgFormSearch))).slice(0, 10).map(o => (
           <div key={o.id} onMouseDown={() => { setForm({ ...form, organisme_id: o.id, organisme_libre: "" }); setOrgFormSearch(o.nom); }}
             style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
             onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
@@ -1040,7 +1040,7 @@ photo_url: (f as any).photo_url || "" };
             {o.nom}
           </div>
         ))}
-        {organismes.filter(o => o.nom.toLowerCase().includes(orgFormSearch.toLowerCase())).length === 0 && (
+        {organismes.filter(o => normalize(o.nom).includes(normalize(orgFormSearch))).length === 0 && (
           <div onMouseDown={() => { setForm({ ...form, organisme_id: null, organisme_libre: orgFormSearch.trim() }); }}
             style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>
             + Utiliser « {orgFormSearch} » (organisme libre)
@@ -1309,7 +1309,7 @@ photo_url: (f as any).photo_url || "" };
                   <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
                     <div onMouseDown={() => { setWForm({ ...wForm, formateur_co_id: null }); setCoFmtSearch(""); setShowCoFmtDrop(false); }}
                       style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.textTer, borderBottom: "1px solid " + C.borderLight }}>— Aucun —</div>
-                    {allFormateurs.filter(f => f.id !== formateur?.id && f.nom.toLowerCase().includes(coFmtSearch.toLowerCase())).slice(0, 10).map(f => (
+                    {allFormateurs.filter(f => f.id !== formateur?.id && normalize(f.nom).includes(normalize(coFmtSearch))).slice(0, 10).map(f => (
                       <div key={f.id} onMouseDown={() => { setWForm({ ...wForm, formateur_co_id: f.id }); setCoFmtSearch(f.nom); setShowCoFmtDrop(false); }}
                         style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
@@ -1317,7 +1317,7 @@ photo_url: (f as any).photo_url || "" };
                         {f.nom}
                       </div>
                     ))}
-                    {allFormateurs.filter(f => f.id !== formateur?.id && f.nom.toLowerCase().includes(coFmtSearch.toLowerCase())).length === 0 && (
+                    {allFormateurs.filter(f => f.id !== formateur?.id && normalize(f.nom).includes(normalize(coFmtSearch))).length === 0 && (
                       <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
                     )}
                   </div>
@@ -1338,14 +1338,14 @@ photo_url: (f as any).photo_url || "" };
                   <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
                     <div onMouseDown={() => { setWForm({ ...wForm, organisme_id: null }); setOrgSearchWForm(""); setShowOrgDropWForm(false); }}
                       style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.textTer, borderBottom: "1px solid " + C.borderLight }}>— Aucun —</div>
-                    {organismes.filter(o => o.nom.toLowerCase().includes(orgSearchWForm.toLowerCase())).slice(0, 10).map(o => (
+                    {organismes.filter(o => normalize(o.nom).includes(normalize(orgSearchWForm))).slice(0, 10).map(o => (
                       <div key={o.id} onMouseDown={() => { setWForm({ ...wForm, organisme_id: o.id }); setOrgSearchWForm(o.nom); setShowOrgDropWForm(false); }}
                         style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
                       >{o.nom}</div>
                     ))}
-                    {organismes.filter(o => o.nom.toLowerCase().includes(orgSearchWForm.toLowerCase())).length === 0 && (
+                    {organismes.filter(o => normalize(o.nom).includes(normalize(orgSearchWForm))).length === 0 && (
                       <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
                     )}
                   </div>

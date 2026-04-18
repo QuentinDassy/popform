@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchFormationsFaites, toggleFormationFaite, addAvis, fetchDomainesFiltres, type Formation, type Avis } from "@/lib/data";
+import { C, fetchFormations, fetchAvis, fetchInscriptions, fetchFavoris, toggleFavori, fetchFormationsFaites, toggleFormationFaite, addAvis, fetchDomainesFiltres, normalize, type Formation, type Avis } from "@/lib/data";
 import { FormationCard, StarRow } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
@@ -392,7 +392,7 @@ export default function ComptePage() {
             </div>
           </div>
           {(() => {
-            const filtered = search ? inscF.filter(f => f.titre.toLowerCase().includes(search.toLowerCase())) : inscF;
+            const filtered = search ? inscF.filter(f => normalize(f.titre).includes(normalize(search))) : inscF;
             const fmtD = (iso: string) => {
               const d = new Date(iso + "T12:00:00");
               const m = ["jan.","fév.","mars","avr.","mai","juin","juil.","août","sep.","oct.","nov.","déc."];

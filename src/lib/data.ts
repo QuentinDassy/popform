@@ -11,6 +11,11 @@ export {
   fetchFormationsFaites, toggleFormationFaite
 } from "./supabase-data";
 
+// Supprime les accents et met en minuscule pour les recherches insensibles aux accents
+export function normalize(s: string): string {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 export const C = {
   bg: "#FFFDF7", bgAlt: "#FFF8EC", surface: "#FFFFFF",
   border: "#F0E4CC", borderLight: "#F5EDD8",

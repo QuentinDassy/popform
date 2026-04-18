@@ -9,6 +9,7 @@ export type Webinaire = {
   titre: string;
   description: string;
   date_heure: string;
+  duree?: number | null;
   prix: number;
   lien_url: string;
   status: string;
@@ -27,8 +28,8 @@ export default function WebinairesClient({ webinaires }: { webinaires: Webinaire
   useEffect(() => { setNow(new Date()); }, []);
 
   const clientNow = now ?? new Date(0); // avant hydratation : tout est "à venir"
-  const isWebLive = (w: Webinaire) => { const s = new Date(w.date_heure); return clientNow >= s && clientNow < new Date(s.getTime() + 2 * 60 * 60 * 1000); };
-  const isWebPast = (w: Webinaire) => clientNow >= new Date(new Date(w.date_heure).getTime() + 2 * 60 * 60 * 1000);
+  const isWebLive = (w: Webinaire) => { const s = new Date(w.date_heure); const dur = (w.duree ?? 2) * 60 * 60 * 1000; return clientNow >= s && clientNow < new Date(s.getTime() + dur); };
+  const isWebPast = (w: Webinaire) => clientNow >= new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 60 * 60 * 1000);
   const upcoming = webinaires.filter(w => !isWebPast(w));
   const past = webinaires.filter(w => isWebPast(w));
   const displayed = showPast ? past : upcoming;

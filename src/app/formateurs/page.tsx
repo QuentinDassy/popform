@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { C, fetchFormateurs, fetchFormations, fmtTitle, isFormationPast, type Formation } from "@/lib/data";
+import { C, fetchFormateurs, fetchFormations, fmtTitle, isFormationPast, normalize, type Formation } from "@/lib/data";
 import { supabase } from "@/lib/supabase-data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
@@ -60,7 +60,7 @@ function FormateursContent() {
   if (loading) return <div style={{ textAlign: "center", padding: 80, color: C.textTer }}>🍿 Chargement...</div>;
 
   const bySearch = search.trim()
-    ? fmts.filter(f => f.nom.toLowerCase().includes(search.toLowerCase()) || (f.bio || "").toLowerCase().includes(search.toLowerCase()))
+    ? fmts.filter(f => normalize(f.nom).includes(normalize(search)) || normalize(f.bio || "").includes(normalize(search)))
     : fmts;
   const filtered = bySearch;
 
