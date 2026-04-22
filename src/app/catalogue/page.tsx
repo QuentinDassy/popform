@@ -9,7 +9,7 @@ import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 
-const MODALITES = ["Présentiel", "Visio", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning", "💻 Webinaire"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -58,6 +58,7 @@ function CatalogueContent() {
   const mob = useIsMobile();
   const { user } = useAuth();
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [webinaires, setWebinaires] = useState<any[]>([]);
   const [formationsTotal, setFormationsTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [adminVilles, setAdminVilles] = useState<string[]>([]);
@@ -78,6 +79,7 @@ function CatalogueContent() {
   useEffect(() => {
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(shuffle(d)); setLoading(false); });
     supabase.from("formations").select("*", { count: "exact", head: true }).then((res: { count: number | null }) => { if (res.count != null) setFormationsTotal(res.count); }).catch(() => {});
+    supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data }: { data: any[] | null }) => { if (data) setWebinaires(data); }).catch(() => {});
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
@@ -157,6 +159,17 @@ function CatalogueContent() {
   else if (sort === "prix-desc") filtered = [...filtered].sort((a, b) => b.prix - a.prix);
   else if (sort === "note") filtered = [...filtered].sort((a, b) => b.note - a.note);
   else if (sort === "recent") filtered = [...filtered].sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
+
+  const showWebinaires = selModalites.includes("💻 Webinaire");
+  const now = new Date();
+  const filteredWebinaires = showWebinaires ? webinaires.filter(w => {
+    const start = new Date(w.date_heure);
+    const end = new Date(start.getTime() + (w.duree ?? 2) * 3600000);
+    if (now >= end) return false;
+    if (search) { const q = normalize(search); if (!normalize(w.titre).includes(q) && !normalize(w.description || "").includes(q) && !normalize(w.organisme?.nom || "").includes(q)) return false; }
+    return true;
+  }) : [];
+  const formationsFiltered = showWebinaires ? [] : filtered;
 
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
@@ -420,13 +433,56 @@ function CatalogueContent() {
 
       {/* Results count */}
       {(() => {
-        const count = hasActiveFilters ? filtered.length : (formationsTotal ?? filtered.length);
+        if (showWebinaires) {
+          const c = filteredWebinaires.length;
+          return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{c} webinaire{c > 1 ? "s" : ""} à venir</p>;
+        }
+        const count = hasActiveFilters ? formationsFiltered.length : (formationsTotal ?? formationsFiltered.length);
         const suffix = hasActiveFilters ? " (filtrées)" : "";
         return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{count} formation{count > 1 ? "s" : ""}{suffix}</p>;
       })()}
 
       {/* Grid */}
-      {filtered.length === 0 ? (
+      {showWebinaires ? (
+        filteredWebinaires.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>💻</div>
+            <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Aucun webinaire à venir</p>
+            <Link href="/webinaires" style={{ color: C.accent, fontWeight: 700 }}>Voir tous les webinaires →</Link>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16, paddingBottom: 40 }}>
+            {filteredWebinaires.map((w: any) => {
+              const d = new Date(w.date_heure);
+              const end = new Date(d.getTime() + (w.duree ?? 2) * 3600000);
+              const dateStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+              const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              const endStr = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              return (
+                <a key={w.id} href={`/webinaires/${w.id}`} style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, overflow: "hidden" } as React.CSSProperties}>
+                  {w.image_url && <img src={w.image_url} alt={w.titre} style={{ width: "100%", height: 140, objectFit: "cover" }} />}
+                  <div style={{ padding: mob ? "14px 12px" : "18px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.blueBg, color: C.blue }}>💻 Visio</span>
+                      {w.prix === 0 ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.greenBg, color: C.green }}>Gratuit</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.bgAlt, color: C.textSec }}>{w.prix} €</span>}
+                    </div>
+                    <div style={{ fontSize: mob ? 14 : 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{w.titre}</div>
+                    {w.description && <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>{w.description}</div>}
+                    <div style={{ fontSize: 12, color: C.textTer, display: "flex", alignItems: "center", gap: 5, background: C.bgAlt, borderRadius: 8, padding: "7px 10px" }}>
+                      <span>📅</span>
+                      <div><div style={{ fontWeight: 700, textTransform: "capitalize" }}>{dateStr}</div><div style={{ fontSize: 11 }}>de {timeStr} à {endStr}</div></div>
+                    </div>
+                    {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
+                  </div>
+                  <div style={{ padding: mob ? "0 12px 12px" : "0 16px 14px" }}>
+                    <div style={{ padding: "9px 16px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textAlign: "center" }}>Voir le webinaire →</div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        )
+      ) : formationsFiltered.length === 0 ? (
         <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🍿</div>
           <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Aucune formation trouvée</p>
@@ -436,7 +492,7 @@ function CatalogueContent() {
       ) : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16 }}>
-            {filtered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
+            {formationsFiltered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
           </div>
           <div style={{ paddingBottom: 40 }} />
         </>

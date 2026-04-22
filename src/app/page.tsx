@@ -25,7 +25,7 @@ function useTyping(words: string[]) {
   return d;
 }
 
-const MODALITES = ["Présentiel", "Visio", "E-learning"];
+const MODALITES = ["Présentiel", "Visio", "E-learning", "💻 Webinaire"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -184,9 +184,16 @@ export default function HomePage() {
           ]);
           const shuffled = [...formationsData]; for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
           setFormations(shuffled);
-          // Fetch exact live count from Supabase (bypasses cache, all statuses)
-          supabase.from("formations").select("*", { count: "exact", head: true })
-            .then((res: { count: number | null }) => { if (res.count != null) setFormationsCount(res.count); });
+          // Fetch exact live count: formations + active (non-past) webinaires
+          Promise.all([
+            supabase.from("formations").select("*", { count: "exact", head: true }),
+            supabase.from("webinaires").select("id, date_heure, duree").eq("status", "publie"),
+          ]).then(([fRes, wRes]) => {
+            const fCount = fRes.count ?? 0;
+            const nowMs = Date.now();
+            const activeWebs = (wRes.data || []).filter((w: any) => nowMs < new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000).length;
+            setFormationsCount(fCount + activeWebs);
+          });
 
         } catch (e) {
           console.error("Error loading formations:", e);
@@ -286,7 +293,7 @@ export default function HomePage() {
             Toutes les formations pour orthophonistes,<br />
             <span style={{ background: C.gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>au même endroit.</span>
           </h1>
-          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez la formation qu&apos;il vous faut parmi <strong style={{ color: C.accent }}>{formationsCount ?? "…"}</strong> formations.</p>
+          <p style={{ fontSize: "clamp(12px,2vw,15px)", color: C.textSec, maxWidth: 460, margin: "0 auto 28px", lineHeight: 1.6 }}>Trouvez parmi <strong style={{ color: C.accent }}>{formationsCount ?? "…"}</strong> formations et webinaires.</p>
 
           {/* Search bar — bigger */}
           <div onClick={() => !searchFocused && document.getElementById("hero-search")?.focus()} style={{ maxWidth: mob ? "100%" : 600, margin: "0 auto", cursor: "text" }}>
@@ -567,9 +574,10 @@ export default function HomePage() {
                         <span>📅</span> <span style={{ fontWeight: 600 }}>{dateStr}</span> <span>à {timeStr}</span>
                       </div>
                       {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
-                      {w.lien_url && (
-                        <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 4, padding: "9px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", textAlign: "center", cursor: "pointer" }}>S&apos;inscrire →</a>
-                      )}
+                      <div style={{ display: "flex", gap: 6, marginTop: 4, flexDirection: "column" }}>
+                        <a href={`/webinaires/${w.id}`} style={{ padding: "9px 16px", borderRadius: 10, border: "none", background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>Voir le webinaire →</a>
+                        {w.lien_url && <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ padding: "8px 16px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 11, fontWeight: 600, textDecoration: "none", textAlign: "center" }}>💻 Rejoindre directement</a>}
+                      </div>
                     </div>
                   );
                 })}
@@ -625,7 +633,7 @@ export default function HomePage() {
 
 {/* ===== CTA ===== */}
       <div style={{ textAlign: "center", padding: mob ? "24px 16px 28px" : "36px 40px 44px" }}>
-        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le programme ({formationsCount ?? profFilteredActive.length} formations) →</div></Link>
+        <Link href="/catalogue" style={{ textDecoration: "none" }}><div style={{ display: "inline-block", padding: mob ? "12px 24px" : "14px 36px", borderRadius: 12, background: C.gradient, color: "#fff", fontSize: mob ? 13 : 15, fontWeight: 700, cursor: "pointer", width: mob ? "100%" : "auto", boxSizing: "border-box" }}>Voir tout le catalogue ({formationsCount ?? profFilteredActive.length}) →</div></Link>
       </div>
 
 

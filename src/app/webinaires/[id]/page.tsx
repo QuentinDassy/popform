@@ -233,7 +233,9 @@ export default function WebinairePage() {
   const { date, time } = formatDateFull(w.date_heure);
   const now = new Date();
   const startTime = new Date(w.date_heure);
-  const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // 2h window
+  const dureeMs = ((w as any).duree ?? 2) * 60 * 60 * 1000;
+  const endTime = new Date(startTime.getTime() + dureeMs);
+  const endTimeStr = endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const isLive = now >= startTime && now < endTime;
   const isPast = now >= endTime;
   const googleLink = buildGoogleCalLink(w);
@@ -271,7 +273,7 @@ export default function WebinairePage() {
             <span style={{ fontSize: 22 }}>📅</span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.text, textTransform: "capitalize" }}>{date}</div>
-              <div style={{ fontSize: 13, color: C.textTer }}>à {time}</div>
+              <div style={{ fontSize: 13, color: C.textTer }}>de {time} à {endTimeStr}</div>
             </div>
           </div>
         </div>
@@ -378,7 +380,13 @@ export default function WebinairePage() {
                 </div>
               )}
 
-              {/* Lien direct si pas inscrit */}
+              {/* Rejoindre directement sans inscription */}
+              {!inscrit && w.lien_url && (
+                <a href={w.lien_url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", padding: "12px 20px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, fontWeight: 600, textDecoration: "none", textAlign: "center" }}>
+                  💻 Rejoindre directement la visio (sans s&apos;inscrire)
+                </a>
+              )}
               {!inscrit && w.lien_url && (
                 <button onClick={() => setShowCalendar(!showCalendar)}
                   style={{ background: "none", border: "none", color: C.textTer, fontSize: 12, cursor: "pointer", textDecoration: "underline", textAlign: "left" }}>

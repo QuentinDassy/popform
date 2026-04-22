@@ -87,9 +87,11 @@ export default function DashboardOrganismePage() {
   const [orgNom, setOrgNom] = useState<string>("");
   const [orgDescription, setOrgDescription] = useState<string>("");
   // Webinaires
-  type WbRow = { id?: number; titre: string; description: string; date_heure: string; duree: number; prix: number; lien_url: string; status?: string; professions?: string[]; formateur_id?: number | null };
+  type WbRow = { id?: number; titre: string; description: string; date_heure: string; heure_fin?: string; duree: number; prix: number; lien_url: string; image_url?: string; status?: string; professions?: string[]; formateur_ids?: number[] };
   const [webinaires, setWebinaires] = useState<WbRow[]>([]);
-  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null });
+  const [wForm, setWForm] = useState<WbRow>({ titre: "", description: "", date_heure: "", heure_fin: "", duree: 2, prix: 0, lien_url: "", image_url: "", professions: [], formateur_ids: [] });
+  const [wImageFile, setWImageFile] = useState<File | null>(null);
+  const [wImageUploading, setWImageUploading] = useState(false);
   const [editWId, setEditWId] = useState<number | null>(null);
   const [wSaving, setWSaving] = useState(false);
   const [wMsg, setWMsg] = useState<string | null>(null);
@@ -811,7 +813,7 @@ export default function DashboardOrganismePage() {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, professions: w.professions || [], formateur_id: w.formateur_id ?? null }); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
+                        <button onClick={() => { setTab("webinaires"); setTimeout(() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), heure_fin: "", duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, image_url: (w as any).image_url || "", professions: w.professions || [], formateur_ids: (w as any).formateur_ids || [] }); setWImageFile(null); }, 50); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, cursor: "pointer" }}>✏️ Modifier</button>
                         <button onClick={async () => { if (!confirm("Supprimer ce webinaire ?")) return; await supabase.from("webinaire_inscriptions").delete().eq("webinaire_id", w.id); const { error } = await supabase.from("webinaires").delete().eq("id", w.id); if (error) { alert("Erreur suppression : " + error.message); return; } setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 12, cursor: "pointer" }}>🗑 Supprimer</button>
                       </div>
                     </div>
@@ -1576,7 +1578,7 @@ export default function DashboardOrganismePage() {
       {/* ===== WEBINAIRES TAB ===== */}
       {tab === "webinaires" && (
         <div style={{ paddingBottom: 40 }}>
-          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
+          <button onClick={() => { setTab("list"); setWMsg(null); setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", heure_fin: "", duree: 2, prix: 0, lien_url: "", image_url: "", professions: [], formateur_ids: [] }); setWebFmtSearch(""); }} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, cursor: "pointer", marginBottom: 16 }}>← Retour</button>
           <h2 style={{ fontSize: mob ? 18 : 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>📡 Webinaires</h2>
           <p style={{ fontSize: 12, color: C.textTer, marginBottom: 16 }}>Vos webinaires sont publiés immédiatement.</p>
 
@@ -1592,7 +1594,7 @@ export default function DashboardOrganismePage() {
                     {w.status === "publie" && <span style={{ padding: "2px 7px", borderRadius: 6, fontSize: 9, fontWeight: 700, background: C.greenBg, color: C.green }}>✓ Publié</span>}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, formateur_id: (w as any).formateur_id || null, professions: w.professions || [] }); setWebFmtSearch(allFormateursForWeb.find(f => f.id === (w as any).formateur_id)?.nom || ""); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={() => { setEditWId(w.id!); setWForm({ titre: w.titre, description: w.description, date_heure: toLocalInput(w.date_heure || ""), heure_fin: "", duree: (w as any).duree ?? 2, prix: w.prix, lien_url: w.lien_url, image_url: (w as any).image_url || "", professions: w.professions || [], formateur_ids: (w as any).formateur_ids || [] }); setWImageFile(null); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={async () => { if (!confirm("Supprimer ?")) return; await supabase.from("webinaires").delete().eq("id", w.id); setWebinaires(prev => prev.filter(x => x.id !== w.id)); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.pink, fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
@@ -1637,32 +1639,53 @@ export default function DashboardOrganismePage() {
                   })}
                 </div>
               </div>
+              <div style={{ gridColumn: mob ? "1" : "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" as const }}>Image du webinaire (optionnel)</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {wForm.image_url && <img src={wForm.image_url} alt="" style={{ width: 60, height: 40, objectFit: "cover", borderRadius: 6, border: "1px solid " + C.border }} />}
+                  <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) setWImageFile(f); }} style={{ fontSize: 12, color: C.textSec }} />
+                  {wImageFile && <span style={{ fontSize: 11, color: C.textTer }}>📎 {wImageFile.name}</span>}
+                </div>
+              </div>
               <div style={{ gridColumn: mob ? "1" : "1 / -1", position: "relative" }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" as const }}>Formateur (optionnel)</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" as const }}>Formateurs (optionnel)</label>
+                {(wForm.formateur_ids || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                    {(wForm.formateur_ids || []).map(id => {
+                      const f = allFormateursForWeb.find(x => x.id === id);
+                      return f ? (
+                        <span key={id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, background: C.bgAlt, border: "1px solid " + C.border, fontSize: 12, color: C.text }}>
+                          🎤 {f.nom}
+                          <button type="button" onClick={() => setWForm({ ...wForm, formateur_ids: (wForm.formateur_ids || []).filter(x => x !== id) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
                 <div style={{ position: "relative" }}>
                   <input
                     value={webFmtSearch}
-                    onChange={e => { setWebFmtSearch(e.target.value); setWebFmtDropdown(true); if (!e.target.value) setWForm({ ...wForm, formateur_id: null }); }}
+                    onChange={e => { setWebFmtSearch(e.target.value); setWebFmtDropdown(true); }}
                     onFocus={() => setWebFmtDropdown(true)}
-                    placeholder="Rechercher un·e formateur·rice…"
+                    placeholder="Ajouter un·e formateur·rice…"
                     style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" }}
                   />
                   {webFmtDropdown && webFmtSearch.length >= 1 && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
-                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch))).slice(0, 10).map(f => (
-                        <div key={f.id} onClick={() => { setWForm({ ...wForm, formateur_id: f.id }); setWebFmtSearch(f.nom); setWebFmtDropdown(false); }}
+                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch)) && !(wForm.formateur_ids || []).includes(f.id)).slice(0, 10).map(f => (
+                        <div key={f.id} onClick={() => { setWForm({ ...wForm, formateur_ids: [...(wForm.formateur_ids || []), f.id] }); setWebFmtSearch(""); setWebFmtDropdown(false); }}
                           style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                           onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                           {f.nom}
                         </div>
                       ))}
-                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch))).length === 0 && (
+                      {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch)) && !(wForm.formateur_ids || []).includes(f.id)).length === 0 && (
                         <div onClick={async () => {
                           const nom = webFmtSearch.trim();
                           if (!nom) return;
                           const { data: newFmt } = await supabase.from("formateurs").insert({ nom, bio: "", sexe: "Non genré", organisme_id: organisme?.id || null }).select().single();
-                          if (newFmt) { setAllFormateursForWeb(prev => [...prev, newFmt].sort((a, b) => a.nom.localeCompare(b.nom))); setWForm({ ...wForm, formateur_id: newFmt.id }); setWebFmtSearch(newFmt.nom); }
+                          if (newFmt) { setAllFormateursForWeb(prev => [...prev, newFmt].sort((a, b) => a.nom.localeCompare(b.nom))); setWForm({ ...wForm, formateur_ids: [...(wForm.formateur_ids || []), newFmt.id] }); setWebFmtSearch(""); }
                           setWebFmtDropdown(false);
                         }} style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>
                           + Créer « {webFmtSearch} »
@@ -1671,9 +1694,6 @@ export default function DashboardOrganismePage() {
                     </div>
                   )}
                 </div>
-                {wForm.formateur_id && (
-                  <button type="button" onClick={() => { setWForm({ ...wForm, formateur_id: null }); setWebFmtSearch(""); }} style={{ marginTop: 4, background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 11 }}>✕ Retirer le formateur</button>
-                )}
               </div>
             </div>
             {wMsg && <p style={{ color: wMsg.startsWith("✅") ? C.green : C.pink, fontSize: 13, marginTop: 10 }}>{wMsg}</p>}
@@ -1682,29 +1702,46 @@ export default function DashboardOrganismePage() {
                 if (!wForm.titre.trim() || !wForm.date_heure) { setWMsg("Titre et date obligatoires."); return; }
                 setWSaving(true); setWMsg(null);
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { professions: _prof, ...wPayload } = wForm;
+                const { professions: _prof, heure_fin, ...wPayload } = wForm;
+                // Compute duree from heure_fin if provided
+                if (heure_fin && wPayload.date_heure) {
+                  const startMs = new Date(wPayload.date_heure).getTime();
+                  const endMs = new Date(heure_fin).getTime();
+                  if (endMs > startMs) wPayload.duree = (endMs - startMs) / 3600000;
+                }
+                // Upload image if a file was selected
+                if (wImageFile) {
+                  setWImageUploading(true);
+                  try {
+                    const { uploadImage } = await import("@/lib/upload");
+                    const url = await uploadImage(wImageFile, "webinaires");
+                    if (url) wPayload.image_url = url;
+                  } finally { setWImageUploading(false); }
+                }
+                // Set primary formateur_id from first item in formateur_ids
+                const primaryFmtId = (wPayload.formateur_ids || [])[0] || null;
                 // Convert local datetime-local value back to UTC ISO for Postgres
                 if (wPayload.date_heure) wPayload.date_heure = new Date(wPayload.date_heure).toISOString();
                 if (editWId) {
-                  const { error: upErr, data: upData } = await supabase.from("webinaires").update(wPayload).eq("id", editWId).select();
+                  const { error: upErr, data: upData } = await supabase.from("webinaires").update({ ...wPayload, formateur_id: primaryFmtId }).eq("id", editWId).select();
                   if (upErr) { setWMsg("❌ " + upErr.message); setWSaving(false); return; }
                   if (!upData || upData.length === 0) { setWMsg("❌ Modification refusée (droits insuffisants)."); setWSaving(false); return; }
                   setEditWId(null);
                 } else {
-                  const { error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, organisme_id: organisme?.id, status: "publie" });
+                  const { error: insErr } = await supabase.from("webinaires").insert({ ...wPayload, formateur_id: primaryFmtId, organisme_id: organisme?.id, status: "publie" });
                   if (insErr) { setWMsg("❌ " + insErr.message); setWSaving(false); return; }
                 }
                 // Rechargement depuis la DB pour garantir la liste à jour
                 const { data: freshWbs } = await supabase.from("webinaires").select("*").eq("organisme_id", organisme?.id).order("date_heure", { ascending: true });
                 setWebinaires(freshWbs || []);
-                setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch("");
+                setWForm({ titre: "", description: "", date_heure: "", heure_fin: "", duree: 2, prix: 0, lien_url: "", image_url: "", professions: [], formateur_ids: [] }); setWebFmtSearch("");
                 setWSaving(false); setWMsg(editWId ? "✅ Webinaire modifié !" : "✅ Webinaire publié !");
                 setTab("list"); setListView("webinaires");
                 setTimeout(() => setWMsg(null), 3000);
               }} style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: "#7C3AED", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: wSaving ? 0.5 : 1 }}>
                 {wSaving ? "⏳ ..." : editWId ? "Enregistrer" : "💻 Créer le webinaire"}
               </button>
-              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", duree: 2, prix: 0, lien_url: "", professions: [], formateur_id: null }); setWebFmtSearch(""); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
+              {editWId && <button onClick={() => { setEditWId(null); setWForm({ titre: "", description: "", date_heure: "", heure_fin: "", duree: 2, prix: 0, lien_url: "", image_url: "", professions: [], formateur_ids: [] }); setWebFmtSearch(""); }} style={{ padding: "10px 20px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 13, cursor: "pointer" }}>Annuler</button>}
             </div>
           </div>
         </div>

@@ -12,11 +12,14 @@ export type Webinaire = {
   duree?: number | null;
   prix: number;
   lien_url: string;
+  image_url?: string | null;
   status: string;
   organisme_id: number;
   formateur_id?: number | null;
+  formateur_ids?: number[] | null;
   organisme?: { nom: string } | null;
   formateur?: { nom: string } | null;
+  formateurs?: { id: number; nom: string }[] | null;
 };
 
 export default function WebinairesClient({ webinaires }: { webinaires: Webinaire[] }) {
@@ -85,8 +88,12 @@ export default function WebinairesClient({ webinaires }: { webinaires: Webinaire
             const { date, time } = formatDate(w.date_heure);
             const live = isWebLive(w);
             const isPast = isWebPast(w);
+            const endTime = new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000);
+            const endStr = endTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+            const allFormateurs = w.formateurs?.length ? w.formateurs : w.formateur ? [w.formateur] : [];
             return (
               <div key={w.id} style={{ background: C.surface, border: "1.5px solid " + (live ? "#DC262633" : C.borderLight), borderRadius: 18, overflow: "hidden", display: "flex", flexDirection: "column", opacity: isPast ? 0.75 : 1 }}>
+                {w.image_url && <img src={w.image_url} alt={w.titre} style={{ width: "100%", height: 160, objectFit: "cover" }} />}
                 <div style={{ padding: mob ? "18px 16px 14px" : "22px 22px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: C.blueBg, color: C.blue }}>💻 Visio</span>
@@ -109,7 +116,7 @@ export default function WebinairesClient({ webinaires }: { webinaires: Webinaire
                     <span style={{ fontSize: 16 }}>📅</span>
                     <div>
                       <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{date}</div>
-                      <div style={{ fontSize: 12, color: C.textTer, fontWeight: 500 }}>à {time}</div>
+                      <div style={{ fontSize: 12, color: C.textTer, fontWeight: 500 }}>de {time} à {endStr}</div>
                     </div>
                   </div>
 
@@ -119,19 +126,24 @@ export default function WebinairesClient({ webinaires }: { webinaires: Webinaire
                         <span>🏢</span> <span>{w.organisme.nom}</span>
                       </div>
                     )}
-                    {w.formateur?.nom && (
+                    {allFormateurs.length > 0 && (
                       <div style={{ fontSize: 12, color: C.textTer, display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>🎤</span> <span>{w.formateur.nom}</span>
+                        <span>🎤</span> <span>{allFormateurs.map(f => f.nom).join(", ")}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {!isPast && (
-                  <div style={{ padding: mob ? "0 16px 16px" : "0 22px 18px" }}>
+                  <div style={{ padding: mob ? "0 16px 16px" : "0 22px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
                     <a href={`/webinaires/${w.id}`} style={{ display: "block", padding: "11px 20px", borderRadius: 12, background: live ? "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)" : C.gradient, color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
                       {live ? "🔴 Rejoindre la visio" : "Voir le webinaire →"}
                     </a>
+                    {w.lien_url && !live && (
+                      <a href={w.lien_url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "9px 20px", borderRadius: 12, border: "1.5px solid " + C.border, background: C.surface, color: C.textSec, fontSize: 12, fontWeight: 600, textDecoration: "none", textAlign: "center" }}>
+                        💻 Rejoindre directement
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
