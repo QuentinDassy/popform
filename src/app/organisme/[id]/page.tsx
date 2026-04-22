@@ -74,6 +74,7 @@ export default function OrganismePage() {
             )}
             <div style={{ fontSize: 12, color: C.textTer, marginTop: 4 }}>
               {formations.length} formation{formations.length > 1 ? "s" : ""} publiée{formations.length > 1 ? "s" : ""}
+              {webinaires.length > 0 && ` · ${webinaires.length} webinaire${webinaires.length > 1 ? "s" : ""} à venir`}
             </div>
           </div>
         </div>

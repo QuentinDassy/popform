@@ -20,6 +20,7 @@ type Webinaire = {
   professions?: string[];
   organisme?: { nom: string; logo?: string } | null;
   formateur?: { nom: string; photo_url?: string } | null;
+  formateurs?: { id: number; nom: string }[];
 };
 
 function formatDateFull(dateStr: string) {
@@ -104,8 +105,15 @@ export default function WebinairePage() {
       .select("*, organisme:organismes(nom, logo), formateur:formateurs(nom, photo_url)")
       .eq("id", id)
       .single()
-      .then(({ data }: { data: Webinaire | null }) => {
-        setW(data);
+      .then(async ({ data }: { data: any | null }) => {
+        if (!data) { setLoading(false); return; }
+        const fmtIds: number[] = data.formateur_ids || [];
+        if (fmtIds.length > 0) {
+          const { data: fmts } = await supabase.from("formateurs").select("id, nom").in("id", fmtIds);
+          setW({ ...data, formateurs: fmts || [] });
+        } else {
+          setW(data);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -289,8 +297,8 @@ export default function WebinairePage() {
             </div>
           )}
 
-          {/* Organisme / formateur */}
-          {(w.organisme?.nom || w.formateur?.nom) && (
+          {/* Organisme / formateurs */}
+          {(w.organisme?.nom || (w.formateurs?.length ?? 0) > 0 || w.formateur?.nom) && (
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {w.organisme?.nom && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
@@ -298,12 +306,15 @@ export default function WebinairePage() {
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{w.organisme.nom}</span>
                 </div>
               )}
-              {w.formateur?.nom && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
-                  <span style={{ fontSize: 18 }}>🎤</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{w.formateur.nom}</span>
-                </div>
-              )}
+              {(() => {
+                const allF = w.formateurs?.length ? w.formateurs : w.formateur ? [w.formateur] : [];
+                return allF.length > 0 ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: C.bgAlt, borderRadius: 10, border: "1px solid " + C.borderLight }}>
+                    <span style={{ fontSize: 18 }}>🎤</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{allF.map(f => f.nom).join(", ")}</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
 

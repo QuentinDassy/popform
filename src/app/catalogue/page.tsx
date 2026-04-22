@@ -162,15 +162,22 @@ function CatalogueContent() {
   else if (sort === "recent") filtered = [...filtered].sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
 
   const showWebinaires = selModalites.includes("Webinaire");
+  const hasNonWebModalFilter = selModalites.some(m => m !== "Webinaire");
   const now = new Date();
-  const filteredWebinaires = showWebinaires ? webinaires.filter(w => {
-    const start = new Date(w.date_heure);
-    const end = new Date(start.getTime() + (w.duree ?? 2) * 3600000);
+  // Compute matching webinaires for both filter mode and search mode
+  const filteredWebinaires = webinaires.filter(w => {
+    const end = new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000);
     if (now >= end) return false;
-    if (search) { const q = normalize(search); if (!normalize(w.titre).includes(q) && !normalize(w.description || "").includes(q) && !normalize(w.organisme?.nom || "").includes(q)) return false; }
-    return true;
-  }) : [];
+    if (hasNonWebModalFilter) return false; // Présentiel/Visio/E-learning filter incompatible
+    if (search) {
+      const words = normalize(search).split(/\s+/).filter(Boolean);
+      return words.every(word => normalize(w.titre).includes(word) || normalize(w.description || "").includes(word) || normalize(w.organisme?.nom || "").includes(word));
+    }
+    return showWebinaires; // without search, only return all when "Webinaire" filter active
+  });
   const formationsFiltered = showWebinaires ? [] : filtered;
+  // Show webinaires as extra section when searching (not in Webinaire-only mode)
+  const showExtraWebinaires = !showWebinaires && filteredWebinaires.length > 0 && !!search;
 
   const clearAll = () => { setSelDomaines([]); setSelModalites([]); setSelPrises([]); setSelPops([]); setSelVilles([]); setSelRegion(""); };
 
@@ -503,7 +510,7 @@ function CatalogueContent() {
             })}
           </div>
         )
-      ) : formationsFiltered.length === 0 ? (
+      ) : formationsFiltered.length === 0 && !showExtraWebinaires ? (
         <div style={{ textAlign: "center", padding: 60, color: C.textTer }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🍿</div>
           <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Aucune formation trouvée</p>
@@ -512,9 +519,47 @@ function CatalogueContent() {
         </div>
       ) : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16 }}>
-            {formationsFiltered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
-          </div>
+          {formationsFiltered.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16 }}>
+              {formationsFiltered.map(f => <FormationCard key={f.id} f={f} mob={mob} favori={favoriIds.includes(f.id)} onToggleFav={user ? () => handleToggleFav(f.id) : undefined} />)}
+            </div>
+          )}
+          {showExtraWebinaires && (
+            <>
+              <div style={{ fontSize: mob ? 14 : 16, fontWeight: 800, color: C.text, marginTop: formationsFiltered.length > 0 ? 28 : 0, marginBottom: 12 }}>Webinaires correspondants</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: mob ? 10 : 16 }}>
+                {filteredWebinaires.map((w: any) => {
+                  const d = new Date(w.date_heure);
+                  const end = new Date(d.getTime() + (w.duree ?? 2) * 3600000);
+                  const dateStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+                  const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                  const endStr = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                  const allFormateurs = w.formateurs?.length ? w.formateurs : w.formateur ? [w.formateur] : [];
+                  return (
+                    <a key={w.id} href={`/webinaires/${w.id}`} style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, overflow: "hidden" } as React.CSSProperties}>
+                      {w.image_url && <img src={w.image_url} alt={w.titre} style={{ width: "100%", height: 140, objectFit: "cover" }} />}
+                      <div style={{ padding: mob ? "14px 12px" : "18px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.blueBg, color: C.blue }}>Visio</span>
+                          {w.prix === 0 ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.greenBg, color: C.green }}>Gratuit</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.bgAlt, color: C.textSec }}>{w.prix} €</span>}
+                        </div>
+                        <div style={{ fontSize: mob ? 14 : 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{w.titre}</div>
+                        <div style={{ fontSize: 12, color: C.textTer, display: "flex", alignItems: "center", gap: 5, background: C.bgAlt, borderRadius: 8, padding: "7px 10px" }}>
+                          <span>📅</span>
+                          <div><div style={{ fontWeight: 700, textTransform: "capitalize" }}>{dateStr}</div><div style={{ fontSize: 11 }}>de {timeStr} à {endStr}</div></div>
+                        </div>
+                        {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
+                        {allFormateurs.length > 0 && <div style={{ fontSize: 11, color: C.textTer }}>🎤 {allFormateurs.map((f: any) => f.nom).join(", ")}</div>}
+                      </div>
+                      <div style={{ padding: mob ? "0 12px 12px" : "0 16px 14px" }}>
+                        <div style={{ padding: "9px 16px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textAlign: "center" }}>Voir le webinaire →</div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </>
+          )}
           <div style={{ paddingBottom: 40 }} />
         </>
       )}

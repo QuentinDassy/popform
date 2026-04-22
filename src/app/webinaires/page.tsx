@@ -15,5 +15,19 @@ export default async function WebinairesPage() {
     .eq("status", "publie")
     .order("date_heure", { ascending: true });
 
-  return <WebinairesClient webinaires={(data as Webinaire[]) || []} />;
+  const webinaires = data || [];
+
+  // Enrich with all formateurs from formateur_ids array
+  const allFmtIds = [...new Set(webinaires.flatMap((w: any) => w.formateur_ids || []))] as number[];
+  let formateursMap: Record<number, { id: number; nom: string }> = {};
+  if (allFmtIds.length > 0) {
+    const { data: fmts } = await supabase.from("formateurs").select("id, nom").in("id", allFmtIds);
+    (fmts || []).forEach((f: any) => { formateursMap[f.id] = f; });
+  }
+  const enriched = webinaires.map((w: any) => ({
+    ...w,
+    formateurs: (w.formateur_ids || []).map((id: number) => formateursMap[id]).filter(Boolean),
+  }));
+
+  return <WebinairesClient webinaires={enriched as Webinaire[]} />;
 }
