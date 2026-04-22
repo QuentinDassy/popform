@@ -2,11 +2,12 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { C, fetchOrganismes, fetchFormations, isFormationPast, type Organisme, type Formation } from "@/lib/data";
+import { supabase } from "@/lib/supabase-data";
 import { useIsMobile } from "@/lib/hooks";
 
 const MAX_DESC = 150;
 
-function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean }) {
+function OrgCard({ o, count, webCount, mob }: { o: Organisme; count: number; webCount: number; mob: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const long = (o.description || "").length > MAX_DESC;
   const desc = long && !expanded ? o.description!.slice(0, MAX_DESC) + "…" : (o.description || "");
@@ -19,7 +20,10 @@ function OrgCard({ o, count, mob }: { o: Organisme; count: number; mob: boolean 
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.nom}</div>
-            <div style={{ fontSize: 11, color: C.textTer }}>{count} formation{count > 1 ? "s" : ""}</div>
+            <div style={{ fontSize: 11, color: C.textTer }}>
+              {count} formation{count > 1 ? "s" : ""}
+              {webCount > 0 && ` · ${webCount} webinaire${webCount > 1 ? "s" : ""}`}
+            </div>
           </div>
         </div>
         {desc && (
@@ -44,6 +48,7 @@ export default function OrganismesPage() {
   const mob = useIsMobile();
   const [orgs, setOrgs] = useState<Organisme[]>([]);
   const [allFormations, setAllFormations] = useState<Formation[]>([]);
+  const [webCounts, setWebCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const loadingRef = useRef(false);
 
@@ -51,7 +56,20 @@ export default function OrganismesPage() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const [o, fo] = await Promise.all([fetchOrganismes(), fetchFormations()]);
+      const now = new Date();
+      const [o, fo, { data: wbs }] = await Promise.all([
+        fetchOrganismes(),
+        fetchFormations(),
+        supabase.from("webinaires").select("organisme_id, date_heure, duree").eq("status", "publie"),
+      ]);
+      // Count active webinaires per organisme
+      const wc: Record<number, number> = {};
+      for (const w of (wbs || [])) {
+        if (!w.organisme_id) continue;
+        const end = new Date(new Date(w.date_heure).getTime() + ((w as any).duree ?? 2) * 3600000);
+        if (now < end) wc[w.organisme_id] = (wc[w.organisme_id] || 0) + 1;
+      }
+      setWebCounts(wc);
       // Sort: user-linked first, then deduplicate
       const sorted = [...o].sort((a, b) => {
         if (a.user_id && !b.user_id) return -1;
@@ -120,7 +138,7 @@ export default function OrganismesPage() {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 12, paddingBottom: 40, alignItems: "stretch" }}>
-        {filteredOrgs.map(o => <OrgCard key={o.id} o={o} count={mergedCounts[o.id] || 0} mob={mob} />)}
+        {filteredOrgs.map(o => <OrgCard key={o.id} o={o} count={mergedCounts[o.id] || 0} webCount={webCounts[o.id] || 0} mob={mob} />)}
       </div>
     </div>
   );

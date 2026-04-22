@@ -15,6 +15,7 @@ function FormateursContent() {
   const [fmts, setFmts] = useState<any[]>([]);
   const [formations, setFormations] = useState<Formation[]>([]);
   const [fmtCounts, setFmtCounts] = useState<Record<number, number>>({});
+  const [fmtWebCounts, setFmtWebCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(idParam ? Number(idParam) : null);
   const [search, setSearch] = useState("");
@@ -25,7 +26,23 @@ function FormateursContent() {
     if (loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const [f, fo] = await Promise.all([fetchFormateurs(), fetchFormations()]);
+      const now = new Date();
+      const [f, fo, { data: wbs }] = await Promise.all([
+        fetchFormateurs(),
+        fetchFormations(),
+        supabase.from("webinaires").select("formateur_id, formateur_ids, date_heure, duree").eq("status", "publie"),
+      ]);
+      // Count active webinaires per formateur
+      const wc: Record<number, number> = {};
+      for (const w of (wbs || [])) {
+        const end = new Date(new Date(w.date_heure).getTime() + ((w as any).duree ?? 2) * 3600000);
+        if (now >= end) continue;
+        const ids = new Set<number>();
+        if (w.formateur_id) ids.add(w.formateur_id);
+        for (const id of (w.formateur_ids || [])) ids.add(id as number);
+        ids.forEach(id => { wc[id] = (wc[id] || 0) + 1; });
+      }
+      setFmtWebCounts(wc);
       const seen = new Set<string>();
       const unique = f.filter((fmt: any) => {
         if (fmt.hidden) return false;
@@ -157,6 +174,7 @@ function FormateursContent() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))", gap: 10, paddingBottom: 40 }}>
         {filtered.map(f => {
           const count = fmtCounts[f.id] || 0;
+          const webCount = fmtWebCounts[f.id] || 0;
           return (
             <Link key={f.id} href={`/formateur/${f.id}`}
               style={{ padding: 14, background: C.surface, borderRadius: 14, border: "1.5px solid " + C.borderLight, cursor: "pointer", transition: "all 0.15s", display: "flex", gap: 14, alignItems: "center", textDecoration: "none" }}
@@ -169,7 +187,7 @@ function FormateursContent() {
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nom}</div>
-                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtTitle(f)} · {count} formation{count > 1 ? "s" : ""}{webCount > 0 ? ` · ${webCount} webinaire${webCount > 1 ? "s" : ""}` : ""}</div>
                 {f.bio && <div style={{ fontSize: 11, color: C.textSec, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.bio}</div>}
               </div>
               <span style={{ fontSize: 12, color: C.textTer, flexShrink: 0 }}>›</span>

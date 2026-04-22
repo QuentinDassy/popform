@@ -80,7 +80,18 @@ function CatalogueContent() {
   useEffect(() => {
     Promise.race([fetchFormations(), new Promise<Formation[]>(resolve => setTimeout(() => resolve([]), 10000))]).then(d => { setFormations(shuffle(d)); setLoading(false); });
     supabase.from("formations").select("*", { count: "exact", head: true }).then((res: { count: number | null }) => { if (res.count != null) setFormationsTotal(res.count); }).catch(() => {});
-    supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").eq("status", "publie").order("date_heure", { ascending: true }).then(({ data }: { data: any[] | null }) => { if (data) setWebinaires(data); }).catch(() => {});
+    supabase.from("webinaires").select("*, organisme:organismes(nom), formateur:formateurs(nom)").eq("status", "publie").order("date_heure", { ascending: true }).then(async ({ data }: { data: any[] | null }) => {
+      if (!data) return;
+      const allIds = [...new Set(data.flatMap((w: any) => w.formateur_ids || []))] as number[];
+      if (allIds.length > 0) {
+        const { data: fmts } = await supabase.from("formateurs").select("id, nom").in("id", allIds);
+        const fmtMap: Record<number, any> = {};
+        (fmts || []).forEach((f: any) => { fmtMap[f.id] = f; });
+        setWebinaires(data.map((w: any) => ({ ...w, formateurs: (w.formateur_ids || []).map((id: number) => fmtMap[id]).filter(Boolean) })));
+      } else {
+        setWebinaires(data);
+      }
+    }).catch(() => {});
     supabase.from("villes_admin").select("nom").order("nom").then(({ data }: { data: { nom: string }[] | null }) => {
       if (data && data.length > 0) setAdminVilles(data.map(v => v.nom));
     }).catch(() => {});
@@ -486,12 +497,13 @@ function CatalogueContent() {
               const dateStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
               const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
               const endStr = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              const allFormateurs = w.formateurs?.length ? w.formateurs : w.formateur ? [w.formateur] : [];
               return (
                 <a key={w.id} href={`/webinaires/${w.id}`} style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, overflow: "hidden" } as React.CSSProperties}>
                   {w.image_url && <img src={w.image_url} alt={w.titre} style={{ width: "100%", height: 140, objectFit: "cover" }} />}
                   <div style={{ padding: mob ? "14px 12px" : "18px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.blueBg, color: C.blue }}>💻 Visio</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.blueBg, color: C.blue }}>Visio</span>
                       {w.prix === 0 ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.greenBg, color: C.green }}>Gratuit</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.bgAlt, color: C.textSec }}>{w.prix} €</span>}
                     </div>
                     <div style={{ fontSize: mob ? 14 : 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{w.titre}</div>
@@ -501,6 +513,7 @@ function CatalogueContent() {
                       <div><div style={{ fontWeight: 700, textTransform: "capitalize" }}>{dateStr}</div><div style={{ fontSize: 11 }}>de {timeStr} à {endStr}</div></div>
                     </div>
                     {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
+                    {allFormateurs.length > 0 && <div style={{ fontSize: 11, color: C.textTer }}>🎤 {allFormateurs.map((f: any) => f.nom).join(", ")}</div>}
                   </div>
                   <div style={{ padding: mob ? "0 12px 12px" : "0 16px 14px" }}>
                     <div style={{ padding: "9px 16px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textAlign: "center" }}>Voir le webinaire →</div>
