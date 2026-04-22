@@ -255,6 +255,7 @@ export default function WebinairePage() {
 
       {/* Card */}
       <div style={{ background: C.surface, borderRadius: 20, border: "1.5px solid " + C.borderLight, overflow: "hidden" }}>
+        {(w as any).image_url && <img src={(w as any).image_url} alt={w.titre} style={{ width: "100%", height: mob ? 200 : 280, objectFit: "cover" }} />}
         {/* Header */}
         <div style={{ padding: mob ? "24px 20px 20px" : "32px 32px 24px", background: `linear-gradient(135deg, #7C3AED11 0%, #f0f4ff 100%)`, borderBottom: "1px solid " + C.borderLight }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>

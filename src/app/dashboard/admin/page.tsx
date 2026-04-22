@@ -50,12 +50,15 @@ export default function DashboardAdminPage() {
 
   // Webinaires management
   const [webinaires, setWebinaires] = useState<any[]>([]);
-  const [webForm, setWebForm] = useState({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null as number | null, formateur_id: null as number | null, status: "publie" });
+  const [webForm, setWebForm] = useState({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null as number | null, status: "publie" });
+  const [webFormateur_ids, setWebFormateur_ids] = useState<number[]>([]);
+  const [webFmtSearchCreate, setWebFmtSearchCreate] = useState("");
+  const [showWebFmtDropCreate, setShowWebFmtDropCreate] = useState(false);
   const [webSaving, setWebSaving] = useState(false);
   const [webMsg, setWebMsg] = useState<string | null>(null);
   const [showWebForm, setShowWebForm] = useState(false);
   const [editingWebId, setEditingWebId] = useState<number | null>(null);
-  const [editWebForm, setEditWebForm] = useState<{ titre: string; description: string; date_heure: string; duree: number; prix: number; lien_url: string; image_url: string; organisme_id: number | null; formateur_id: number | null; status: string } | null>(null);
+  const [editWebForm, setEditWebForm] = useState<{ titre: string; description: string; date_heure: string; duree: number; prix: number; lien_url: string; image_url: string; organisme_id: number | null; formateur_ids: number[]; status: string } | null>(null);
   const [editOrgSearchWeb, setEditOrgSearchWeb] = useState("");
   const [showEditOrgDropdownWeb, setShowEditOrgDropdownWeb] = useState(false);
   const [editFmtSearchWeb, setEditFmtSearchWeb] = useState("");
@@ -285,7 +288,8 @@ export default function DashboardAdminPage() {
       lien_url: editWebForm.lien_url,
       image_url: editWebForm.image_url || null,
       organisme_id: editWebForm.organisme_id,
-      formateur_id: editWebForm.formateur_id,
+      formateur_id: editWebForm.formateur_ids[0] ?? null,
+      formateur_ids: editWebForm.formateur_ids,
       status: editWebForm.status,
     }).eq("id", editingWebId);
     if (error) { alert("Erreur: " + error.message); return; }
@@ -636,32 +640,45 @@ export default function DashboardAdminPage() {
                       >{o.nom}</div>
                     ))}
                     {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(orgSearchWeb))).length === 0 && (
-                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                      <div onMouseDown={async () => { const nom = orgSearchWeb.trim(); if (!nom) return; const { data: newOrg } = await supabase.from("organismes").insert({ nom }).select("id, nom").single(); if (newOrg) { setAllOrganismesAdmin(prev => [...prev, newOrg].sort((a, b) => a.nom.localeCompare(b.nom))); setWebForm(f => ({ ...f, organisme_id: newOrg.id })); setOrgSearchWeb(newOrg.nom); setShowOrgDropdownWeb(false); } }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>+ Créer « {orgSearchWeb} »</div>
                     )}
                   </div>
                 )}
               </div>
               <div style={{ position: "relative" as const }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Formateur (optionnel)</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Formateurs (optionnel)</label>
+                {webFormateur_ids.length > 0 && (
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+                    {webFormateur_ids.map(fid => {
+                      const fm = allFormateursAdmin.find(x => x.id === fid);
+                      return fm ? (
+                        <span key={fid} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 8, background: C.bgAlt, border: "1px solid " + C.border, fontSize: 12, color: C.text }}>
+                          {fm.nom}
+                          <button type="button" onMouseDown={() => setWebFormateur_ids(prev => prev.filter(x => x !== fid))} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
                 <input
-                  value={fmtSearchWeb}
-                  onChange={e => { setFmtSearchWeb(e.target.value); setShowFmtDropdownWeb(true); if (!e.target.value) setWebForm({ ...webForm, formateur_id: null }); }}
-                  onFocus={() => setShowFmtDropdownWeb(true)}
-                  onBlur={() => setTimeout(() => setShowFmtDropdownWeb(false), 150)}
-                  placeholder="Rechercher un formateur…"
+                  value={webFmtSearchCreate}
+                  onChange={e => { setWebFmtSearchCreate(e.target.value); setShowWebFmtDropCreate(true); }}
+                  onFocus={() => setShowWebFmtDropCreate(true)}
+                  onBlur={() => setTimeout(() => setShowWebFmtDropCreate(false), 150)}
+                  placeholder="Ajouter un formateur…"
                   style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }}
                 />
-                {showFmtDropdownWeb && fmtSearchWeb.length >= 1 && (
+                {showWebFmtDropCreate && webFmtSearchCreate.length >= 1 && (
                   <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
-                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(fmtSearchWeb))).slice(0, 10).map(f => (
-                      <div key={f.id} onMouseDown={() => { setWebForm({ ...webForm, formateur_id: f.id }); setFmtSearchWeb(f.nom); setShowFmtDropdownWeb(false); }}
+                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(webFmtSearchCreate)) && !webFormateur_ids.includes(f.id)).slice(0, 10).map(f => (
+                      <div key={f.id} onMouseDown={() => { setWebFormateur_ids(prev => [...prev, f.id]); setWebFmtSearchCreate(""); setShowWebFmtDropCreate(false); }}
                         style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                         onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt}
                         onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
                       >{f.nom}</div>
                     ))}
-                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(fmtSearchWeb))).length === 0 && (
-                      <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>
+                    {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(webFmtSearchCreate)) && !webFormateur_ids.includes(f.id)).length === 0 && (
+                      <div onMouseDown={async () => { const nom = webFmtSearchCreate.trim(); if (!nom) return; const { data: nf } = await supabase.from("formateurs").insert({ nom, bio: "", sexe: "Non genré" }).select("id, nom").single(); if (nf) { setAllFormateursAdmin(prev => [...prev, nf].sort((a, b) => a.nom.localeCompare(b.nom))); setWebFormateur_ids(prev => [...prev, nf.id]); setWebFmtSearchCreate(""); setShowWebFmtDropCreate(false); } }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>+ Créer « {webFmtSearchCreate} »</div>
                     )}
                   </div>
                 )}
@@ -678,14 +695,14 @@ export default function DashboardAdminPage() {
             <button disabled={webSaving} onClick={async () => {
               if (!webForm.titre.trim() || !webForm.date_heure) { setWebMsg("Titre et date obligatoires."); return; }
               setWebSaving(true); setWebMsg(null);
-              const payload: Record<string, unknown> = { titre: webForm.titre.trim(), description: webForm.description, date_heure: webForm.date_heure, prix: webForm.prix, lien_url: webForm.lien_url, status: webForm.status };
+              const payload: Record<string, unknown> = { titre: webForm.titre.trim(), description: webForm.description, date_heure: webForm.date_heure, prix: webForm.prix, lien_url: webForm.lien_url, status: webForm.status, formateur_ids: webFormateur_ids, formateur_id: webFormateur_ids[0] ?? null };
               if (webForm.organisme_id) payload.organisme_id = webForm.organisme_id;
-              if (webForm.formateur_id) payload.formateur_id = webForm.formateur_id;
               const { data: wb, error } = await supabase.from("webinaires").insert(payload).select("*, organisme:organismes(nom), formateur:formateurs(nom)").single();
               if (error) { setWebMsg("❌ " + error.message); setWebSaving(false); return; }
               if (wb) setWebinaires(prev => [wb, ...prev]);
-              setWebForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null, formateur_id: null, status: "publie" });
-              setOrgSearchWeb(""); setFmtSearchWeb("");
+              setWebForm({ titre: "", description: "", date_heure: "", prix: 0, lien_url: "", organisme_id: null, status: "publie" });
+              setWebFormateur_ids([]); setWebFmtSearchCreate("");
+              setOrgSearchWeb("");
               setWebSaving(false); setWebMsg("✅ Webinaire créé !");
               setTimeout(() => setWebMsg(null), 3000);
             }} style={{ marginTop: 14, padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: webSaving ? "default" : "pointer", opacity: webSaving ? 0.6 : 1 }}>
@@ -755,7 +772,7 @@ export default function DashboardAdminPage() {
                           )}
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
-                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", duree: (w as any).duree ?? 2, prix: w.prix ?? 0, lien_url: w.lien_url || "", image_url: (w as any).image_url || "", organisme_id: w.organisme_id, formateur_id: w.formateur_id, status: w.status }); setEditOrgSearchWeb(w.organisme?.nom || ""); setEditFmtSearchWeb(w.formateur?.nom || ""); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
+                          <button onClick={() => { setEditingWebId(w.id); setEditWebForm({ titre: w.titre, description: w.description || "", date_heure: w.date_heure ? w.date_heure.slice(0, 16) : "", duree: (w as any).duree ?? 2, prix: w.prix ?? 0, lien_url: w.lien_url || "", image_url: (w as any).image_url || "", organisme_id: w.organisme_id, formateur_ids: (w as any).formateur_ids?.length ? (w as any).formateur_ids : (w.formateur_id ? [w.formateur_id] : []), status: w.status }); setEditOrgSearchWeb(w.organisme?.nom || ""); setEditFmtSearchWeb(""); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✏️ Éditer</button>
                           {w.status !== "publie" && (
                             <button onClick={() => handleWebStatus(w.id, "publie")} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #2A9D6E, #34B67F)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✅ Publier</button>
                           )}
@@ -813,19 +830,36 @@ export default function DashboardAdminPage() {
                                   {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(editOrgSearchWeb))).slice(0, 8).map(o => (
                                     <div key={o.id} onMouseDown={() => { setEditWebForm({ ...editWebForm, organisme_id: o.id }); setEditOrgSearchWeb(o.nom); setShowEditOrgDropdownWeb(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }} onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt} onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>{o.nom}</div>
                                   ))}
-                                  {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(editOrgSearchWeb))).length === 0 && <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>}
+                                  {allOrganismesAdmin.filter(o => normalize(o.nom).includes(normalize(editOrgSearchWeb))).length === 0 && (
+                                    <div onMouseDown={async () => { const nom = editOrgSearchWeb.trim(); if (!nom) return; const { data: newOrg } = await supabase.from("organismes").insert({ nom }).select("id, nom").single(); if (newOrg) { setAllOrganismesAdmin(prev => [...prev, newOrg].sort((a, b) => a.nom.localeCompare(b.nom))); setEditWebForm(f => f ? { ...f, organisme_id: newOrg.id } : f); setEditOrgSearchWeb(newOrg.nom); setShowEditOrgDropdownWeb(false); } }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600, borderBottom: "1px solid " + C.borderLight }}>+ Créer « {editOrgSearchWeb} »</div>
+                                  )}
                                 </div>
                               )}
                             </div>
                             <div style={{ position: "relative" as const }}>
-                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Formateur</label>
-                              <input value={editFmtSearchWeb} onChange={e => { setEditFmtSearchWeb(e.target.value); setShowEditFmtDropdownWeb(true); if (!e.target.value) setEditWebForm({ ...editWebForm, formateur_id: null }); }} onFocus={() => setShowEditFmtDropdownWeb(true)} onBlur={() => setTimeout(() => setShowEditFmtDropdownWeb(false), 150)} placeholder="Rechercher…" style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
+                              <label style={{ fontSize: 11, fontWeight: 700, color: C.textTer, display: "block", marginBottom: 4, textTransform: "uppercase" }}>Formateurs</label>
+                              {editWebForm.formateur_ids.length > 0 && (
+                                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+                                  {editWebForm.formateur_ids.map(fid => {
+                                    const fm = allFormateursAdmin.find(x => x.id === fid);
+                                    return fm ? (
+                                      <span key={fid} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 7, background: C.bgAlt, border: "1px solid " + C.border, fontSize: 12, color: C.text }}>
+                                        {fm.nom}
+                                        <button type="button" onMouseDown={() => setEditWebForm(f => f ? { ...f, formateur_ids: f.formateur_ids.filter(x => x !== fid) } : f)} style={{ background: "none", border: "none", cursor: "pointer", color: C.textTer, fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>
+                                      </span>
+                                    ) : null;
+                                  })}
+                                </div>
+                              )}
+                              <input value={editFmtSearchWeb} onChange={e => { setEditFmtSearchWeb(e.target.value); setShowEditFmtDropdownWeb(true); }} onFocus={() => setShowEditFmtDropdownWeb(true)} onBlur={() => setTimeout(() => setShowEditFmtDropdownWeb(false), 150)} placeholder="Ajouter un formateur…" style={{ width: "100%", padding: "8px 11px", borderRadius: 8, border: "1.5px solid " + C.border, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.surface, boxSizing: "border-box" as const }} />
                               {showEditFmtDropdownWeb && editFmtSearchWeb.length >= 1 && (
                                 <div style={{ position: "absolute" as const, top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 9, boxShadow: "0 4px 16px rgba(45,27,6,0.1)", zIndex: 50, maxHeight: 180, overflowY: "auto" }}>
-                                  {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(editFmtSearchWeb))).slice(0, 8).map(f => (
-                                    <div key={f.id} onMouseDown={() => { setEditWebForm({ ...editWebForm, formateur_id: f.id }); setEditFmtSearchWeb(f.nom); setShowEditFmtDropdownWeb(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }} onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt} onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>{f.nom}</div>
+                                  {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(editFmtSearchWeb)) && !editWebForm.formateur_ids.includes(f.id)).slice(0, 8).map(f => (
+                                    <div key={f.id} onMouseDown={() => { setEditWebForm(ef => ef ? { ...ef, formateur_ids: [...ef.formateur_ids, f.id] } : ef); setEditFmtSearchWeb(""); setShowEditFmtDropdownWeb(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }} onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = C.bgAlt} onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>{f.nom}</div>
                                   ))}
-                                  {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(editFmtSearchWeb))).length === 0 && <div style={{ padding: "8px 12px", fontSize: 12, color: C.textTer }}>Aucun résultat</div>}
+                                  {allFormateursAdmin.filter(f => normalize(f.nom).includes(normalize(editFmtSearchWeb)) && !editWebForm.formateur_ids.includes(f.id)).length === 0 && (
+                                    <div onMouseDown={async () => { const nom = editFmtSearchWeb.trim(); if (!nom) return; const { data: nf } = await supabase.from("formateurs").insert({ nom, bio: "", sexe: "Non genré" }).select("id, nom").single(); if (nf) { setAllFormateursAdmin(prev => [...prev, nf].sort((a, b) => a.nom.localeCompare(b.nom))); setEditWebForm(ef => ef ? { ...ef, formateur_ids: [...ef.formateur_ids, nf.id] } : ef); setEditFmtSearchWeb(""); setShowEditFmtDropdownWeb(false); } }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>+ Créer « {editFmtSearchWeb} »</div>
+                                  )}
                                 </div>
                               )}
                             </div>

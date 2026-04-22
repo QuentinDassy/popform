@@ -1673,7 +1673,7 @@ export default function DashboardOrganismePage() {
                   {webFmtDropdown && webFmtSearch.length >= 1 && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: C.surface, border: "1.5px solid " + C.border, borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", marginTop: 4 }}>
                       {allFormateursForWeb.filter(f => normalize(f.nom).includes(normalize(webFmtSearch)) && !(wForm.formateur_ids || []).includes(f.id)).slice(0, 10).map(f => (
-                        <div key={f.id} onClick={() => { setWForm({ ...wForm, formateur_ids: [...(wForm.formateur_ids || []), f.id] }); setWebFmtSearch(""); setWebFmtDropdown(false); }}
+                        <div key={f.id} onMouseDown={() => { setWForm(prev => ({ ...prev, formateur_ids: [...(prev.formateur_ids || []), f.id] })); setWebFmtSearch(""); setWebFmtDropdown(false); }}
                           style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.text, borderBottom: "1px solid " + C.borderLight }}
                           onMouseEnter={e => (e.currentTarget.style.background = C.bgAlt)}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
@@ -1685,7 +1685,7 @@ export default function DashboardOrganismePage() {
                           const nom = webFmtSearch.trim();
                           if (!nom) return;
                           const { data: newFmt } = await supabase.from("formateurs").insert({ nom, bio: "", sexe: "Non genré", organisme_id: organisme?.id || null }).select().single();
-                          if (newFmt) { setAllFormateursForWeb(prev => [...prev, newFmt].sort((a, b) => a.nom.localeCompare(b.nom))); setWForm({ ...wForm, formateur_ids: [...(wForm.formateur_ids || []), newFmt.id] }); setWebFmtSearch(""); }
+                          if (newFmt) { setAllFormateursForWeb(prev => [...prev, newFmt].sort((a, b) => a.nom.localeCompare(b.nom))); setWForm(prev => ({ ...prev, formateur_ids: [...(prev.formateur_ids || []), newFmt.id] })); setWebFmtSearch(""); }
                           setWebFmtDropdown(false);
                         }} style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: C.accent, fontWeight: 600 }}>
                           + Créer « {webFmtSearch} »

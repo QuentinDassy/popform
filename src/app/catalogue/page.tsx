@@ -9,7 +9,7 @@ import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
 import { useAuth } from "@/lib/auth-context";
 
-const MODALITES = ["Présentiel", "Visio", "E-learning", "💻 Webinaire"];
+const MODALITES = ["Présentiel", "Visio", "E-learning", "Webinaire"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -72,6 +72,7 @@ function CatalogueContent() {
   const [searchDropVilles, setSearchDropVilles] = useState<string[]>([]);
   const [searchDropDomaines, setSearchDropDomaines] = useState<string[]>([]);
   const [showSearchDrop, setShowSearchDrop] = useState(false);
+  const [searchDropWebinaires, setSearchDropWebinaires] = useState<any[]>([]);
 
   const normS = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const shuffle = <T,>(arr: T[]): T[] => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -160,7 +161,7 @@ function CatalogueContent() {
   else if (sort === "note") filtered = [...filtered].sort((a, b) => b.note - a.note);
   else if (sort === "recent") filtered = [...filtered].sort((a, b) => b.date_ajout.localeCompare(a.date_ajout));
 
-  const showWebinaires = selModalites.includes("💻 Webinaire");
+  const showWebinaires = selModalites.includes("Webinaire");
   const now = new Date();
   const filteredWebinaires = showWebinaires ? webinaires.filter(w => {
     const start = new Date(w.date_heure);
@@ -205,16 +206,19 @@ function CatalogueContent() {
                 const mft = allFormateurs.filter(f => matchWords(f.nom)).slice(0, 3);
                 const mv = adminVilles.filter(v => matchWords(v)).slice(0, 3);
                 const md = (domainesFiltres.length > 0 ? domainesFiltres.map(d => d.nom) : [...new Set(formations.map(f => f.domaine))]).filter(d => matchWords(d)).slice(0, 3);
+                const mw = webinaires.filter(w => { const end = new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000); return new Date() < end && (matchWords(w.titre) || matchWords(w.description || "") || matchWords(w.organisme?.nom || "")); }).slice(0, 3);
                 setSearchDropFormations(mf);
                 setSearchDropFmts(mft);
                 setSearchDropVilles(mv);
                 setSearchDropDomaines(md);
-                setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0 || md.length > 0);
+                setSearchDropWebinaires(mw);
+                setShowSearchDrop(mf.length > 0 || mft.length > 0 || mv.length > 0 || md.length > 0 || mw.length > 0);
               } else {
                 setSearchDropFormations([]);
                 setSearchDropFmts([]);
                 setSearchDropDomaines([]);
                 setSearchDropVilles([]);
+                setSearchDropWebinaires([]);
                 setShowSearchDrop(false);
               }
             }} onFocus={() => {
@@ -287,6 +291,20 @@ function CatalogueContent() {
                       Voir toutes les formations ({searchDropFormationsTotal}) →
                     </div>
                   )}
+                </>
+              )}
+              {searchDropWebinaires.length > 0 && (
+                <>
+                  <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: C.textTer, textTransform: "uppercase", letterSpacing: 0.5 }}>Webinaires</div>
+                  {searchDropWebinaires.map((w: any) => (
+                    <div key={w.id} onMouseDown={() => { window.location.href = "/webinaires/" + w.id; }} style={{ padding: "9px 16px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", borderBottom: "1px solid " + C.borderLight + "66" }}>
+                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: C.blueBg, color: C.blue, fontWeight: 600, flexShrink: 0 }}>Visio</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, color: C.text, fontWeight: 600, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.titre}</span>
+                        {w.organisme?.nom && <span style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</span>}
+                      </span>
+                    </div>
+                  ))}
                 </>
               )}
             </div>
@@ -437,9 +455,12 @@ function CatalogueContent() {
           const c = filteredWebinaires.length;
           return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{c} webinaire{c > 1 ? "s" : ""} à venir</p>;
         }
-        const count = hasActiveFilters ? formationsFiltered.length : (formationsTotal ?? formationsFiltered.length);
-        const suffix = hasActiveFilters ? " (filtrées)" : "";
-        return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{count} formation{count > 1 ? "s" : ""}{suffix}</p>;
+        const activeWebCount = webinaires.filter(w => new Date() < new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000)).length;
+        if (hasActiveFilters) {
+          return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{formationsFiltered.length} formation{formationsFiltered.length > 1 ? "s" : ""} (filtrées)</p>;
+        }
+        const total = (formationsTotal ?? formationsFiltered.length) + activeWebCount;
+        return <p style={{ fontSize: mob ? 12 : 13, color: C.textTer, marginBottom: 12 }}>{total} formations &amp; webinaires</p>;
       })()}
 
       {/* Grid */}

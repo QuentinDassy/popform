@@ -5,6 +5,7 @@ import Link from "next/link";
 import { C, fetchFormateurs, fetchFormations, fmtTitle, isFormationPast, type Formation } from "@/lib/data";
 import { FormationCard } from "@/components/ui";
 import { useIsMobile } from "@/lib/hooks";
+import { supabase } from "@/lib/supabase-data";
 
 export default function FormateurPage() {
   const mob = useIsMobile();
@@ -13,10 +14,15 @@ export default function FormateurPage() {
 
   const [fmt, setFmt] = useState<any>(null);
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [webinaires, setWebinaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchFormateurs(), fetchFormations()]).then(([fmts, fos]) => {
+    Promise.all([
+      fetchFormateurs(),
+      fetchFormations(),
+      supabase.from("webinaires").select("*, organisme:organismes(nom)").eq("status", "publie").order("date_heure", { ascending: true }),
+    ]).then(([fmts, fos, { data: wbs }]) => {
       const found = fmts.find((f: any) => f.id === fmtId);
       setFmt(found || null);
       const fmtFormations = fos.filter((fo: Formation) =>
@@ -25,6 +31,12 @@ export default function FormateurPage() {
         (fo.formateur_id === fmtId || ((fo as any).formateur_ids || []).includes(fmtId))
       );
       setFormations(fmtFormations);
+      const now = new Date();
+      const fmtWebinaires = (wbs || []).filter((w: any) =>
+        now < new Date(new Date(w.date_heure).getTime() + (w.duree ?? 2) * 3600000) &&
+        (w.formateur_id === fmtId || (w.formateur_ids || []).includes(fmtId))
+      );
+      setWebinaires(fmtWebinaires);
       setLoading(false);
     });
   }, [fmtId]);
@@ -71,6 +83,44 @@ export default function FormateurPage() {
           </p>
         )}
       </div>
+
+      {/* Webinaires */}
+      {webinaires.length > 0 && (
+        <>
+          <h2 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text, marginBottom: 14 }}>
+            Webinaires à venir ({webinaires.length})
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(280px,100%),1fr))", gap: 14, marginBottom: 28 }}>
+            {webinaires.map((w: any) => {
+              const d = new Date(w.date_heure);
+              const end = new Date(d.getTime() + (w.duree ?? 2) * 3600000);
+              const dateStr = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+              const timeStr = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              const endStr = end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              return (
+                <a key={w.id} href={`/webinaires/${w.id}`} style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", background: C.surface, border: "1.5px solid " + C.borderLight, borderRadius: 16, overflow: "hidden" } as React.CSSProperties}>
+                  {w.image_url && <img src={w.image_url} alt={w.titre} style={{ width: "100%", height: 140, objectFit: "cover" }} />}
+                  <div style={{ padding: "16px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.blueBg, color: C.blue }}>Visio</span>
+                      {w.prix === 0 ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.greenBg, color: C.green }}>Gratuit</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: C.bgAlt, color: C.textSec }}>{w.prix} €</span>}
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{w.titre}</div>
+                    <div style={{ fontSize: 12, color: C.textTer, background: C.bgAlt, borderRadius: 8, padding: "7px 10px" }}>
+                      <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{dateStr}</div>
+                      <div style={{ fontSize: 11 }}>de {timeStr} à {endStr}</div>
+                    </div>
+                    {w.organisme?.nom && <div style={{ fontSize: 11, color: C.textTer }}>🏢 {w.organisme.nom}</div>}
+                  </div>
+                  <div style={{ padding: "0 16px 14px" }}>
+                    <div style={{ padding: "9px 16px", borderRadius: 10, background: C.gradient, color: "#fff", fontSize: 12, fontWeight: 700, textAlign: "center" }}>Voir le webinaire →</div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* Formations */}
       <h2 style={{ fontSize: mob ? 16 : 18, fontWeight: 800, color: C.text, marginBottom: 14 }}>

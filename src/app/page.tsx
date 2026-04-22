@@ -25,7 +25,7 @@ function useTyping(words: string[]) {
   return d;
 }
 
-const MODALITES = ["Présentiel", "Visio", "E-learning", "💻 Webinaire"];
+const MODALITES = ["Présentiel", "Visio", "E-learning", "Webinaire"];
 const PRISES = ["DPC", "FIF-PL"];
 const POPULATIONS = ["Nourrisson/bébé", "Enfant", "Adolescent", "Adulte", "Senior"];
 
@@ -545,7 +545,7 @@ export default function HomePage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: mob ? 12 : 16 }}>
               <h2 style={{ fontSize: mob ? 18 : 24, fontWeight: 800, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
                 {mob && <span style={{ display: "inline-block", width: 4, height: 20, borderRadius: 3, background: C.gradient, flexShrink: 0 }} />}
-                💻 Webinaires à venir
+                Webinaires à venir
               </h2>
               <Link href="/webinaires" style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid " + C.border, background: C.surface, color: C.accent, fontSize: 11, fontWeight: 600, textDecoration: "none" }}>Voir tous →</Link>
             </div>
